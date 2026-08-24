@@ -1,0 +1,35 @@
+
+services:
+  pg-master:
+    image: postgres:16-alpine
+    container_name: pg-master-hq
+    environment:
+      POSTGRES_USER: erp_user
+      POSTGRES_PASSWORD: erp_password
+      POSTGRES_DB: erp_db
+    command: postgres -c wal_level=logical
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U erp_user -d erp_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  pg-replica:
+    image: postgres:16-alpine
+    container_name: pg-replica-branch
+    environment:
+      POSTGRES_USER: erp_user
+      POSTGRES_PASSWORD: erp_password
+      POSTGRES_DB: erp_db
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U erp_user -d erp_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    depends_on:
+      pg-master:
+        condition: service_healthy

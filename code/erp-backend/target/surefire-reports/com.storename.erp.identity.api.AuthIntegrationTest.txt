@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: com.storename.erp.identity.api.AuthIntegrationTest
+-------------------------------------------------------------------------------
+Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.975 s -- in com.storename.erp.identity.api.AuthIntegrationTest

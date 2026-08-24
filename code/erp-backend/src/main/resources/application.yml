@@ -1,0 +1,12 @@
+spring:
+  application:
+    name: erp-backend
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:hq}
+
+server:
+  port: 8080
+
+logging:
+  level:
+    com.storename.erp: DEBUG

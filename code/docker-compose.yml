@@ -1,0 +1,148 @@
+version: '3.8'
+services:
+  hq-db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: erp_user
+      POSTGRES_PASSWORD: erp_password
+      POSTGRES_DB: erp_hq
+    ports:
+      - "5432:5432"
+    command: postgres -c wal_level=logical -c max_replication_slots=10 -c max_wal_senders=10
+    volumes:
+      - hq_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U erp_user -d erp_hq"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  branch-tp1-db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: erp_user
+      POSTGRES_PASSWORD: erp_password
+      POSTGRES_DB: erp_branch_tp1
+    ports:
+      - "5433:5432"
+    command: postgres -c wal_level=logical
+    volumes:
+      - branch_tp1_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U erp_user -d erp_branch_tp1"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  branch-tp2-db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: erp_user
+      POSTGRES_PASSWORD: erp_password
+      POSTGRES_DB: erp_branch_tp2
+    ports:
+      - "5434:5432"
+    command: postgres -c wal_level=logical
+    volumes:
+      - branch_tp2_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U erp_user -d erp_branch_tp2"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis-hq:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  hq-app:
+    build: 
+      context: ./erp-backend
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=hq
+      - INSTANCE_ROLE=HQ
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://hq-db:5432/erp_hq
+      - SPRING_DATASOURCE_USERNAME=erp_user
+      - SPRING_DATASOURCE_PASSWORD=erp_password
+      - REDIS_HOST=redis-hq
+      - REDIS_PORT=6379
+    depends_on:
+      hq-db:
+        condition: service_healthy
+      redis-hq:
+        condition: service_healthy
+
+  branch-tp1-app:
+    build: 
+      context: ./erp-backend
+      dockerfile: Dockerfile
+    ports:
+      - "8081:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=branch
+      - INSTANCE_ROLE=BRANCH
+      - BRANCH_ID=TP1
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://branch-tp1-db:5432/erp_branch_tp1
+      - SPRING_DATASOURCE_USERNAME=erp_user
+      - SPRING_DATASOURCE_PASSWORD=erp_password
+    depends_on:
+      branch-tp1-db:
+        condition: service_healthy
+
+  branch-tp2-app:
+    build: 
+      context: ./erp-backend
+      dockerfile: Dockerfile
+    ports:
+      - "8082:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=branch
+      - INSTANCE_ROLE=BRANCH
+      - BRANCH_ID=TP2
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://branch-tp2-db:5432/erp_branch_tp2
+      - SPRING_DATASOURCE_USERNAME=erp_user
+      - SPRING_DATASOURCE_PASSWORD=erp_password
+    depends_on:
+      branch-tp2-db:
+        condition: service_healthy
+
+  hq-nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx-hq.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - hq-app
+
+  branch-tp1-nginx:
+    image: nginx:alpine
+    ports:
+      - "81:80"
+    volumes:
+      - ./nginx-branch-tp1.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - branch-tp1-app
+      
+  branch-tp2-nginx:
+    image: nginx:alpine
+    ports:
+      - "82:80"
+    volumes:
+      - ./nginx-branch-tp2.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - branch-tp2-app
+
+volumes:
+  hq_db_data:
+  branch_tp1_db_data:
+  branch_tp2_db_data:

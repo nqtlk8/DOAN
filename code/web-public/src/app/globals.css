@@ -1,0 +1,22 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #ed1c24;
+  --color-accent: #1E293B;
+  --color-background: #F8FAFC;
+  --color-foreground: #0f172a;
+  --color-destructive: #ef4444;
+  --font-inter: "Inter", sans-serif;
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-inter);
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-inter);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
