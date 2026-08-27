@@ -86,4 +86,4 @@
 | `application-hq.yml` | HQ: datasource, Flyway user, Redis, JWT private+public key, expiration |
 | `application-branch.yml`| Branch: datasource, Flyway locations, Redis excluded, JWT public key |
 | `docker-compose.yml` | 3 Postgres + Redis + 3 backend + 2 nginx + frontend |
-| `schema-database-v2.sql`| Full DDL: ~17 tables across 6 modules |
+| `V1__init_schema.sql`| Full DDL: ~17 tables across 6 modules |
