@@ -1,4 +1,0 @@
--------------------------------------------------------------------------------
-Test set: com.storename.erp.branch.api.BranchRbacIntegrationTest
--------------------------------------------------------------------------------
-Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.257 s -- in com.storename.erp.branch.api.BranchRbacIntegrationTest

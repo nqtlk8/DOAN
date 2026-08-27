@@ -1,4 +1,4 @@
-version: '3.8'
+
 services:
   hq-db:
     image: postgres:15
@@ -63,7 +63,7 @@ services:
 
   hq-app:
     build: 
-      context: ./erp-backend
+      context: ./erp-platform/services/erp-backend
       dockerfile: Dockerfile
     ports:
       - "8080:8080"
@@ -83,7 +83,7 @@ services:
 
   branch-tp1-app:
     build: 
-      context: ./erp-backend
+      context: ./erp-platform/services/erp-backend
       dockerfile: Dockerfile
     ports:
       - "8081:8080"
@@ -100,7 +100,7 @@ services:
 
   branch-tp2-app:
     build: 
-      context: ./erp-backend
+      context: ./erp-platform/services/erp-backend
       dockerfile: Dockerfile
     ports:
       - "8082:8080"
@@ -115,12 +115,12 @@ services:
       branch-tp2-db:
         condition: service_healthy
 
-  hq-nginx:
-    image: nginx:alpine
+  erp-frontend:
+    build: 
+      context: ./erp-platform
+      dockerfile: ./apps/erp-frontend/Dockerfile
     ports:
       - "80:80"
-    volumes:
-      - ./nginx-hq.conf:/etc/nginx/nginx.conf:ro
     depends_on:
       - hq-app
 
@@ -141,6 +141,15 @@ services:
       - ./nginx-branch-tp2.conf:/etc/nginx/nginx.conf:ro
     depends_on:
       - branch-tp2-app
+
+  web-public:
+    build:
+      context: ./erp-platform
+      dockerfile: ./apps/web-public/Dockerfile
+    ports:
+      - "3000:3000"
+    depends_on:
+      - hq-app
 
 volumes:
   hq_db_data:

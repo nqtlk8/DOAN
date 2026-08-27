@@ -1,5 +1,0 @@
-# Created at 2026-08-23T23:23:11.181
-Boot Manifest-JAR contains absolute paths in classpath 'D:\Docs\CodeProject\DOAN\code\erp-backend\target\test-classes'
-Hint: <argLine>-Djdk.net.URLClassPath.disableClassPathURLCheck=true</argLine>
-'other' has different root
-

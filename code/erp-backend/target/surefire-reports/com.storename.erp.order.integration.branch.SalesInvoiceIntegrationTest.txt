@@ -1,4 +1,0 @@
--------------------------------------------------------------------------------
-Test set: com.storename.erp.order.integration.branch.SalesInvoiceIntegrationTest
--------------------------------------------------------------------------------
-Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.730 s -- in com.storename.erp.order.integration.branch.SalesInvoiceIntegrationTest

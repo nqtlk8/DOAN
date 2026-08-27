@@ -14,3 +14,6 @@ Tài liệu này lưu trữ danh sách các tài liệu sprint đã hoàn thành
 | [2.3](./sprint-2.3-procurement-idempotency.md) | Procurement & Idempotency | 2026-08-21 | Module Đặt hàng nhà cung cấp, Công nợ NCC, Chuyển kho nội bộ và Auto-receive PO. |
 | [2.4](./sprint-2.4-customer-order.md) | Customer Order & Goods Return | 2026-08-21 | Đơn đặt hàng (Customer Order), Tự động chuyển đổi thành Invoice, Trả hàng (Goods Return). |
 | [2.5](./sprint-2.5-phase2-completion.md) | Phase 2 Completion & Core Stabilizations | 2026-08-23 | Đóng gói Phase 2: Fix Idempotency atomicity/hash, Spring-retry concurrency, Validation hàng trả lại, và Security tech debt. |
+| [4.0](./sprint-4-frontend-backend-integration-refactor.md) | Frontend Monorepo, API Facade & Backend ID Sync | 2026-08-24 | Xây dựng Workspace Monorepo, tích hợp BFF Proxy, chuyển đổi UUID sang Long (branchId, productId), sửa lỗi Test & bảo mật API v1. |
+
+- [Sprint 5: OpenAPI Integration & TypeScript Strict Typing](./sprint-5-openapi-integration.md)
