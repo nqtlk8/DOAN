@@ -1,0 +1,23 @@
+instance:
+  role: HQ
+
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/erp_hq}
+    username: ${SPRING_DATASOURCE_USERNAME:app_user}
+    password: ${SPRING_DATASOURCE_PASSWORD:app_password}
+  flyway:
+    enabled: false
+  jpa:
+    hibernate:
+      ddl-auto: create
+    show-sql: true
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+jwt:
+  private-key: classpath:certs/private_key.pem
+  public-key: classpath:certs/public_key.pem
+  expiration-ms: 1800000 # 30 minutes
