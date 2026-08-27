@@ -1,0 +1,12 @@
+/* src/app/home/page.css */
+.home-container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.product-list-section {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr); /* Chia 4 cột đều nhau */
+  gap: 20px;
+  margin-top: 40px;
+}
