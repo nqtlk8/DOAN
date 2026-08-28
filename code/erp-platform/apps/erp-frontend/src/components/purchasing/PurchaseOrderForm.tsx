@@ -10,6 +10,7 @@ import toast from 'react-hot-toast';
 
 import { GenericDocumentForm, type OrderItem } from '../common/document/GenericDocumentForm';
 import { SearchableCombobox } from '../common/SearchableCombobox';
+import { ConfirmDialog } from '../../shared/components/Dialog/ConfirmDialog';
 
 export type FormMode = 'VIEW' | 'ADD' | 'EDIT';
 
@@ -107,32 +108,22 @@ export const PurchaseOrderForm = forwardRef<PurchaseOrderFormRef, PurchaseOrderF
       setMode('EDIT');
     };
 
+    const [confirmState, setConfirmState] = useState<{isOpen: boolean, type: 'CANCEL' | 'DELETE' | 'EXIT' | null}>({ isOpen: false, type: null });
+
     const handleCancel = () => {
-      if (confirm('Bạn có chắc chắn muốn hủy thay đổi?')) {
-        if (initialMode === 'ADD' && mode === 'ADD') {
-          // If it was originally an ADD tab and we cancel, maybe close it or just reset?
-          handleExit();
-        } else {
-          // Reset to initialData or fetched data (stubbed here)
-          setMode('VIEW');
-        }
-      }
+      setConfirmState({ isOpen: true, type: 'CANCEL' });
     };
 
     const handleDelete = () => {
-      if (confirm('Xóa chứng từ này?')) {
-        alert('Đã xóa chứng từ');
-        if (activeTabId) closeTab(activeTabId);
-      }
+      setConfirmState({ isOpen: true, type: 'DELETE' });
     };
 
     const handleExit = () => {
       if (!isView) {
-        if (!confirm('Dữ liệu chưa được lưu. Bạn có chắc chắn muốn thoát?')) {
-          return;
-        }
+        setConfirmState({ isOpen: true, type: 'EXIT' });
+      } else {
+        if (activeTabId) closeTab(activeTabId);
       }
-      if (activeTabId) closeTab(activeTabId);
     };
 
     const addItem = () => {
@@ -161,12 +152,31 @@ export const PurchaseOrderForm = forwardRef<PurchaseOrderFormRef, PurchaseOrderF
     const finalAmount = totalAmount - discount + tax;
     const remainingBalance = oldDebt + finalAmount - advancePayment;
 
+    const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
     const handleSubmit = async () => {
       setIsLoading(true);
       setError(null);
+      setFieldErrors({});
       try {
-        // Validate
-        if (items.length === 0) throw new Error('Đơn hàng phải có ít nhất 1 sản phẩm.');
+        const newErrors: Record<string, string> = {};
+        if (!distributorName && !distributorCode) {
+          newErrors.partner = 'Vui lòng chọn nhà phân phối';
+        }
+        if (items.length === 0) {
+          throw new Error('Đơn hàng phải có ít nhất 1 sản phẩm.');
+        }
+
+        // check items
+        items.forEach((item, index) => {
+          if (!item.productId) newErrors[`item_${index}_product`] = 'Chọn sản phẩm';
+          if (item.quantity <= 0) newErrors[`item_${index}_quantity`] = 'Số lượng > 0';
+        });
+
+        if (Object.keys(newErrors).length > 0) {
+          setFieldErrors(newErrors);
+          throw new Error('Vui lòng kiểm tra lại thông tin nhập.');
+        }
 
         const payload = {
           distributorId: distributorCode || distributorName || 'CUST-001',
@@ -213,6 +223,7 @@ export const PurchaseOrderForm = forwardRef<PurchaseOrderFormRef, PurchaseOrderF
                 : `Phiếu Nhập Hàng (PO): ${orderCode}`
           }
           error={error}
+          errors={fieldErrors}
           orderCode={orderCode}
           creator={creator}
           branch={branch}
@@ -397,6 +408,34 @@ export const PurchaseOrderForm = forwardRef<PurchaseOrderFormRef, PurchaseOrderF
               );
             }
           }}
+        />
+        <ConfirmDialog
+          isOpen={confirmState.isOpen}
+          title={
+            confirmState.type === 'DELETE' ? 'Xóa chứng từ' :
+            confirmState.type === 'EXIT' ? 'Xác nhận thoát' :
+            'Hủy thay đổi'
+          }
+          message={
+            confirmState.type === 'DELETE' ? 'Bạn có chắc chắn muốn xóa chứng từ này không? Hành động này không thể hoàn tác.' :
+            confirmState.type === 'EXIT' ? 'Dữ liệu chưa được lưu. Bạn có chắc chắn muốn thoát và mất các thay đổi không?' :
+            'Bạn có chắc chắn muốn hủy các thay đổi chưa lưu không?'
+          }
+          onConfirm={() => {
+            if (confirmState.type === 'DELETE') {
+              if (activeTabId) closeTab(activeTabId);
+            } else if (confirmState.type === 'EXIT') {
+              if (activeTabId) closeTab(activeTabId);
+            } else if (confirmState.type === 'CANCEL') {
+              if (initialMode === 'ADD' && mode === 'ADD') {
+                if (activeTabId) closeTab(activeTabId);
+              } else {
+                setMode('VIEW');
+              }
+            }
+            setConfirmState({ isOpen: false, type: null });
+          }}
+          onCancel={() => setConfirmState({ isOpen: false, type: null })}
         />
       </div>
     );

@@ -4,6 +4,9 @@ import { ApiService } from '../../api/ApiService';
 import type { Product } from '../../types/catalog';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../context/AuthContext';
+import { DataState } from '../../shared/components/DataState/DataState';
+import { ConfirmDialog } from '../../shared/components/Dialog/ConfirmDialog';
+import { notify } from '../../shared/notifications/notification';
 
 export const ProductList: React.FC = () => {
   const { user } = useAuth();
@@ -11,11 +14,12 @@ export const ProductList: React.FC = () => {
   const queryClient = useQueryClient();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [confirmState, setConfirmState] = useState({ isOpen: false, id: '' });
 
   const [formData, setFormData] = useState<Partial<Product>>({});
   const [isEditing, setIsEditing] = useState(false);
 
-  const { data: response, isLoading: loading } = useQuery({
+  const { data: response, isLoading: loading, isError, error, refetch } = useQuery({
     queryKey: ['products'],
     queryFn: () => ApiService.Catalog.getProducts(),
   });
@@ -25,24 +29,38 @@ export const ProductList: React.FC = () => {
   const createMutation = useMutation({
     mutationFn: (data: any) => ApiService.Catalog.createProduct(data),
     onSuccess: () => {
+      notify.success('Đã tạo sản phẩm thành công');
       queryClient.invalidateQueries({ queryKey: ['products'] });
       handleCloseModal();
     },
+    onError: (err: any) => {
+      notify.error(err.message || 'Không thể tạo sản phẩm');
+    }
   });
 
   const updateMutation = useMutation({
     mutationFn: (data: { id: string; payload: any }) => ApiService.Catalog.updateProduct(data.id, data.payload),
     onSuccess: () => {
+      notify.success('Đã cập nhật sản phẩm thành công');
       queryClient.invalidateQueries({ queryKey: ['products'] });
       handleCloseModal();
     },
+    onError: (err: any) => {
+      notify.error(err.message || 'Không thể cập nhật sản phẩm');
+    }
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => ApiService.Catalog.deleteProduct(id),
     onSuccess: () => {
+      notify.success('Đã xóa sản phẩm thành công');
       queryClient.invalidateQueries({ queryKey: ['products'] });
+      setConfirmState({ isOpen: false, id: '' });
     },
+    onError: (err: any) => {
+      notify.error(err.message || 'Không thể xóa sản phẩm');
+      setConfirmState({ isOpen: false, id: '' });
+    }
   });
 
   const handleOpenModal = (product?: Product) => {
@@ -71,9 +89,7 @@ export const ProductList: React.FC = () => {
   };
 
   const handleDelete = (id: string) => {
-    if (window.confirm('Bản có chắc muốn xóa sản phẩm này?')) {
-      deleteMutation.mutate(id);
-    }
+    setConfirmState({ isOpen: true, id });
   };
 
   const submitting = createMutation.isPending || updateMutation.isPending;
@@ -123,19 +139,38 @@ export const ProductList: React.FC = () => {
             </tr>
           </thead>
           <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={6} className="px-6 py-8 text-center text-slate-900">
-                  Đang tải dữ liệu...
-                </td>
-              </tr>
-            ) : filtered.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="px-6 py-8 text-center text-slate-900">
-                  Không tìm thấy dữ liệu.
-                </td>
-              </tr>
-            ) : (
+            <tr>
+              <td colSpan={6} className="p-0">
+                <DataState
+                  isLoading={loading}
+                  isError={isError}
+                  error={error}
+                  isEmpty={products.length === 0}
+                  onRetry={refetch}
+                  loadingType="table"
+                  emptyTitle="Chưa có sản phẩm"
+                  emptyMessage="Hệ thống chưa có sản phẩm nào. Hãy tạo sản phẩm đầu tiên."
+                  emptyAction={
+                    isAdmin && (
+                      <button
+                        onClick={() => handleOpenModal()}
+                        className="flex items-center gap-2 bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700 transition-colors mt-2"
+                      >
+                        <Plus size={20} />
+                        <span>Thêm mới</span>
+                      </button>
+                    )
+                  }
+                >
+                  {products.length > 0 && filtered.length === 0 ? (
+                    <div className="p-8 text-center text-slate-500 bg-white">
+                      Không tìm thấy kết quả nào phù hợp với "{searchTerm}"
+                    </div>
+                  ) : null}
+                </DataState>
+              </td>
+            </tr>
+            {!loading && !isError && filtered.length > 0 && (
               filtered.map((p) => (
                 <tr key={p.id} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
                   <td className="px-4 py-1.5 text-sm text-slate-900">{p.id}</td>
@@ -276,6 +311,15 @@ export const ProductList: React.FC = () => {
           </div>
         </div>
       )}
+      <ConfirmDialog
+        isOpen={confirmState.isOpen}
+        title="Xóa sản phẩm"
+        message="Bạn có chắc chắn muốn xóa sản phẩm này không? Hành động này không thể hoàn tác."
+        onConfirm={async () => {
+          await deleteMutation.mutateAsync(confirmState.id);
+        }}
+        onCancel={() => setConfirmState({ isOpen: false, id: '' })}
+      />
     </div>
   );
 };

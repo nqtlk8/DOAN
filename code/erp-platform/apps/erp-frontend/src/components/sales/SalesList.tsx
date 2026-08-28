@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Search, Filter, MoreVertical, Eye, FileText } from 'lucide-react';
 import { ApiService } from '../../api/ApiService';
 import type { OrderListItem } from '../../types/sales';
 import { useQuery } from '@tanstack/react-query';
+import { DataState } from '../../shared/components/DataState/DataState';
 
 interface SalesListProps {
   setActiveTab?: (tab: string) => void;
@@ -10,8 +11,11 @@ interface SalesListProps {
 }
 
 export const SalesList: React.FC<SalesListProps> = ({ onRowDoubleClick }) => {
-  const { data: response, isLoading } = useQuery({
-    queryKey: ['salesOrders'],
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+
+  const { data: response, isLoading, isError, error, refetch } = useQuery({
+    queryKey: ['salesOrders', statusFilter],
     queryFn: () => ApiService.SalesInvoice.getAll(),
   });
 
@@ -73,13 +77,21 @@ export const SalesList: React.FC<SalesListProps> = ({ onRowDoubleClick }) => {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {isLoading ? (
-              <tr>
-                <td colSpan={6} className="px-6 py-8 text-center text-slate-500">
-                  Đang tải đơn hàng...
-                </td>
-              </tr>
-            ) : orders.length > 0 ? (
+            <tr>
+              <td colSpan={6} className="p-0">
+                <DataState
+                  isLoading={isLoading}
+                  isError={isError}
+                  error={error}
+                  isEmpty={orders.length === 0}
+                  onRetry={refetch}
+                  loadingType="table"
+                  emptyTitle="Chưa có đơn hàng"
+                  emptyMessage="Hiện tại chưa có đơn hàng bán nào được ghi nhận."
+                />
+              </td>
+            </tr>
+            {!isLoading && !isError && orders.length > 0 && (
               orders.map((order) => (
                 <tr
                   key={order.orderId}
@@ -121,12 +133,6 @@ export const SalesList: React.FC<SalesListProps> = ({ onRowDoubleClick }) => {
                   </td>
                 </tr>
               ))
-            ) : (
-              <tr>
-                <td colSpan={6} className="px-6 py-8 text-center text-slate-500">
-                  Không có đơn hàng nào.
-                </td>
-              </tr>
             )}
           </tbody>
         </table>

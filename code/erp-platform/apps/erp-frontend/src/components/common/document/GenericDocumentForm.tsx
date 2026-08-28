@@ -48,8 +48,9 @@ export interface GenericDocumentFormProps {
   onRemoveItem: (id: string) => void;
   onUpdateItem: (id: string, field: keyof OrderItem, value: any) => void;
   onProductSearch: (itemId: string) => void;
-  renderPartnerCombobox?: () => React.ReactNode;
-  renderProductCombobox?: (itemId: string, currentVal: string) => React.ReactNode;
+  renderPartnerCombobox?: (hasError?: boolean) => React.ReactNode;
+  renderProductCombobox?: (itemId: string, currentVal: string, hasError?: boolean) => React.ReactNode;
+  errors?: Record<string, string>;
 }
 
 export const GenericDocumentForm: React.FC<GenericDocumentFormProps> = ({
@@ -90,6 +91,7 @@ export const GenericDocumentForm: React.FC<GenericDocumentFormProps> = ({
   onProductSearch,
   renderPartnerCombobox,
   renderProductCombobox,
+  errors = {},
 }) => {
   const isView = mode === 'VIEW';
 
@@ -108,6 +110,14 @@ export const GenericDocumentForm: React.FC<GenericDocumentFormProps> = ({
     'text-[13px] text-[#0f172a] whitespace-nowrap px-[10px] text-right font-medium flex items-center justify-end';
   const leftLabelClass =
     'text-[13px] text-slate-700 whitespace-nowrap px-[10px] text-left font-medium flex items-center justify-start';
+
+  const getInputClass = (fieldName: string, isRightAlign = false) => {
+    let cls = isRightAlign ? rightInput : baseInput;
+    if (errors[fieldName]) {
+      cls += ' border-red-500 bg-red-50 ring-1 ring-red-500';
+    }
+    return cls;
+  };
 
   return (
     <div className="font-sans flex-1 flex flex-col overflow-hidden bg-[#e2e8f0]">
@@ -186,7 +196,7 @@ export const GenericDocumentForm: React.FC<GenericDocumentFormProps> = ({
               <div className={labelClass}>{partnerCodeLabel.split('/')[0]}</div>
               {renderPartnerCombobox && !isView ? (
                 <div className="flex items-center h-[28px] pr-2">
-                  {renderPartnerCombobox()}
+                  {renderPartnerCombobox(!!errors['partner'])}
                 </div>
               ) : (
                 <>
@@ -197,7 +207,7 @@ export const GenericDocumentForm: React.FC<GenericDocumentFormProps> = ({
                       value={partnerName}
                       readOnly
                       placeholder={partnerPlaceholder}
-                      className={`${baseInput} border-[#cbd5e1] ${!isView ? 'cursor-pointer' : ''}`}
+                      className={`${getInputClass('partner')} border-[#cbd5e1] ${!isView ? 'cursor-pointer' : ''}`}
                       onClick={() => !isView && onPartnerSearch()}
                     />
                   </div>
@@ -408,7 +418,7 @@ export const GenericDocumentForm: React.FC<GenericDocumentFormProps> = ({
                   <td className="border-b border-r border-[#64748b] px-[10px] py-[4px] text-center">{index + 1}</td>
                   <td className="border-b border-r border-[#64748b] px-0 py-0">
                     {renderProductCombobox && !isView ? (
-                      renderProductCombobox(item.id, item.productName)
+                      renderProductCombobox(item.id, item.productName, !!errors[`item_${index}_product`])
                     ) : (
                       <input
                         type="text"
@@ -428,7 +438,9 @@ export const GenericDocumentForm: React.FC<GenericDocumentFormProps> = ({
                       type="number"
                       disabled={isView}
                       min="1"
-                      className="w-full h-[28px] px-[10px] bg-transparent outline-none text-right text-red-600 font-bold"
+                      className={`w-full h-[28px] px-[10px] bg-transparent outline-none text-right text-red-600 font-bold ${
+                        errors[`item_${index}_quantity`] ? 'ring-1 ring-inset ring-red-500 bg-red-50' : ''
+                      }`}
                       value={item.quantity}
                       onChange={(e) => onUpdateItem(item.id, 'quantity', parseInt(e.target.value) || 0)}
                     />

@@ -87,7 +87,7 @@ export const Login: React.FC = () => {
         </form>
 
         <div className="mt-6 text-sm text-center text-slate-400">
-          <p>Tài khoản test: admin/admin, sales/sales</p>
+          <p>Tài khoản test: admin/password, staff_tp1/password</p>
         </div>
       </div>
     </div>

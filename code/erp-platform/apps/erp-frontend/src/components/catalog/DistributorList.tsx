@@ -4,6 +4,9 @@ import { ApiService } from '../../api/ApiService';
 import type { Distributor } from '../../types/catalog';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../context/AuthContext';
+import { DataState } from '../../shared/components/DataState/DataState';
+import { ConfirmDialog } from '../../shared/components/Dialog/ConfirmDialog';
+import { notify } from '../../shared/notifications/notification';
 
 export const DistributorList: React.FC = () => {
   const { user } = useAuth();
@@ -11,11 +14,12 @@ export const DistributorList: React.FC = () => {
   const queryClient = useQueryClient();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [confirmState, setConfirmState] = useState({ isOpen: false, id: '' });
 
   const [formData, setFormData] = useState<Partial<Distributor>>({});
   const [isEditing, setIsEditing] = useState(false);
 
-  const { data: response, isLoading: loading } = useQuery({
+  const { data: response, isLoading: loading, isError, error, refetch } = useQuery({
     queryKey: ['distributors'],
     queryFn: () => ApiService.Catalog.getDistributors(),
   });
@@ -25,24 +29,38 @@ export const DistributorList: React.FC = () => {
   const createMutation = useMutation({
     mutationFn: (data: any) => ApiService.Catalog.createDistributor(data),
     onSuccess: () => {
+      notify.success('Đã tạo nhà phân phối thành công');
       queryClient.invalidateQueries({ queryKey: ['distributors'] });
       handleCloseModal();
     },
+    onError: (err: any) => {
+      notify.error(err.message || 'Không thể tạo nhà phân phối');
+    }
   });
 
   const updateMutation = useMutation({
     mutationFn: (data: { id: string; payload: any }) => ApiService.Catalog.updateDistributor(data.id, data.payload),
     onSuccess: () => {
+      notify.success('Đã cập nhật nhà phân phối thành công');
       queryClient.invalidateQueries({ queryKey: ['distributors'] });
       handleCloseModal();
     },
+    onError: (err: any) => {
+      notify.error(err.message || 'Không thể cập nhật nhà phân phối');
+    }
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => ApiService.Catalog.deleteDistributor(id),
     onSuccess: () => {
+      notify.success('Đã xóa nhà phân phối thành công');
       queryClient.invalidateQueries({ queryKey: ['distributors'] });
+      setConfirmState({ isOpen: false, id: '' });
     },
+    onError: (err: any) => {
+      notify.error(err.message || 'Không thể xóa nhà phân phối');
+      setConfirmState({ isOpen: false, id: '' });
+    }
   });
 
   const handleOpenModal = (distributor?: Distributor) => {
@@ -71,9 +89,7 @@ export const DistributorList: React.FC = () => {
   };
 
   const handleDelete = (id: string) => {
-    if (window.confirm('Bản có chắc muốn xóa?')) {
-      deleteMutation.mutate(id);
-    }
+    setConfirmState({ isOpen: true, id });
   };
 
   const submitting = createMutation.isPending || updateMutation.isPending;
@@ -125,19 +141,38 @@ export const DistributorList: React.FC = () => {
             </tr>
           </thead>
           <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={6} className="px-6 py-8 text-center text-slate-900">
-                  Đang tải dữ liệu...
-                </td>
-              </tr>
-            ) : filtered.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="px-6 py-8 text-center text-slate-900">
-                  Không tìm thấy dữ liệu.
-                </td>
-              </tr>
-            ) : (
+            <tr>
+              <td colSpan={6} className="p-0">
+                <DataState
+                  isLoading={loading}
+                  isError={isError}
+                  error={error}
+                  isEmpty={distributors.length === 0}
+                  onRetry={refetch}
+                  loadingType="table"
+                  emptyTitle="Chưa có nhà phân phối"
+                  emptyMessage="Hệ thống chưa có nhà phân phối nào."
+                  emptyAction={
+                    isAdmin && (
+                      <button
+                        onClick={() => handleOpenModal()}
+                        className="flex items-center gap-2 bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700 transition-colors mt-2"
+                      >
+                        <Plus size={20} />
+                        <span>Thêm mới</span>
+                      </button>
+                    )
+                  }
+                >
+                  {distributors.length > 0 && filtered.length === 0 ? (
+                    <div className="p-8 text-center text-slate-500 bg-white">
+                      Không tìm thấy kết quả nào phù hợp với "{searchTerm}"
+                    </div>
+                  ) : null}
+                </DataState>
+              </td>
+            </tr>
+            {!loading && !isError && filtered.length > 0 && (
               filtered.map((d) => (
                 <tr key={d.id} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
                   <td className="px-4 py-1.5 text-sm text-slate-900">{d.id}</td>
@@ -272,6 +307,15 @@ export const DistributorList: React.FC = () => {
           </div>
         </div>
       )}
+      <ConfirmDialog
+        isOpen={confirmState.isOpen}
+        title="Xóa nhà phân phối"
+        message="Bạn có chắc chắn muốn xóa nhà phân phối này không? Hành động này không thể hoàn tác."
+        onConfirm={async () => {
+          await deleteMutation.mutateAsync(confirmState.id);
+        }}
+        onCancel={() => setConfirmState({ isOpen: false, id: '' })}
+      />
     </div>
   );
 };

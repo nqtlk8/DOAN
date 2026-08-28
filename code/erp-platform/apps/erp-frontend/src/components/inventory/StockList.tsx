@@ -2,11 +2,12 @@ import React, { useState } from 'react';
 import { Search } from 'lucide-react';
 import { ApiService } from '../../api/ApiService';
 import { useQuery } from '@tanstack/react-query';
+import { DataState } from '../../shared/components/DataState/DataState';
 
 export const StockList: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
 
-  const { data: response, isLoading: loading } = useQuery({
+  const { data: response, isLoading: loading, isError, error, refetch } = useQuery({
     queryKey: ['stocks'],
     queryFn: () => ApiService.Stock.getAll(),
   });
@@ -44,15 +45,27 @@ export const StockList: React.FC = () => {
             </tr>
           </thead>
           <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={4} className="px-6 py-8 text-center text-slate-900">Đang tải dữ liệu...</td>
-              </tr>
-            ) : filtered.length === 0 ? (
-              <tr>
-                <td colSpan={4} className="px-6 py-8 text-center text-slate-900">Không tìm thấy dữ liệu.</td>
-              </tr>
-            ) : (
+            <tr>
+              <td colSpan={4} className="p-0">
+                <DataState
+                  isLoading={loading}
+                  isError={isError}
+                  error={error}
+                  isEmpty={items.length === 0}
+                  onRetry={refetch}
+                  loadingType="table"
+                  emptyTitle="Chưa có tồn kho"
+                  emptyMessage="Hệ thống chưa ghi nhận tồn kho nào."
+                >
+                  {items.length > 0 && filtered.length === 0 ? (
+                    <div className="p-8 text-center text-slate-500 bg-white">
+                      Không tìm thấy kết quả nào phù hợp với "{searchTerm}"
+                    </div>
+                  ) : null}
+                </DataState>
+              </td>
+            </tr>
+            {!loading && !isError && filtered.length > 0 && (
               filtered.map((c, i) => (
                 <tr key={i} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
                   <td className="px-4 py-1.5 text-sm text-slate-900">{c.productCode || '-'}</td>

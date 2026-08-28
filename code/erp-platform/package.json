@@ -1,0 +1,18 @@
+{
+    "name":  "erp-platform",
+    "version":  "1.0.0",
+    "private":  true,
+    "workspaces":  [
+                       "apps/*",
+                       "packages/*"
+                   ],
+    "scripts":  {
+                    "build":  "npm run build --workspaces --if-present",
+                    "test":  "npm run test --workspaces --if-present",
+                    "lint":  "npm run lint --workspaces --if-present",
+                    "dev":  "concurrently \"npm run dev --workspace=apps/erp-frontend\" \"npm run dev --workspace=apps/web-public\""
+                },
+    "devDependencies":  {
+                            "concurrently":  "^10.0.5"
+                        }
+}

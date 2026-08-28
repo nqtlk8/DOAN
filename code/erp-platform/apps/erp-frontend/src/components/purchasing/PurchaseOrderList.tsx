@@ -1,15 +1,19 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Search, Filter, MoreVertical, Eye, FileText } from 'lucide-react';
 import { ApiService } from '../../api/ApiService';
 import { useQuery } from '@tanstack/react-query';
+import { DataState } from '../../shared/components/DataState/DataState';
 
 interface PurchaseOrderListProps {
   onRowDoubleClick?: (orderId: string) => void;
 }
 
 export const PurchaseOrderList: React.FC<PurchaseOrderListProps> = ({ onRowDoubleClick }) => {
-  const { data: response, isLoading } = useQuery({
-    queryKey: ['purchaseOrders'],
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+
+  const { data: response, isLoading, isError, error, refetch } = useQuery({
+    queryKey: ['purchaseOrders', statusFilter],
     queryFn: () => ApiService.InboundReceipt.getAll(),
   });
 
@@ -69,13 +73,21 @@ export const PurchaseOrderList: React.FC<PurchaseOrderListProps> = ({ onRowDoubl
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {isLoading ? (
-              <tr>
-                <td colSpan={6} className="px-6 py-8 text-center text-slate-500">
-                  Đang tải dữ liệu...
-                </td>
-              </tr>
-            ) : orders.length > 0 ? (
+            <tr>
+              <td colSpan={6} className="p-0">
+                <DataState
+                  isLoading={isLoading}
+                  isError={isError}
+                  error={error}
+                  isEmpty={orders.length === 0}
+                  onRetry={refetch}
+                  loadingType="table"
+                  emptyTitle="Chưa có phiếu nhập kho"
+                  emptyMessage="Hệ thống chưa có phiếu nhập kho nào."
+                />
+              </td>
+            </tr>
+            {!isLoading && !isError && orders.length > 0 && (
               orders.map((order) => (
                 <tr
                   key={order.id}
@@ -113,12 +125,6 @@ export const PurchaseOrderList: React.FC<PurchaseOrderListProps> = ({ onRowDoubl
                   </td>
                 </tr>
               ))
-            ) : (
-              <tr>
-                <td colSpan={6} className="px-6 py-8 text-center text-slate-500">
-                  Chưa có phiếu nhập nào.
-                </td>
-              </tr>
             )}
           </tbody>
         </table>

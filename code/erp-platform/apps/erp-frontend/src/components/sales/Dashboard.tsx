@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { TrendingUp, ShoppingCart, DollarSign, Package, Download, AlertCircle, RefreshCw } from 'lucide-react';
 import { getDashboardMetrics, exportDashboardExcel, DashboardMetricsDto } from '../../services/DashboardApi';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
+import { useQuery } from '@tanstack/react-query';
+import { DataState } from '../../shared/components/DataState/DataState';
 
 const formatCurrency = (value: number | undefined) => {
   if (value === undefined) return '0 ₫';
@@ -59,8 +61,6 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 export const Dashboard: React.FC = () => {
-  const [metrics, setMetrics] = useState<DashboardMetricsDto | null>(null);
-  const [loading, setLoading] = useState(true);
   const [branchId, setBranchId] = useState<number | undefined>(undefined);
   const [period, setPeriod] = useState<string>('all'); 
 
@@ -79,25 +79,14 @@ export const Dashboard: React.FC = () => {
     return { start, end };
   };
 
-  const fetchMetrics = async () => {
-    setLoading(true);
-    try {
-      const { start, end } = getDatesFromPeriod();
-      const data = await getDashboardMetrics(branchId, start, end);
-      setMetrics(data);
-    } catch (error) {
-      console.error("Failed to load metrics", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { start, end } = getDatesFromPeriod();
 
-  useEffect(() => {
-    fetchMetrics();
-  }, [branchId, period]);
+  const { data: metrics, isLoading: loading, isError, error, refetch: fetchMetrics, isFetching } = useQuery({
+    queryKey: ['dashboardMetrics', branchId, period],
+    queryFn: () => getDashboardMetrics(branchId, start, end),
+  });
 
   const handleExport = () => {
-    const { start, end } = getDatesFromPeriod();
     exportDashboardExcel(branchId, start, end);
   };
 
@@ -136,22 +125,25 @@ export const Dashboard: React.FC = () => {
             Xuất Excel
           </button>
           <button 
-            onClick={fetchMetrics}
+            onClick={() => fetchMetrics()}
             className="p-2.5 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 transition-colors shadow-sm"
             title="Làm mới dữ liệu"
           >
-            <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
+            <RefreshCw size={18} className={isFetching ? 'animate-spin' : ''} />
           </button>
         </div>
       </div>
 
       {/* Main Content */}
-      {loading || !metrics ? (
-        <div className="flex flex-col justify-center items-center h-96 space-y-4">
-           <div className="animate-spin rounded-full h-12 w-12 border-4 border-indigo-100 border-t-indigo-600"></div>
-           <p className="text-slate-500 font-medium animate-pulse">Đang tải dữ liệu...</p>
-        </div>
-      ) : (
+      <DataState
+        isLoading={loading}
+        isError={isError}
+        error={error}
+        isEmpty={!metrics && !loading && !isError}
+        onRetry={fetchMetrics}
+        loadingType="spinner"
+      >
+        {metrics && (
         <div className="space-y-8 animate-in fade-in duration-500">
           {/* Stats Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
@@ -266,7 +258,8 @@ export const Dashboard: React.FC = () => {
             </div>
           </div>
         </div>
-      )}
+        )}
+      </DataState>
     </div>
   );
 };

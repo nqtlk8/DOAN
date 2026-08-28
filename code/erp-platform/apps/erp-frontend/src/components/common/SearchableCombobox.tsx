@@ -17,6 +17,7 @@ export interface SearchableComboboxProps<T> {
   onSelect: (item: T) => void;
   renderEmpty?: () => React.ReactNode;
   autoFocus?: boolean;
+  error?: boolean;
 }
 
 export function SearchableCombobox<T extends Record<string, any>>({
@@ -27,7 +28,8 @@ export function SearchableCombobox<T extends Record<string, any>>({
   columns,
   onSelect,
   renderEmpty,
-  autoFocus = false
+  autoFocus = false,
+  error = false
 }: SearchableComboboxProps<T>) {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -60,73 +62,58 @@ export function SearchableCombobox<T extends Record<string, any>>({
     }
     abortControllerRef.current = new AbortController();
 
-    setLoading(true);
     try {
+      setLoading(true);
       const data = await fetchData(searchQuery);
-      setResults(data);
+      setResults(data || []);
       setSelectedIndex(-1);
     } catch (err: any) {
-      if (err.name !== 'CanceledError' && err.name !== 'AbortError') {
-        console.error('Search error:', err);
+      if (err.name !== 'AbortError') {
+        console.error('Combobox fetch error:', err);
       }
     } finally {
       setLoading(false);
     }
   };
 
-  const handleFocus = () => {
-    if (!disabled) {
-      setIsOpen(true);
-      executeSearch(query);
+  useEffect(() => {
+    if (!isOpen) {
+      setQuery('');
+      setResults([]);
+    } else {
+      executeSearch('');
     }
-  };
+  }, [isOpen]);
 
-  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     setQuery(val);
-    setIsOpen(true);
-    
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current);
-    }
-    
-    searchTimeoutRef.current = setTimeout(() => {
-      executeSearch(val);
-    }, 300);
+    if (!isOpen) setIsOpen(true);
+    executeSearch(val);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (!isOpen) {
-      if (e.key === 'ArrowDown' || e.key === 'Enter') {
+      if (e.key === 'Enter' || e.key === 'ArrowDown') {
         setIsOpen(true);
-        executeSearch(query);
       }
       return;
     }
 
-    switch (e.key) {
-      case 'ArrowDown':
-        e.preventDefault();
-        setSelectedIndex(prev => (prev < results.length - 1 ? prev + 1 : prev));
-        break;
-      case 'ArrowUp':
-        e.preventDefault();
-        setSelectedIndex(prev => (prev > 0 ? prev - 1 : -1));
-        break;
-      case 'Enter':
-        e.preventDefault();
-        if (selectedIndex >= 0 && selectedIndex < results.length) {
-          onSelect(results[selectedIndex]);
-          setIsOpen(false);
-          setQuery('');
-        }
-        break;
-      case 'Escape':
-        e.preventDefault();
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setSelectedIndex(prev => (prev < results.length - 1 ? prev + 1 : prev));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setSelectedIndex(prev => (prev > 0 ? prev - 1 : prev));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (selectedIndex >= 0 && selectedIndex < results.length) {
+        onSelect(results[selectedIndex]);
         setIsOpen(false);
-        break;
+      }
+    } else if (e.key === 'Escape') {
+      setIsOpen(false);
     }
   };
 
@@ -137,12 +124,15 @@ export function SearchableCombobox<T extends Record<string, any>>({
           ref={inputRef}
           type="text"
           value={isOpen ? query : value}
-          onChange={handleChange}
-          onFocus={handleFocus}
+          onChange={handleInputChange}
           onKeyDown={handleKeyDown}
           disabled={disabled}
           placeholder={placeholder}
-          className="w-full pl-3 pr-8 py-1 text-sm border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-teal-500 disabled:bg-slate-100 disabled:cursor-not-allowed"
+          className={`w-full pl-3 pr-8 py-1 text-sm border rounded focus:outline-none focus:ring-1 ${
+            error 
+              ? 'border-red-500 ring-red-500 focus:ring-red-500' 
+              : 'border-slate-300 focus:ring-teal-500'
+          } disabled:bg-slate-100 disabled:cursor-not-allowed`}
         />
         {isOpen && query && (
           <button

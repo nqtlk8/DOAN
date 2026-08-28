@@ -7,10 +7,10 @@ spring:
     username: ${SPRING_DATASOURCE_USERNAME:app_user}
     password: ${SPRING_DATASOURCE_PASSWORD:app_password}
   flyway:
-    enabled: false
+    enabled: true
   jpa:
     hibernate:
-      ddl-auto: create
+      ddl-auto: validate
     show-sql: true
   data:
     redis:
