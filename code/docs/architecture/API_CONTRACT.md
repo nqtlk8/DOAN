@@ -1,122 +1,111 @@
-# API CONTRACT (FRONTEND - BACKEND)
+# API Contract — v5
 
-Tài liệu này định nghĩa chuẩn giao tiếp API giữa hệ thống React Frontend và Java Spring Backend dựa trên OpenAPI Swagger mới nhất.
+## 1. Chuẩn response
 
-## 1. Chuẩn Response Toàn Cục
-Mọi REST API từ Backend đều bọc dữ liệu trong cấu trúc chuẩn sau (trừ khi có ghi chú khác):
-`json
+Backend dùng `ApiResponse<T>` cho phần lớn REST API:
+
+```json
 {
-  "success": boolean,
-  "data": T | null,
-  "message": string,
-  "errors": Array<string> | null
+  "success": true,
+  "data": {},
+  "message": "...",
+  "errors": null
 }
-`
+```
 
-## 2. API Endpoints theo Domain
+Một số endpoint đặc biệt trả binary hoặc response trực tiếp theo implementation.
 
-### Domain: Goods Return
-| Method | Path | Request Body | Response Data (T) | Summary |
-|---|---|---|---|---|
-| GET | /api/v1/goods-returns | N/A | any |  |
-| POST | /api/v1/goods-returns | any | any | Táº¡o phiáº¿u tráº£ hÃ ng nhÃ¡p (DRAFT) |
-| POST | /api/v1/goods-returns/{id}/confirm | N/A | any | XÃ¡c nháº­n tráº£ hÃ ng (CONFIRM) vÃ  hoÃ n kho |
-| GET | /api/v1/goods-returns/{id} | N/A | any |  |
+## 2. Health và Public
 
-### Domain: Inbound Receipt
-| Method | Path | Request Body | Response Data (T) | Summary |
-|---|---|---|---|---|
-| GET | /api/v1/inventory/inbound | N/A | any |  |
-| POST | /api/v1/inventory/inbound | any | any | Tạo phiếu nhập kho (DRAFT) |
-| POST | /api/v1/inventory/inbound/{id}/confirm | N/A | any | Xác nhận phiếu nhập kho (CONFIRM) và tăng tồn kho |
-| GET | /api/v1/inventory/inbound/{id} | N/A | any |  |
+| Method | Path | Controller | Quyền |
+|---|---|---|---|
+| GET | `/api/health` | `HealthController` | Public |
+| GET | `/api/v1/public/catalog/products` | `PublicCatalogController` | Public |
+| GET | `/api/v1/public/catalog/products/{id}` | `PublicCatalogController` | Public |
 
-### Domain: auth-controller
-| Method | Path | Request Body | Response Data (T) | Summary |
-|---|---|---|---|---|
-| POST | /api/v1/auth/revoke | any | any |  |
-| POST | /api/v1/auth/refresh | any | any |  |
-| POST | /api/v1/auth/login | any | any |  |
+## 3. Authentication — HQ only
 
-### Domain: branch-controller
-| Method | Path | Request Body | Response Data (T) | Summary |
-|---|---|---|---|---|
-| GET | /api/v1/branches/{id} | N/A | any |  |
-| PUT | /api/v1/branches/{id} | any | any |  |
-| DELETE | /api/v1/branches/{id} | N/A | any |  |
-| GET | /api/v1/branches | N/A | any |  |
-| POST | /api/v1/branches | any | any |  |
+| Method | Path | Controller | Instance |
+|---|---|---|---|
+| POST | `/api/v1/auth/login` | `AuthController` | HQ |
+| POST | `/api/v1/auth/refresh` | `AuthController` | HQ |
+| POST | `/api/v1/auth/revoke` | `AuthController` | HQ |
 
-### Domain: customer-controller
-| Method | Path | Request Body | Response Data (T) | Summary |
-|---|---|---|---|---|
-| GET | /api/v1/customers | N/A | any |  |
-| POST | /api/v1/customers | any | N/A |  |
+`AuthController` được giới hạn bằng `@ConditionalOnProperty(instance.role=HQ)`.
 
-### Domain: customer-product-price-controller
-| Method | Path | Request Body | Response Data (T) | Summary |
-|---|---|---|---|---|
-| GET | /api/v1/customer-prices/{customerId}/product/{productId} | N/A | any |  |
+## 4. Branch
 
-### Domain: dashboard-controller
-| Method | Path | Request Body | Response Data (T) | Summary |
-|---|---|---|---|---|
-| GET | /api/v1/analytics/export/excel | N/A | Array<string> |  |
-| GET | /api/v1/analytics/dashboard | N/A | any |  |
+| Method | Path | Ghi chú |
+|---|---|---|
+| POST | `/api/v1/branches` | ADMIN; HQ-only controller |
+| GET | `/api/v1/branches` | HQ-only controller; hiện không có `@PreAuthorize` trên method |
+| GET | `/api/v1/branches/{id}` | HQ-only controller; hiện không có `@PreAuthorize` trên method |
+| PUT | `/api/v1/branches/{id}` | ADMIN |
+| DELETE | `/api/v1/branches/{id}` | ADMIN |
 
-### Domain: health-controller
-| Method | Path | Request Body | Response Data (T) | Summary |
-|---|---|---|---|---|
-| GET | /api/health | N/A | string |  |
+## 5. Catalog
 
-### Domain: product-read-controller
-| Method | Path | Request Body | Response Data (T) | Summary |
-|---|---|---|---|---|
-| GET | /api/v1/catalog/products/{id} | N/A | any |  |
-| GET | /api/v1/catalog/products | N/A | any |  |
+| Method | Path | Ghi chú |
+|---|---|---|
+| GET | `/api/v1/catalog/products` | ADMIN/SALES theo annotation hiện tại |
+| GET | `/api/v1/catalog/products/{id}` | ADMIN/SALES |
+| POST | `/api/v1/catalog/products` | HQ + ADMIN |
+| PUT | `/api/v1/catalog/products/{id}` | HQ + ADMIN |
+| GET | `/api/v1/suppliers` | ADMIN/SALES |
+| GET | `/api/v1/suppliers/{id}` | ADMIN/SALES |
+| POST | `/api/v1/suppliers` | ADMIN/SALES |
 
-### Domain: product-write-controller
-| Method | Path | Request Body | Response Data (T) | Summary |
-|---|---|---|---|---|
-| PUT | /api/v1/catalog/products/{id} | any | any |  |
-| POST | /api/v1/catalog/products | any | any |  |
+## 6. CRM
 
-### Domain: public-catalog-controller
-| Method | Path | Request Body | Response Data (T) | Summary |
-|---|---|---|---|---|
-| GET | /api/v1/public/catalog/products | N/A | any |  |
-| GET | /api/v1/public/catalog/products/{id} | N/A | any |  |
+| Method | Path | Ghi chú |
+|---|---|---|
+| POST | `/api/v1/customers` | `CustomerController`; annotation hiện tại dùng `hasAnyAuthority('CUSTOMER_CREATE', 'ADMIN')` |
+| GET | `/api/v1/customers` | `hasAnyAuthority('CUSTOMER_READ', 'ADMIN', 'SALES')` |
+| GET | `/api/v1/receivable-debts` | `@BranchScoped`; STAFF/ADMIN theo annotation |
 
-### Domain: receivable-debt-controller
-| Method | Path | Request Body | Response Data (T) | Summary |
-|---|---|---|---|---|
-| GET | /api/v1/receivable-debts | N/A | any |  |
+## 7. Customer product price
 
-### Domain: replication-status-controller
-| Method | Path | Request Body | Response Data (T) | Summary |
-|---|---|---|---|---|
-| GET | /api/v1/admin/system/replication-status | N/A | any |  |
+| Method | Path | Ghi chú |
+|---|---|---|
+| GET | `/api/v1/customer-prices/{customerId}/product/{productId}` | `@BranchScoped`; `SALE_READ`/`ADMIN` theo annotation |
 
-### Domain: sales-invoice-controller
-| Method | Path | Request Body | Response Data (T) | Summary |
-|---|---|---|---|---|
-| GET | /api/v1/sales-invoices | N/A | any |  |
-| POST | /api/v1/sales-invoices | any | N/A |  |
-| POST | /api/v1/sales-invoices/{id}/confirm | N/A | any |  |
-| GET | /api/v1/sales-invoices/{id} | N/A | any |  |
+## 8. Sales Invoice
 
-### Domain: stock-controller
-| Method | Path | Request Body | Response Data (T) | Summary |
-|---|---|---|---|---|
-| GET | /api/v1/inventory/stock | N/A | any |  |
+| Method | Path | Ghi chú |
+|---|---|---|
+| POST | `/api/v1/sales-invoices` | Draft; `@BranchScoped`; STAFF/ADMIN theo annotation |
+| POST | `/api/v1/sales-invoices/{id}/confirm` | `@BranchScoped` + `@IdempotencyProtected` |
+| GET | `/api/v1/sales-invoices` | `@BranchScoped` |
+| GET | `/api/v1/sales-invoices/{id}` | `@BranchScoped` |
 
-### Domain: supplier-controller
-| Method | Path | Request Body | Response Data (T) | Summary |
-|---|---|---|---|---|
-| GET | /api/v1/suppliers | N/A | Array<any> |  |
-| POST | /api/v1/suppliers | any | any |  |
-| GET | /api/v1/suppliers/{id} | N/A | any |  |
+## 9. Goods Return
 
-## 3. Cấu trúc DTO (Data Transfer Objects) Tham khảo
-Một số DTO chính được sử dụng trong Request/Response:
+| Method | Path | Ghi chú |
+|---|---|---|
+| POST | `/api/v1/goods-returns` | Draft; `@BranchScoped` |
+| POST | `/api/v1/goods-returns/{id}/confirm` | `@BranchScoped` + `@IdempotencyProtected` |
+| GET | `/api/v1/goods-returns` | STAFF/ADMIN theo annotation |
+| GET | `/api/v1/goods-returns/{id}` | STAFF/ADMIN theo annotation |
 
+## 10. Inventory
+
+| Method | Path | Ghi chú |
+|---|---|---|
+| GET | `/api/v1/inventory/stock` | `@BranchScoped`; STAFF/ADMIN |
+| POST | `/api/v1/inventory/inbound` | Draft; `@BranchScoped` |
+| POST | `/api/v1/inventory/inbound/{id}/confirm` | `@BranchScoped` + `@IdempotencyProtected` |
+| GET | `/api/v1/inventory/inbound` | STAFF/ADMIN |
+| GET | `/api/v1/inventory/inbound/{id}` | STAFF/ADMIN |
+
+## 11. Analytics / System
+
+| Method | Path | Ghi chú |
+|---|---|---|
+| GET | `/api/v1/analytics/dashboard` | HQ-only controller; `hasRole('ADMIN')` |
+| GET | `/api/v1/analytics/export/excel` | HQ-only controller; `hasRole('ADMIN')` |
+| GET | `/api/v1/admin/system/replication-status` | `hasRole('ADMIN')`; kiểm tra PostgreSQL replication views |
+
+## 12. Lưu ý về authority hiện tại
+
+JWT filter hiện tạo authority khớp hoàn toàn với chuỗi định danh quyền (không có prefix `ROLE_`). Do đó các annotaton như `hasAuthority('ADMIN')` hoặc `hasAnyAuthority('STAFF', 'ADMIN')` sẽ hoạt động chính xác theo đúng quyền được cấp phát.
+Đồng thời `SecurityConfig` cũng đã khai báo `@EnableMethodSecurity` nên các annotation `@PreAuthorize` đều có hiệu lực.

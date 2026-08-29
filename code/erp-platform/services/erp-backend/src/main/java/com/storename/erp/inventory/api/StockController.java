@@ -30,7 +30,7 @@ public class StockController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('STAFF', 'ADMIN')")
+    @PreAuthorize("hasAnyAuthority('STAFF', 'ADMIN')")
     public ApiResponse<List<StockOnHand>> getStock() {
         return ApiResponse.success(stockRepo.findByBranchId(getBranchId()));
     }

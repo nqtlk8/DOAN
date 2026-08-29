@@ -1,33 +1,47 @@
-﻿# TÀI LIỆU HỆ THỐNG ERP (DOCUMENTATION)
+# ERP System Documentation — Simplified Architecture v5
 
-Đây là trung tâm tài liệu mô tả toàn bộ kiến trúc, thiết kế, quy chuẩn và tiến độ của dự án ERP. Các tài liệu được phân tách rõ ràng thành các danh mục sau:
+## 0. Mục đích
 
-## 1. 🏗️ Kiến Trúc Hệ Thống (Architecture)
-Chứa các bản vẽ, hợp đồng API, cấu trúc Database, và các Quyết định Kiến trúc (ADRs).
-- [Tổng quan Hệ thống (SYSTEM_OVERVIEW.md)](./architecture/SYSTEM_OVERVIEW.md) - Báo cáo toàn diện về thiết kế hệ thống.
-- [Hợp đồng Data (DATA_CONTRACT.md)](./architecture/DATA_CONTRACT.md) - Đối chiếu chuẩn giữa Database, Entity và Schema.
-- [Hợp đồng API (API_CONTRACT.md)](./architecture/API_CONTRACT.md) - Quy định endpoint, Request/Response giữa Frontend & Backend.
-- [Luồng nghiệp vụ (WORKFLOWS.md)](./architecture/WORKFLOWS.md) - Giải thích các quy trình kinh doanh cốt lõi (Bán hàng, Trả hàng, v.v.).
-- [Replication Database (DATABASE_REPLICATION.md)](./architecture/DATABASE_REPLICATION.md) - Cơ chế đồng bộ dữ liệu giữa Trụ sở & Chi nhánh.
-- [ADRs (Architecture Decision Records)](./architecture/adr/) - Lịch sử các quyết định kỹ thuật cốt lõi.
+Đây là **bộ tài liệu chuẩn hiện hành (source of truth)** của hệ thống ERP. Bộ tài liệu này được tổng hợp từ mã nguồn thực tế, Docker Compose, migration SQL, cấu hình Spring Boot và tài liệu kỹ thuật hiện tại.
 
-## 2. 📖 Hướng Dẫn & Quy Chuẩn (Guidelines)
-Dành cho lập trình viên và các AI Agents khi phát triển hệ thống.
-- [Quy chuẩn Database (DATABASE_STANDARDS.md)](./guidelines/DATABASE_STANDARDS.md) - Cách chuẩn hóa CSDL.
-- [Ngữ cảnh cho AI (AI_AGENT_CONTEXT.md)](./guidelines/AI_AGENT_CONTEXT.md) - Context thu gọn dành riêng cho Agent để nắm cấu trúc.
-- [Template Module (MODULE_TEMPLATE.md)](./guidelines/MODULE_TEMPLATE.md) - Cấu trúc chuẩn của một Module code Backend.
+**Phiên bản:** v5  
+**Ngày rà soát:** 2026-08-29
 
-## 3. 🏃 Tiến Độ Sprints (Sprints)
-Lưu trữ các báo cáo kế hoạch và trạng thái hoàn thành của từng Sprint.
-- [Danh sách Sprints (README.md)](./sprints/README.md)
-- [Sprint 6: Tích hợp Frontend & Backend](./sprints/sprint-6-frontend-backend-integration.md) (Sprint hiện tại)
+## 1. Thứ tự ưu tiên khi có khác biệt
 
-## 4. 📝 Lịch Sử Thay Đổi & Khắc Phục (Changelogs)
-Lưu lại lịch sử sửa lỗi nghiêm trọng và các thay đổi lớn qua các phase.
-- [Changelog Phase 3 & 4 (CHANGELOG_PHASE_3_4.md)](./changelogs/CHANGELOG_PHASE_3_4.md) - Cập nhật đồng bộ và refactor toàn diện Frontend/Backend.
-- [Issues Confirmed (ISSUES_CONFIRMED.md)](./changelogs/ISSUES_CONFIRMED.md) - Các lỗi đã phân tích và chẩn đoán.
+Khi tài liệu mâu thuẫn với implementation, ưu tiên theo thứ tự:
 
-## 5. 🧪 Kiểm Thử (Testing)
-Tài liệu về độ phủ test (Coverage) và kế hoạch kiểm thử.
-- [Coverage Matrix (coverage-matrix.md)](./testing/coverage-matrix.md)
-- [Coverage Frontend (coverage-matrix-frontend.md)](./testing/coverage-matrix-frontend.md)
+1. `erp-backend/src/main/java/` — hành vi backend thực tế.
+2. `erp-backend/src/main/resources/db/migration/` và `migration-branch/` — schema và quyền database.
+3. `docker-compose.yml`, Nginx và application profiles — triển khai thực tế.
+4. Test đang chạy trong `src/test/` — hành vi được xác nhận bằng test.
+5. Các tài liệu trong thư mục này — mô tả và giải thích implementation.
+
+## 2. Các tài liệu chính
+
+| Tài liệu | Nội dung |
+|---|---|
+| `architecture/SYSTEM_ARCHITECTURE.md` | Kiến trúc tổng thể, N-instance, HQ/Branch, request path |
+| `architecture/DATA_SCHEMA.md` | Schema hiện hành, bảng, khóa, quan hệ, ownership |
+| `architecture/API_CONTRACT.md` | REST API hiện hành và phạm vi truy cập |
+| `architecture/WORKFLOWS.md` | Workflow login, request API, sales, return, inbound, customer |
+| `architecture/SECURITY_MODEL.md` | JWT, Spring Security, branch scope, DB permissions |
+| `architecture/ARCHITECTURE_DECISIONS.md` | Các quyết định kiến trúc và trade-off |
+| `development/BACKEND_STRUCTURE.md` | Cấu trúc source và module Java |
+| `development/RUNTIME_CONFIG.md` | Docker, Spring Profiles, port và kết nối |
+| `testing/TEST_STRATEGY.md` | Test hiện hành và phạm vi xác minh |
+| `operations/CURRENT_STATE.md` | Trạng thái hiện tại, điểm lệch cần xử lý |
+| `AI_CONTEXT.md` | Context ngắn gọn dành cho AI Agent |
+| `CHANGELOG.md` | Lịch sử thay đổi của bộ tài liệu chuẩn |
+
+## 3. Quy tắc cập nhật
+
+Mỗi khi chức năng hoặc schema thay đổi, phải cập nhật tối thiểu:
+
+- `API_CONTRACT.md` nếu endpoint thay đổi;
+- `DATA_SCHEMA.md` nếu entity/schema thay đổi;
+- `WORKFLOWS.md` nếu luồng nghiệp vụ thay đổi;
+- `SYSTEM_ARCHITECTURE.md` nếu topology/deployment thay đổi;
+- `AI_CONTEXT.md` nếu thay đổi ảnh hưởng đến cách AI đọc project.
+
+Không đưa chức năng đã bị loại bỏ vào tài liệu hiện hành. Các tài liệu sprint cũ chỉ có giá trị lịch sử, không phải source of truth.

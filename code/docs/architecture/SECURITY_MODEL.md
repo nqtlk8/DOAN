@@ -1,0 +1,109 @@
+# Security Model — v5
+
+## 1. Authentication
+
+Hệ thống sử dụng JWT với RSA/RS256.
+
+- HQ giữ private key.
+- HQ phát hành token.
+- Branch chỉ giữ public key và xác minh token.
+
+JWT claims được dùng hiện tại:
+
+```text
+sub / subject   = username
+role            = role code
+branchId        = branch scope
+ tokenId        = token identifier
+type            = access / refresh
+iat             = issued time
+exp             = expiration
+```
+
+## 2. Stateless Security
+
+`SecurityConfig` cấu hình:
+
+```java
+SessionCreationPolicy.STATELESS
+```
+
+Do đó server không duy trì session HTTP cho người dùng.
+
+## 3. Public endpoints
+
+SecurityConfig permitAll cho:
+
+```text
+/api/v1/auth/**
+/api/v1/public/**
+/api/health
+/swagger-ui/**
+/v3/api-docs/**
+```
+
+Các request khác yêu cầu authentication ở SecurityFilterChain.
+
+## 4. JWT filter
+
+`JwtAuthenticationFilter`:
+
+- đọc `Authorization` header;
+- loại bỏ prefix `Bearer `;
+- verify chữ ký;
+- kiểm tra `type=access`;
+- tạo authority từ `role`;
+- đưa authentication vào SecurityContext.
+
+## 5. Branch Scope
+
+`@BranchScoped` được xử lý bởi `BranchScopedAspect`.
+
+Aspect lấy `branchId` từ `JwtAuthDetails` trong SecurityContext và từ chối nếu thiếu branchId.
+
+## 6. Master data protection
+
+Thiết kế bảo vệ master data có ba lớp:
+
+### Tầng ứng dụng
+
+Các writer/controller ghi master data như `ProductWriteController` được giới hạn HQ bằng `@ConditionalOnProperty(instance.role=HQ)`.
+
+### Tầng mạng
+
+Branch Nginx có whitelist IP nội bộ/VPN trước khi proxy vào Branch app.
+
+### Tầng database
+
+Branch migration:
+
+```sql
+REVOKE INSERT, UPDATE, DELETE
+ON TABLE branch, category, product, price_list, customer
+FROM erp_user;
+
+GRANT SELECT
+ON TABLE branch, category, product, price_list, customer
+TO erp_user;
+```
+
+Lưu ý: `docker-compose.yml` hiện chạy application datasource với `erp_user`, trong khi application YAML mặc định cho local đang ghi `app_user`; đây là một khác biệt môi trường, không được xem như cùng một cấu hình.
+
+## 7. Password
+
+Password được mã hóa bằng BCrypt thông qua Spring Security `PasswordEncoder`.
+
+## 8. Idempotency
+
+`IdempotencyAspect`:
+
+- đọc `Idempotency-Key`;
+- tạo request hash từ HTTP method + URI + serialized arguments;
+- tìm record đã tồn tại;
+- nếu hash khác -> Conflict;
+- nếu giống -> trả response snapshot;
+- nếu chưa có -> chạy nghiệp vụ và lưu snapshot.
+
+## 9. Security issues cần theo dõi
+
+1. Một số endpoint Branch scope cần được rà soát authority và role theo runtime thực tế.

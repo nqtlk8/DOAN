@@ -20,7 +20,7 @@ public class ProductReadController {
     private final ProductReader productReader;
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'SALES')")
+    @PreAuthorize("hasAnyAuthority('STAFF', 'ADMIN')")
     public ResponseEntity<ApiResponse<List<ProductResponseDto>>> getAllProducts(
             @RequestParam(required = false, defaultValue = "false") boolean withBranchPrice,
             @RequestParam(required = false) String search) {
@@ -43,7 +43,7 @@ public class ProductReadController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SALES')")
+    @PreAuthorize("hasAnyAuthority('STAFF', 'ADMIN')")
     public ResponseEntity<ApiResponse<ProductResponseDto>> getProductById(
             @PathVariable Long id,
             @RequestParam(required = false, defaultValue = "false") boolean withBranchPrice) {

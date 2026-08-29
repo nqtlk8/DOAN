@@ -23,7 +23,7 @@ public class ReplicationStatusController {
     }
 
     @GetMapping("/replication-status")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public ApiResponse<List<Map<String, Object>>> getReplicationStatus() {
         try (Connection conn = jdbcTemplate.getDataSource().getConnection()) {
             // Check if we are Master (pg_stat_replication) or Replica (pg_stat_subscription)

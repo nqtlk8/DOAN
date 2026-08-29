@@ -60,14 +60,14 @@ public class GoodsReturnController {
         return ResponseEntity.ok(new ApiResponse<>(true, null, "Goods return confirmed successfully", null));
     }
     @GetMapping
-    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('STAFF', 'ADMIN')")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyAuthority('STAFF', 'ADMIN')")
     public ApiResponse<java.util.List<com.storename.erp.order.domain.GoodsReturn>> getReturns() {
         Long branchId = getBranchId();
         return ApiResponse.success(returnService.getReturnsByBranch(branchId));
     }
 
     @GetMapping("/{id}")
-    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('STAFF', 'ADMIN')")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyAuthority('STAFF', 'ADMIN')")
     public ApiResponse<com.storename.erp.order.domain.GoodsReturn> getReturn(@PathVariable UUID id) {
         Long branchId = getBranchId();
         return ApiResponse.success(returnService.getReturn(id, branchId));

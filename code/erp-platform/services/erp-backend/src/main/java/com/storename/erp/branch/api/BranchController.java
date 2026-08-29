@@ -24,7 +24,7 @@ public class BranchController {
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<ApiResponse<BranchDTO>> createBranch(@RequestBody BranchDTO branchDTO) {
         log.info("Creating new branch: {}", branchDTO.getCode());
         BranchDTO created = branchService.createBranch(branchDTO);
@@ -46,7 +46,7 @@ public class BranchController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<ApiResponse<BranchDTO>> updateBranch(@PathVariable Long id, @RequestBody BranchDTO branchDTO) {
         log.info("Updating branch with id: {}", id);
         BranchDTO updated = branchService.updateBranch(id, branchDTO);
@@ -54,7 +54,7 @@ public class BranchController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> deleteBranch(@PathVariable Long id) {
         log.info("Deleting branch with id: {}", id);
         branchService.deleteBranch(id);

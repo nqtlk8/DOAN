@@ -11,11 +11,11 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/suppliers")
 @RequiredArgsConstructor
-public class SupplierController {
+public class SupplierReadController {
     private final SupplierRepository supplierRepository;
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'SALES')")
+    @PreAuthorize("hasAnyAuthority('STAFF', 'ADMIN')")
     public List<Supplier> getSuppliers(@RequestParam(required = false) Long branchId) {
         if (branchId != null) {
             return supplierRepository.findByBranchId(branchId);
@@ -24,14 +24,8 @@ public class SupplierController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SALES')")
+    @PreAuthorize("hasAnyAuthority('STAFF', 'ADMIN')")
     public Supplier getSupplier(@PathVariable java.util.UUID id) {
         return supplierRepository.findById(id).orElseThrow(() -> new RuntimeException("Supplier not found"));
-    }
-
-    @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'SALES')")
-    public Supplier createSupplier(@RequestBody Supplier supplier) {
-        return supplierRepository.save(supplier);
     }
 }

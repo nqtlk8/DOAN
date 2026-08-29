@@ -23,7 +23,7 @@ public class CustomerProductPriceController {
     }
 
     @GetMapping("/{customerId}/product/{productId}")
-    @PreAuthorize("hasAnyAuthority('SALE_READ', 'ADMIN')")
+    @PreAuthorize("hasAnyAuthority('STAFF', 'ADMIN')")
     public ApiResponse<BigDecimal> getPrice(
             @PathVariable UUID customerId,
             @PathVariable Long productId,

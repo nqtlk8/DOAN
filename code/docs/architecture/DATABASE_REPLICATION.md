@@ -1,47 +1,74 @@
-# PostgreSQL Logical Replication PoC (Hub-and-Spoke)
+# Database Replication — v5
 
-## Overview
-Dự án sử dụng kiến trúc dữ liệu Hub-and-Spoke với PostgreSQL Logical Replication.
-- **HQ Primary DB (Hub):** Chứa toàn bộ dữ liệu tập trung.
-- **Branch DB (Spoke):** Chứa dữ liệu theo chi nhánh để giảm tải cho HQ và tăng tốc độ truy cập tại chi nhánh.
+## 1. Mục tiêu
 
-## Replication Setup (PoC)
+Replication phục vụ mô hình nhiều database của kiến trúc HQ/Branch. HQ và mỗi Branch giữ dữ liệu cục bộ, sau đó trao đổi dữ liệu thông qua PostgreSQL Logical Replication.
 
-Để cấu hình Replication cho 1 bảng (ví dụ: `products`), thực hiện theo các bước sau.
+## 2. Vai trò
 
-### 1. Trên HQ Primary DB (Port 5432)
-```sql
--- Đăng nhập vào HQ DB
--- psql -h localhost -p 5432 -U erp_user -d erp_hq
-
--- Tạo bảng mẫu
-CREATE TABLE products (
-    id UUID PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    price DECIMAL(10,2) NOT NULL
-);
-
--- Tạo Publication cho bảng products
-CREATE PUBLICATION hq_pub FOR TABLE products;
+```text
+HQ PostgreSQL
+     |
+     | logical replication
+     v
+Branch PostgreSQL
 ```
 
-### 2. Trên Branch DB (Port 5433)
-```sql
--- Đăng nhập vào Branch DB
--- psql -h localhost -p 5433 -U erp_user -d erp_branch_hcm01
+Trong thiết kế nghiệp vụ, HQ là nguồn quản lý master data; Branch là nơi phát sinh giao dịch cục bộ.
 
--- Tạo cấu trúc bảng giống hệt HQ
-CREATE TABLE products (
-    id UUID PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    price DECIMAL(10,2) NOT NULL
-);
+## 3. PostgreSQL configuration
 
--- Tạo Subscription kết nối đến HQ
-CREATE SUBSCRIPTION branch_hcm01_sub
-CONNECTION 'host=hq-db port=5432 dbname=erp_hq user=erp_user password=erp_password'
-PUBLICATION hq_pub;
+HQ trong Docker Compose được khởi động với:
+
+```text
+wal_level=logical
+max_replication_slots=10
+max_wal_senders=10
 ```
 
-### 3. Verify
-Insert một record vào `products` trên HQ và kiểm tra xem nó đã xuất hiện trên Branch DB chưa.
+Branch được khởi động với:
+
+```text
+wal_level=logical
+```
+
+## 4. Important implementation fact
+
+`docker-compose.yml` hiện **chưa tự động tạo** `PUBLICATION` và `SUBSCRIPTION`. Compose chỉ bật các PostgreSQL containers với cấu hình cần thiết.
+
+Replication E2E test là test thủ công (`@Disabled`) và yêu cầu tạo publication/subscription bằng SQL trước khi chạy.
+
+Ví dụ trong test:
+
+```sql
+CREATE PUBLICATION erp_pub FOR ALL TABLES;
+```
+
+và:
+
+```sql
+CREATE SUBSCRIPTION erp_sub
+CONNECTION 'host=pg-master port=5432 user=erp_user password=erp_password dbname=erp_db'
+PUBLICATION erp_pub;
+```
+
+## 5. Runtime status API
+
+Backend cung cấp:
+
+```text
+GET /api/v1/admin/system/replication-status
+```
+
+`ReplicationStatusController` kiểm tra PostgreSQL system views:
+
+- `pg_stat_replication` — trạng thái phía master;
+- `pg_stat_subscription` — trạng thái phía subscriber.
+
+## 6. Consistency
+
+Logical Replication là bất đồng bộ; do đó HQ và Branch có thể tồn tại replication lag. Hệ thống phải coi dữ liệu giữa các instance là eventual consistency, không phải strong consistency tức thời.
+
+## 7. Không đồng nhất giữa tài liệu cũ và hiện tại
+
+Các tài liệu cũ từng mô tả một bảng mẫu tên `products`. Đây chỉ là PoC lịch sử. Schema v5 dùng `product` và các bảng thực tế trong `V1__init_schema.sql`.

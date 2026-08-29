@@ -30,7 +30,7 @@ public class ReceivableDebtController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('STAFF', 'ADMIN')")
+    @PreAuthorize("hasAnyAuthority('STAFF', 'ADMIN')")
     public ApiResponse<List<ReceivableDebt>> getDebts() {
         return ApiResponse.success(debtRepository.findByBranchId(getBranchId()));
     }

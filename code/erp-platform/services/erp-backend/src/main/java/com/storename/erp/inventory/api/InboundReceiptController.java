@@ -62,14 +62,14 @@ public class InboundReceiptController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('STAFF', 'ADMIN')")
+    @PreAuthorize("hasAnyAuthority('STAFF', 'ADMIN')")
     public ApiResponse<List<InboundReceipt>> getReceipts() {
         Long branchId = getBranchId();
         return ApiResponse.success(inboundService.getReceiptsByBranch(branchId));
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('STAFF', 'ADMIN')")
+    @PreAuthorize("hasAnyAuthority('STAFF', 'ADMIN')")
     public ApiResponse<InboundReceipt> getReceipt(@PathVariable UUID id) {
         Long branchId = getBranchId();
         return ApiResponse.success(inboundService.getReceipt(id, branchId));

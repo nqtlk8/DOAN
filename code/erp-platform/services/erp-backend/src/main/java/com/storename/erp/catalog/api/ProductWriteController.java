@@ -25,7 +25,7 @@ public class ProductWriteController {
     private final ProductWriter productWriter;
 
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<ApiResponse<ProductResponseDto>> createProduct(@Valid @RequestBody ProductCreateDto dto) {
         log.info("REST request to create product: {}", dto.getCode());
         ProductResponseDto response = productWriter.createProduct(dto);
@@ -33,7 +33,7 @@ public class ProductWriteController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<ApiResponse<ProductResponseDto>> updateProduct(
             @PathVariable Long id,
             @Valid @RequestBody ProductUpdateDto dto) {

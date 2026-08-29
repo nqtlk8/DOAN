@@ -22,7 +22,7 @@ public class DashboardController {
     private final ReportExportService reportExportService;
 
     @GetMapping("/dashboard")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<ApiResponse<DashboardMetricsDto>> getDashboardMetrics(
             @RequestParam(required = false) Long branchId,
             @RequestParam(defaultValue = "20200101") Integer startDateKey,
@@ -33,7 +33,7 @@ public class DashboardController {
     }
     
     @GetMapping("/export/excel")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<byte[]> exportDashboardExcel(
             @RequestParam(required = false) Long branchId,
             @RequestParam(defaultValue = "20200101") Integer startDateKey,
