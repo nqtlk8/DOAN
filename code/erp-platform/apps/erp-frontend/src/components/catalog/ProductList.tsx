@@ -81,11 +81,13 @@ export const ProductList: React.FC = () => {
   };
 
   const handleSave = () => {
-    if (isEditing && formData.id) {
-      updateMutation.mutate({ id: formData.id, payload: formData });
-    } else {
-      createMutation.mutate(formData);
-    }
+    createMutation.mutate({
+      productCode: formData.sku || formData.code,
+      name: formData.name,
+      baseUnit: formData.unit || 'CAI',
+      categoryId: 1,
+      description: formData.description
+    });
   };
 
   const handleDelete = (id: string) => {

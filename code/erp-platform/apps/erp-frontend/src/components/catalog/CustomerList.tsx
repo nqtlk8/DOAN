@@ -81,11 +81,15 @@ export const CustomerList: React.FC = () => {
   };
 
   const handleSave = () => {
-    if (isEditing && formData.id) {
-      updateMutation.mutate({ id: formData.id, payload: formData });
-    } else {
-      createMutation.mutate(formData);
-    }
+    createMutation.mutate({
+      customerCode: formData.code,
+      name: formData.name,
+      phone: formData.phone,
+      email: formData.email,
+      address: formData.address,
+      taxCode: formData.taxCode,
+      customerType: (formData as any).type || 'RETAIL'
+    });
   };
 
   const handleDelete = (id: string) => {
