@@ -28,11 +28,14 @@ public class InboundReceiptService {
 
     @Transactional
     public UUID createDraft(Long branchId, InboundReceiptCreateDto dto) {
-        if (inboundRepo.existsByReceiptCode(dto.getReceiptCode())) {
+        String code = dto.getReceiptCode();
+        if (code == null || code.trim().isEmpty()) {
+            code = "NK" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+        } else if (inboundRepo.existsByReceiptCode(code)) {
             throw new IllegalArgumentException("Receipt code already exists");
         }
 
-        InboundReceipt receipt = new InboundReceipt(branchId, dto.getReceiptCode(), dto.getNote());
+        InboundReceipt receipt = new InboundReceipt(branchId, code, dto.getNote());
         receipt.setSupplierId(dto.getSupplierId());
         
         for (InboundReceiptCreateDto.LineDto lineDto : dto.getLines()) {

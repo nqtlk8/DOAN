@@ -30,7 +30,11 @@ public class SalesInvoiceService {
         SalesInvoice invoice = new SalesInvoice();
         invoice.setBranchId(branchId);
         invoice.setCustomerId(dto.getCustomerId());
-        invoice.setInvoiceCode(dto.getInvoiceCode());
+        String code = dto.getInvoiceCode();
+        if (code == null || code.trim().isEmpty()) {
+            code = "HD" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+        }
+        invoice.setInvoiceCode(code);
         invoice.setPaymentMethod(dto.getPaymentMethod());
         invoice.setNote(dto.getNote());
         

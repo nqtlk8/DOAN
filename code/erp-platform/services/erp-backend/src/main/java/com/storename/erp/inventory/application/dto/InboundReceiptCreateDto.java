@@ -13,7 +13,6 @@ import java.util.List;
 @Data
 public class InboundReceiptCreateDto {
     
-    @NotBlank(message = "Receipt code is required")
     private String receiptCode;
     
     private String note;

@@ -24,7 +24,7 @@ export const ProductList: React.FC = () => {
     queryFn: () => ApiService.Catalog.getProducts(),
   });
 
-  const products: Product[] = response?.data || [];
+  const products: Product[] = response || [];
 
   const createMutation = useMutation({
     mutationFn: (data: any) => ApiService.Catalog.createProduct(data),
@@ -92,7 +92,7 @@ export const ProductList: React.FC = () => {
     setConfirmState({ isOpen: true, id });
   };
 
-  const submitting = createMutation.isPending || updateMutation.isPending;
+  const submitting = createMutation.isPending;
 
   const filtered = products.filter((p) => p.name?.toLowerCase().includes(searchTerm.toLowerCase()));
 

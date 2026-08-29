@@ -7,7 +7,6 @@ import lombok.Data;
 
 @Data
 public class CustomerCreateDto {
-    @NotBlank(message = "Customer code is required")
     private String customerCode;
     
     @NotBlank(message = "Name is required")

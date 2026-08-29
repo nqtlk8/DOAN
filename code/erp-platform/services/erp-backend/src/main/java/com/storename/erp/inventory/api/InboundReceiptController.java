@@ -37,11 +37,13 @@ public class InboundReceiptController {
     }
 
     private UUID getUserId() {
-        return UUID.randomUUID(); 
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        return UUID.fromString(auth.getName());
     }
 
     @PostMapping
     @BranchScoped
+    @PreAuthorize("hasAuthority('STAFF')")
     @Operation(summary = "Tạo phiếu nhập kho (DRAFT)")
     public ResponseEntity<ApiResponse<UUID>> createDraft(@Valid @RequestBody InboundReceiptCreateDto dto) {
         Long branchId = getBranchId();
@@ -53,6 +55,7 @@ public class InboundReceiptController {
     @PostMapping("/{id}/confirm")
     @BranchScoped
     @com.storename.erp.common.aop.IdempotencyProtected
+    @PreAuthorize("hasAuthority('STAFF')")
     @Operation(summary = "Xác nhận phiếu nhập kho (CONFIRM) và tăng tồn kho")
     public ResponseEntity<ApiResponse<Void>> confirmReceipt(@PathVariable("id") UUID receiptId) {
         Long branchId = getBranchId();

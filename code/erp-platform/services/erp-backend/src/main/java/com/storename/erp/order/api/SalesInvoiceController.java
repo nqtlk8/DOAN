@@ -40,7 +40,7 @@ public class SalesInvoiceController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyAuthority('STAFF', 'ADMIN')")
+    @PreAuthorize("hasAuthority('STAFF')")
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<UUID> createDraft(
             @Valid @RequestBody SalesInvoiceCreateDto dto) {
@@ -51,7 +51,7 @@ public class SalesInvoiceController {
     }
 
     @PostMapping("/{id}/confirm")
-    @PreAuthorize("hasAnyAuthority('STAFF', 'ADMIN')")
+    @PreAuthorize("hasAuthority('STAFF')")
     @IdempotencyProtected
     public ApiResponse<UUID> confirmInvoice(
             @PathVariable UUID id) {
@@ -64,14 +64,14 @@ public class SalesInvoiceController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyAuthority('STAFF', 'ADMIN')")
+    @PreAuthorize("hasAuthority('STAFF')")
     public ApiResponse<List<SalesInvoice>> getInvoices() {
         Long branchId = getBranchId();
         return ApiResponse.success(salesInvoiceService.getInvoicesByBranch(branchId));
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyAuthority('STAFF', 'ADMIN')")
+    @PreAuthorize("hasAuthority('STAFF')")
     public ApiResponse<SalesInvoice> getInvoice(@PathVariable UUID id) {
         Long branchId = getBranchId();
         return ApiResponse.success(salesInvoiceService.getInvoice(id, branchId));

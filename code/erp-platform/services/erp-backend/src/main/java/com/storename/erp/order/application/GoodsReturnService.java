@@ -18,7 +18,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
- * Service quÃ¡ÂºÂ£n lÃƒÂ½ khÃƒÂ¡ch trÃ¡ÂºÂ£ hÃƒÂ ng (Goods Return).
+ * Service quÃƒÂ¡Ã‚ÂºÃ‚Â£n lÃƒÆ’Ã‚Â½ khÃƒÆ’Ã‚Â¡ch trÃƒÂ¡Ã‚ÂºÃ‚Â£ hÃƒÆ’Ã‚Â ng (Goods Return).
  */
 @Slf4j
 @Service
@@ -33,11 +33,11 @@ public class GoodsReturnService {
 
 
     /**
-     * TÃ¡ÂºÂ¡o phiÃ¡ÂºÂ¿u trÃ¡ÂºÂ£ hÃƒÂ ng nhÃƒÂ¡p.
+     * TÃƒÂ¡Ã‚ÂºÃ‚Â¡o phiÃƒÂ¡Ã‚ÂºÃ‚Â¿u trÃƒÂ¡Ã‚ÂºÃ‚Â£ hÃƒÆ’Ã‚Â ng nhÃƒÆ’Ã‚Â¡p.
      */
     @Transactional
     public UUID createDraft(Long branchId, GoodsReturnCreateDto dto) {
-        if (returnRepository.existsByReturnCode(dto.getReturnCode())) {
+        String code = dto.getReturnCode(); if (code == null || code.trim().isEmpty()) { code = "TH" + UUID.randomUUID().toString().substring(0, 8).toUpperCase(); } else if (returnRepository.existsByReturnCode(code)) {
             throw new IllegalArgumentException("Return code already exists");
         }
 
@@ -47,7 +47,7 @@ public class GoodsReturnService {
         GoodsReturn goodsReturn = new GoodsReturn();
         goodsReturn.setBranchId(branchId);
         goodsReturn.setCustomer(customer);
-        goodsReturn.setReturnCode(dto.getReturnCode());
+        goodsReturn.setReturnCode(code);
         goodsReturn.setInvoiceId(dto.getInvoiceId());
         goodsReturn.setReason(dto.getReason());
         goodsReturn.setNote(dto.getNote());
@@ -68,7 +68,7 @@ public class GoodsReturnService {
     }
 
     /**
-     * XÃƒÂ¡c nhÃ¡ÂºÂ­n phiÃ¡ÂºÂ¿u trÃ¡ÂºÂ£ hÃƒÂ ng: cÃ¡Â»â„¢ng lÃ¡ÂºÂ¡i kho (InboundReceipt) vÃƒÂ  trÃ¡Â»Â« cÃƒÂ´ng nÃ¡Â»Â£ (nÃ¡ÂºÂ¿u cÃƒÂ³ hoÃƒÂ¡ Ã„â€˜Ã†Â¡n gÃ¡Â»â€˜c).
+     * XÃƒÆ’Ã‚Â¡c nhÃƒÂ¡Ã‚ÂºÃ‚Â­n phiÃƒÂ¡Ã‚ÂºÃ‚Â¿u trÃƒÂ¡Ã‚ÂºÃ‚Â£ hÃƒÆ’Ã‚Â ng: cÃƒÂ¡Ã‚Â»Ã¢â€žÂ¢ng lÃƒÂ¡Ã‚ÂºÃ‚Â¡i kho (InboundReceipt) vÃƒÆ’Ã‚Â  trÃƒÂ¡Ã‚Â»Ã‚Â« cÃƒÆ’Ã‚Â´ng nÃƒÂ¡Ã‚Â»Ã‚Â£ (nÃƒÂ¡Ã‚ÂºÃ‚Â¿u cÃƒÆ’Ã‚Â³ hoÃƒÆ’Ã‚Â¡ Ãƒâ€žÃ¢â‚¬ËœÃƒâ€ Ã‚Â¡n gÃƒÂ¡Ã‚Â»Ã¢â‚¬Ëœc).
      */
     @org.springframework.retry.annotation.Retryable(
         retryFor = org.springframework.orm.ObjectOptimisticLockingFailureException.class,
@@ -86,16 +86,16 @@ public class GoodsReturnService {
 
         goodsReturn.confirm(userId);
 
-        // 1. NhÃ¡ÂºÂ­p kho trÃ¡ÂºÂ£ hÃƒÂ ng
+        // 1. NhÃƒÂ¡Ã‚ÂºÃ‚Â­p kho trÃƒÂ¡Ã‚ÂºÃ‚Â£ hÃƒÆ’Ã‚Â ng
         InboundReceiptCreateDto inDto = new InboundReceiptCreateDto();
         inDto.setReceiptCode("IN-RET-" + goodsReturn.getReturnCode());
-        inDto.setNote("NhÃ¡ÂºÂ­p kho tÃ¡Â»Â« phiÃ¡ÂºÂ¿u trÃ¡ÂºÂ£ hÃƒÂ ng " + goodsReturn.getReturnCode());
+        inDto.setNote("NhÃƒÂ¡Ã‚ÂºÃ‚Â­p kho tÃƒÂ¡Ã‚Â»Ã‚Â« phiÃƒÂ¡Ã‚ÂºÃ‚Â¿u trÃƒÂ¡Ã‚ÂºÃ‚Â£ hÃƒÆ’Ã‚Â ng " + goodsReturn.getReturnCode());
         
         inDto.setLines(goodsReturn.getLines().stream().map(l -> {
             InboundReceiptCreateDto.LineDto ld = new InboundReceiptCreateDto.LineDto();
             ld.setProductId(l.getProductId());
             ld.setQuantity(l.getQuantity());
-            // GiÃƒÂ¡ vÃ¡Â»â€˜n nhÃ¡ÂºÂ­p kho hoÃƒÂ n trÃ¡ÂºÂ£ tÃ¡ÂºÂ¡m lÃ¡ÂºÂ¥y theo Ã„â€˜Ã†Â¡n giÃƒÂ¡ trÃ¡ÂºÂ£, hoÃ¡ÂºÂ·c lÃ¡ÂºÂ¥y tÃ¡Â»Â« lÃ¡Â»â€¹ch sÃ¡Â»Â­ (Ã¡Â»Å¸ Ã„â€˜ÃƒÂ¢y lÃ¡ÂºÂ¥y unitPrice cÃ¡Â»Â§a hÃƒÂ ng trÃ¡ÂºÂ£)
+            // GiÃƒÆ’Ã‚Â¡ vÃƒÂ¡Ã‚Â»Ã¢â‚¬Ëœn nhÃƒÂ¡Ã‚ÂºÃ‚Â­p kho hoÃƒÆ’Ã‚Â n trÃƒÂ¡Ã‚ÂºÃ‚Â£ tÃƒÂ¡Ã‚ÂºÃ‚Â¡m lÃƒÂ¡Ã‚ÂºÃ‚Â¥y theo Ãƒâ€žÃ¢â‚¬ËœÃƒâ€ Ã‚Â¡n giÃƒÆ’Ã‚Â¡ trÃƒÂ¡Ã‚ÂºÃ‚Â£, hoÃƒÂ¡Ã‚ÂºÃ‚Â·c lÃƒÂ¡Ã‚ÂºÃ‚Â¥y tÃƒÂ¡Ã‚Â»Ã‚Â« lÃƒÂ¡Ã‚Â»Ã¢â‚¬Â¹ch sÃƒÂ¡Ã‚Â»Ã‚Â­ (ÃƒÂ¡Ã‚Â»Ã…Â¸ Ãƒâ€žÃ¢â‚¬ËœÃƒÆ’Ã‚Â¢y lÃƒÂ¡Ã‚ÂºÃ‚Â¥y unitPrice cÃƒÂ¡Ã‚Â»Ã‚Â§a hÃƒÆ’Ã‚Â ng trÃƒÂ¡Ã‚ÂºÃ‚Â£)
             ld.setUnitCost(l.getUnitPrice());
             ld.setUnitOfMeasure(l.getUnitOfMeasure());
             return ld;
@@ -104,7 +104,7 @@ public class GoodsReturnService {
         UUID receiptId = inboundReceiptService.createDraft(branchId, inDto);
         inboundReceiptService.confirmReceipt(receiptId, branchId, userId);
 
-        // 2. TrÃ¡Â»Â« cÃƒÂ´ng nÃ¡Â»Â£ (ChÃ¡Â»â€° trÃ¡Â»Â« nÃ¡ÂºÂ¿u trÃ¡ÂºÂ£ hÃƒÂ ng dÃ¡Â»Â±a trÃƒÂªn hoÃƒÂ¡ Ã„â€˜Ã†Â¡n gÃ¡Â»â€˜c)
+        // 2. TrÃƒÂ¡Ã‚Â»Ã‚Â« cÃƒÆ’Ã‚Â´ng nÃƒÂ¡Ã‚Â»Ã‚Â£ (ChÃƒÂ¡Ã‚Â»Ã¢â‚¬Â° trÃƒÂ¡Ã‚Â»Ã‚Â« nÃƒÂ¡Ã‚ÂºÃ‚Â¿u trÃƒÂ¡Ã‚ÂºÃ‚Â£ hÃƒÆ’Ã‚Â ng dÃƒÂ¡Ã‚Â»Ã‚Â±a trÃƒÆ’Ã‚Âªn hoÃƒÆ’Ã‚Â¡ Ãƒâ€žÃ¢â‚¬ËœÃƒâ€ Ã‚Â¡n gÃƒÂ¡Ã‚Â»Ã¢â‚¬Ëœc)
         if (goodsReturn.getInvoiceId() != null) {
             com.storename.erp.order.domain.SalesInvoice invoice = invoiceRepository.findById(goodsReturn.getInvoiceId())
                     .orElseThrow(() -> new IllegalArgumentException("Original invoice not found"));
@@ -122,7 +122,7 @@ public class GoodsReturnService {
                         .findFirst()
                         .orElseThrow(() -> new IllegalArgumentException("Product not found in original invoice"));
                 
-                // LÃ¡ÂºÂ¥y tÃ¡Â»â€¢ng sÃ¡Â»â€˜ lÃ†Â°Ã¡Â»Â£ng Ã„â€˜ÃƒÂ£ trÃ¡ÂºÂ£ trÃ†Â°Ã¡Â»â€ºc Ã„â€˜ÃƒÂ³ cÃ¡Â»Â§a SP nÃƒÂ y trong HoÃƒÂ¡ Ã„â€˜Ã†Â¡n
+                // LÃƒÂ¡Ã‚ÂºÃ‚Â¥y tÃƒÂ¡Ã‚Â»Ã¢â‚¬Â¢ng sÃƒÂ¡Ã‚Â»Ã¢â‚¬Ëœ lÃƒâ€ Ã‚Â°ÃƒÂ¡Ã‚Â»Ã‚Â£ng Ãƒâ€žÃ¢â‚¬ËœÃƒÆ’Ã‚Â£ trÃƒÂ¡Ã‚ÂºÃ‚Â£ trÃƒâ€ Ã‚Â°ÃƒÂ¡Ã‚Â»Ã¢â‚¬Âºc Ãƒâ€žÃ¢â‚¬ËœÃƒÆ’Ã‚Â³ cÃƒÂ¡Ã‚Â»Ã‚Â§a SP nÃƒÆ’Ã‚Â y trong HoÃƒÆ’Ã‚Â¡ Ãƒâ€žÃ¢â‚¬ËœÃƒâ€ Ã‚Â¡n
                 java.math.BigDecimal previousReturned = returnRepository.getTotalReturnedQuantity(invoice.getId(), returnLine.getProductId());
                 
                 if (previousReturned == null) previousReturned = java.math.BigDecimal.ZERO;

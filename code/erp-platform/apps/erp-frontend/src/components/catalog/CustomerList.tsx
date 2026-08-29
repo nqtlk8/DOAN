@@ -24,7 +24,7 @@ export const CustomerList: React.FC = () => {
     queryFn: () => ApiService.Catalog.getCustomers(),
   });
 
-  const customers: Customer[] = response?.data || [];
+  const customers: Customer[] = response || [];
 
   const createMutation = useMutation({
     mutationFn: (data: any) => ApiService.Catalog.createCustomer(data),
@@ -92,7 +92,7 @@ export const CustomerList: React.FC = () => {
     setConfirmState({ isOpen: true, id });
   };
 
-  const submitting = createMutation.isPending || updateMutation.isPending;
+  const submitting = createMutation.isPending;
 
   const filtered = customers.filter((c) => c.name?.toLowerCase().includes(searchTerm.toLowerCase()));
 
@@ -175,26 +175,7 @@ export const CustomerList: React.FC = () => {
                       {c.isActive ? 'Hoạt Động' : 'Khóa'}
                     </span>
                   </td>
-                  {isAdmin && (
-                    <td className="px-4 py-1.5 text-sm text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => handleOpenModal(c)}
-                          className="p-1.5 text-slate-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-colors"
-                          title="Sửa"
-                        >
-                          <Edit size={16} />
-                        </button>
-                        <button
-                          onClick={() => c.id && handleDelete(c.id)}
-                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                          title="Xóa"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    </td>
-                  )}
+                  
                 </tr>
               ))
             )}
@@ -246,7 +227,7 @@ export const CustomerList: React.FC = () => {
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
                   >
                     <option value="RETAIL">Khách Lẻ</option>
-                    <option value="WHOLESALE">Khách Sỉ</option>
+                    <option value="WHOLESALE">Khách Sỉ</option><option value="CONSTRUCTION">Công Trình</option>
                   </select>
                 </div>
                 <div>

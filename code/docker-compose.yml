@@ -85,8 +85,8 @@ services:
     build: 
       context: ./erp-platform/services/erp-backend
       dockerfile: Dockerfile
-    ports:
-      - "8081:8080"
+    # ports:
+    #   - "8081:8080"
     environment:
       - SPRING_PROFILES_ACTIVE=branch
       - INSTANCE_ROLE=BRANCH
@@ -102,8 +102,8 @@ services:
     build: 
       context: ./erp-platform/services/erp-backend
       dockerfile: Dockerfile
-    ports:
-      - "8082:8080"
+    # ports:
+    #   - "8082:8080"
     environment:
       - SPRING_PROFILES_ACTIVE=branch
       - INSTANCE_ROLE=BRANCH

@@ -160,14 +160,13 @@ export const PurchaseOrderForm = forwardRef<PurchaseOrderFormRef, PurchaseOrderF
       setFieldErrors({});
       try {
         const newErrors: Record<string, string> = {};
-        if (!distributorName && !distributorCode) {
+        if (!distributorCode) {
           newErrors.partner = 'Vui lòng chọn nhà phân phối';
         }
         if (items.length === 0) {
           throw new Error('Đơn hàng phải có ít nhất 1 sản phẩm.');
         }
 
-        // check items
         items.forEach((item, index) => {
           if (!item.productId) newErrors[`item_${index}_product`] = 'Chọn sản phẩm';
           if (item.quantity <= 0) newErrors[`item_${index}_quantity`] = 'Số lượng > 0';
@@ -179,28 +178,27 @@ export const PurchaseOrderForm = forwardRef<PurchaseOrderFormRef, PurchaseOrderF
         }
 
         const payload = {
-          distributorId: distributorCode || distributorName || 'CUST-001',
-          paymentMethod,
-          items: items.map((i) => ({
-            productId: i.productId || 'UNKNOWN',
+          supplierId: distributorCode,
+          lines: items.map((i) => ({
+            productId: i.productId,
             quantity: i.quantity,
-            unitPrice: i.unitPrice,
-            discount: 0,
+            unitCost: i.unitPrice,
+            unitOfMeasure: 'CAI',
           })),
         };
 
         if (mode === 'ADD') {
           const response = await ApiService.InboundReceipt.create(payload);
-          toast.success(`Order created successfully! ID: ${response.data?.orderId || response.orderId || 'OK'}`);
-          setOrderCode(response.data?.orderId || response.orderId || 'AUTO-GENERATE');
+          toast.success(`Receipt created successfully! ID: ${response}`);
+          setOrderCode(response);
         } else {
-          toast.success('Order updated successfully!');
+          toast.success('Receipt updated successfully!');
         }
 
         setMode('VIEW');
       } catch (err: any) {
         console.error(err);
-        toast.error(err.message || 'Lỗi khi lưu đơn mua hàng');
+        toast.error(err.message || 'Lỗi khi lưu phiếu');
       } finally {
         setIsLoading(false);
       }

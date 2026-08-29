@@ -160,7 +160,7 @@ export const SalesOrderForm = forwardRef<SalesOrderFormRef, SalesOrderFormProps>
       setFieldErrors({});
       try {
         const newErrors: Record<string, string> = {};
-        if (!customerName && !customerCode) {
+        if (!customerCode) {
           newErrors.partner = 'Vui lòng chọn khách hàng';
         }
         if (items.length === 0) {
@@ -179,20 +179,21 @@ export const SalesOrderForm = forwardRef<SalesOrderFormRef, SalesOrderFormProps>
         }
 
         const payload = {
-          customerId: customerCode || customerName || 'CUST-001',
+          customerId: customerCode,
           paymentMethod,
-          items: items.map((i) => ({
-            productId: i.productId || 'UNKNOWN',
+          lines: items.map((i) => ({
+            productId: i.productId,
+            productName: i.productName,
             quantity: i.quantity,
             unitPrice: i.unitPrice,
-            discount: 0,
+            unitOfMeasure: 'CAI',
           })),
         };
 
         if (mode === 'ADD') {
           const response = await ApiService.SalesInvoice.create(payload);
-          toast.success(`Order created successfully! ID: ${response.id}`);
-          setOrderCode(response.id);
+          toast.success(`Order created successfully! ID: ${response}`);
+          setOrderCode(response);
         } else {
           toast.success('Order updated successfully!');
         }

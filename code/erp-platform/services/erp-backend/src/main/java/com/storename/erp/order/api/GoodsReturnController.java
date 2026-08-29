@@ -12,6 +12,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
@@ -21,7 +22,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/v1/goods-returns")
 @RequiredArgsConstructor
-@Tag(name = "Goods Return", description = "Quáº£n lÃ½ khÃ¡ch tráº£ hÃ ng")
+@Tag(name = "Goods Return", description = "Quản lý khách trả hàng")
 public class GoodsReturnController {
 
     private final GoodsReturnService returnService;
@@ -41,7 +42,8 @@ public class GoodsReturnController {
 
     @PostMapping
     @BranchScoped
-    @Operation(summary = "Táº¡o phiáº¿u tráº£ hÃ ng nhÃ¡p (DRAFT)")
+    @PreAuthorize("hasAuthority('STAFF')")
+    @Operation(summary = "Tạo phiếu trả hàng (DRAFT)")
     public ResponseEntity<ApiResponse<UUID>> createDraft(@Valid @RequestBody GoodsReturnCreateDto dto) {
         Long branchId = getBranchId();
         UUID returnId = returnService.createDraft(branchId, dto);
@@ -52,22 +54,24 @@ public class GoodsReturnController {
     @PostMapping("/{id}/confirm")
     @BranchScoped
     @IdempotencyProtected
-    @Operation(summary = "XÃ¡c nháº­n tráº£ hÃ ng (CONFIRM) vÃ  hoÃ n kho")
+    @PreAuthorize("hasAuthority('STAFF')")
+    @Operation(summary = "Xác nhận trả hàng (CONFIRM) và hoàn kho")
     public ResponseEntity<ApiResponse<Void>> confirmReturn(@PathVariable("id") UUID returnId) {
         Long branchId = getBranchId();
         UUID userId = getUserId();
         returnService.confirmReturn(returnId, branchId, userId);
         return ResponseEntity.ok(new ApiResponse<>(true, null, "Goods return confirmed successfully", null));
     }
+
     @GetMapping
-    @org.springframework.security.access.prepost.PreAuthorize("hasAnyAuthority('STAFF', 'ADMIN')")
+    @PreAuthorize("hasAnyAuthority('STAFF', 'ADMIN')")
     public ApiResponse<java.util.List<com.storename.erp.order.domain.GoodsReturn>> getReturns() {
         Long branchId = getBranchId();
         return ApiResponse.success(returnService.getReturnsByBranch(branchId));
     }
 
     @GetMapping("/{id}")
-    @org.springframework.security.access.prepost.PreAuthorize("hasAnyAuthority('STAFF', 'ADMIN')")
+    @PreAuthorize("hasAnyAuthority('STAFF', 'ADMIN')")
     public ApiResponse<com.storename.erp.order.domain.GoodsReturn> getReturn(@PathVariable UUID id) {
         Long branchId = getBranchId();
         return ApiResponse.success(returnService.getReturn(id, branchId));

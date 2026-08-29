@@ -18,7 +18,6 @@ public class GoodsReturnCreateDto {
     @NotNull(message = "Customer ID is required")
     private UUID customerId;
 
-    @NotBlank(message = "Return Code is required")
     private String returnCode;
 
     private UUID invoiceId; // nullable, for linking to original invoice

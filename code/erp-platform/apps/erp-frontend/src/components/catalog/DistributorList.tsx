@@ -24,7 +24,7 @@ export const DistributorList: React.FC = () => {
     queryFn: () => ApiService.Catalog.getDistributors(),
   });
 
-  const distributors: Distributor[] = response?.data || [];
+  const distributors: Distributor[] = response || [];
 
   const createMutation = useMutation({
     mutationFn: (data: any) => ApiService.Catalog.createDistributor(data),

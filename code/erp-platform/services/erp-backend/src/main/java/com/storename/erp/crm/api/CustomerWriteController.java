@@ -28,7 +28,11 @@ public class CustomerWriteController {
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<UUID> createCustomer(@Valid @RequestBody CustomerCreateDto dto) {
         Customer customer = new Customer();
-        customer.setCustomerCode(dto.getCustomerCode());
+        String code = dto.getCustomerCode();
+        if (code == null || code.trim().isEmpty()) {
+            code = "KH" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+        }
+        customer.setCustomerCode(code);
         customer.setName(dto.getName());
         customer.setPhone(dto.getPhone());
         customer.setEmail(dto.getEmail());

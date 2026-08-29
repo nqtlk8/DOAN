@@ -12,7 +12,6 @@ import java.util.UUID;
 
 @Data
 public class SalesInvoiceCreateDto {
-    @NotBlank(message = "Invoice code is required")
     private String invoiceCode;
 
     @NotNull(message = "Customer ID is required")
