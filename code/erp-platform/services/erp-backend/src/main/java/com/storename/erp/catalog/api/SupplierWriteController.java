@@ -19,4 +19,24 @@ public class SupplierWriteController {
     public Supplier createSupplier(@RequestBody Supplier supplier) {
         return supplierRepository.save(supplier);
     }
+
+    @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('ADMIN')")
+    public Supplier updateSupplier(@PathVariable java.util.UUID id, @RequestBody Supplier payload) {
+        Supplier supplier = supplierRepository.findById(id).orElseThrow(() -> new RuntimeException("Supplier not found"));
+        supplier.setName(payload.getName());
+        supplier.setCode(payload.getCode());
+        supplier.setPhone(payload.getPhone());
+        supplier.setEmail(payload.getEmail());
+        supplier.setAddress(payload.getAddress());
+        supplier.setTaxCode(payload.getTaxCode());
+        supplier.setIsActive(payload.getIsActive());
+        return supplierRepository.save(supplier);
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('ADMIN')")
+    public void deleteSupplier(@PathVariable java.util.UUID id) {
+        supplierRepository.deleteById(id);
+    }
 }
