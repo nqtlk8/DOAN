@@ -101,11 +101,12 @@ export const CustomerList: React.FC = () => {
   const filtered = customers.filter((c) => c.name?.toLowerCase().includes(searchTerm.toLowerCase()));
 
   return (
-    <div className="p-6">
+    <div data-testid="customer-page" className="p-6">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold text-slate-900">Danh Mục Khách Hàng</h2>
         {isAdmin && (
           <button
+            data-testid="customer-create-button"
             onClick={() => handleOpenModal()}
             className="flex items-center gap-2 bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700 transition-colors shadow-sm"
           >
@@ -168,7 +169,7 @@ export const CustomerList: React.FC = () => {
             </tr>
             {!loading && !isError && filtered.length > 0 && (
               filtered.map((c, i) => (
-                <tr key={c.id || i} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
+                <tr data-testid="customer-row" key={c.id || i} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
                   <td className="px-4 py-1.5 text-sm text-slate-900">{c.code || '-'}</td>
                   <td className="px-4 py-1.5 text-sm font-medium text-slate-900">{c.name}</td>
                   <td className="px-4 py-1.5 text-sm text-slate-900">{c.type}</td>
@@ -188,7 +189,7 @@ export const CustomerList: React.FC = () => {
       </div>
 
       {isModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+        <div data-testid="customer-create-modal" className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="flex justify-between items-center p-5 border-b border-slate-100">
               <h3 className="text-lg font-bold text-slate-900">
@@ -205,6 +206,7 @@ export const CustomerList: React.FC = () => {
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Mã KH</label>
                 <input
+                  data-testid="customer-code"
                   type="text"
                   value={formData.code || ''}
                   onChange={(e) => setFormData({ ...formData, code: e.target.value })}
@@ -215,6 +217,7 @@ export const CustomerList: React.FC = () => {
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Tên KH <span className="text-rose-500">*</span></label>
                 <input
+                  data-testid="customer-name"
                   type="text"
                   value={formData.name || ''}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
@@ -226,6 +229,7 @@ export const CustomerList: React.FC = () => {
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Loại KH <span className="text-rose-500">*</span></label>
                   <select
+                    data-testid="customer-type"
                     value={formData.type || 'RETAIL'}
                     onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
@@ -249,6 +253,7 @@ export const CustomerList: React.FC = () => {
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Số Điện Thoại</label>
                 <input
+                  data-testid="customer-phone"
                   type="text"
                   value={formData.phone || ''}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
@@ -259,6 +264,7 @@ export const CustomerList: React.FC = () => {
               <div>
                 <label className="block text-xs font-medium text-slate-500 mb-1">Email</label>
                 <input
+                  data-testid="customer-email"
                   type="email"
                   value={formData.email || ''}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
@@ -269,6 +275,7 @@ export const CustomerList: React.FC = () => {
               <div>
                 <label className="block text-xs font-medium text-slate-500 mb-1">Địa chỉ</label>
                 <input
+                  data-testid="customer-address"
                   type="text"
                   value={formData.address || ''}
                   onChange={(e) => setFormData({ ...formData, address: e.target.value })}
@@ -279,6 +286,7 @@ export const CustomerList: React.FC = () => {
               <div>
                 <label className="block text-xs font-medium text-slate-500 mb-1">Mã số thuế</label>
                 <input
+                  data-testid="customer-tax-code"
                   type="text"
                   value={formData.taxCode || ''}
                   onChange={(e) => setFormData({ ...formData, taxCode: e.target.value })}
@@ -289,6 +297,7 @@ export const CustomerList: React.FC = () => {
             </div>
             <div className="flex justify-end gap-3 p-4 border-t border-slate-100 bg-slate-50 rounded-b-xl">
               <button
+                data-testid="customer-cancel"
                 onClick={handleCloseModal}
                 className="px-4 py-2 text-slate-900 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
               >
@@ -296,6 +305,7 @@ export const CustomerList: React.FC = () => {
               </button>
               {isAdmin && (
                 <button
+                  data-testid="customer-save"
                   onClick={handleSave}
                   disabled={submitting || !formData.name}
                   className="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors disabled:opacity-50"

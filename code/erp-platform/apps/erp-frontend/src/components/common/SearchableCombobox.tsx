@@ -18,6 +18,7 @@ export interface SearchableComboboxProps<T> {
   renderEmpty?: () => React.ReactNode;
   autoFocus?: boolean;
   error?: boolean;
+  'data-testid'?: string;
 }
 
 export function SearchableCombobox<T extends Record<string, any>>({
@@ -29,7 +30,8 @@ export function SearchableCombobox<T extends Record<string, any>>({
   onSelect,
   renderEmpty,
   autoFocus = false,
-  error = false
+  error = false,
+  'data-testid': testId
 }: SearchableComboboxProps<T>) {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -121,6 +123,7 @@ export function SearchableCombobox<T extends Record<string, any>>({
     <div className="relative w-full" ref={wrapperRef}>
       <div className="relative">
         <input
+          data-testid={testId}
           ref={inputRef}
           type="text"
           value={isOpen ? query : value}

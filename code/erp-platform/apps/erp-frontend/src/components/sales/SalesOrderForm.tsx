@@ -145,7 +145,7 @@ export const SalesOrderForm = forwardRef<SalesOrderFormRef, SalesOrderFormProps>
 
     const updateItem = (id: string, field: keyof OrderItem, value: any) => {
       if (isView) return;
-      setItems(items.map((item) => (item.id === id ? { ...item, [field]: value } : item)));
+      setItems((prevItems) => prevItems.map((item) => (item.id === id ? { ...item, [field]: value } : item)));
     };
 
     const totalAmount = items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
@@ -259,6 +259,7 @@ export const SalesOrderForm = forwardRef<SalesOrderFormRef, SalesOrderFormProps>
           onUpdateItem={updateItem}
           renderPartnerCombobox={() => (
             <SearchableCombobox
+              data-testid="sales-customer-combo"
               value={customerName}
               placeholder="Nhấn để chọn khách hàng..."
               disabled={mode === 'VIEW'}
@@ -280,6 +281,7 @@ export const SalesOrderForm = forwardRef<SalesOrderFormRef, SalesOrderFormProps>
           )}
           renderProductCombobox={(itemId, currentVal) => (
             <SearchableCombobox
+              data-testid={`sales-product-combo-${itemId}`}
               value={currentVal}
               placeholder="Nhấn để chọn..."
               disabled={mode === 'VIEW'}

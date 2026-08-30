@@ -122,7 +122,7 @@ export const GenericDocumentForm: React.FC<GenericDocumentFormProps> = ({
   return (
     <div className="font-sans flex-1 flex flex-col overflow-hidden bg-[#e2e8f0]">
       {error && (
-        <div className="px-4 py-2 bg-red-100 text-red-700 text-sm border-b border-red-200 flex items-center gap-2">
+        <div data-testid="sales-error-msg" className="px-4 py-2 bg-red-100 text-red-700 text-sm border-b border-red-200 flex items-center gap-2">
           <X size={14} /> {error}
         </div>
       )}
@@ -414,7 +414,7 @@ export const GenericDocumentForm: React.FC<GenericDocumentFormProps> = ({
             </thead>
             <tbody>
               {items.map((item, index) => (
-                <tr key={item.id} className="hover:bg-[#e0f2fe]">
+                <tr key={item.id} data-testid="sales-line-row" className="hover:bg-[#e0f2fe]">
                   <td className="border-b border-r border-[#64748b] px-[10px] py-[4px] text-center">{index + 1}</td>
                   <td className="border-b border-r border-[#64748b] px-0 py-0">
                     {renderProductCombobox && !isView ? (
@@ -435,6 +435,7 @@ export const GenericDocumentForm: React.FC<GenericDocumentFormProps> = ({
                   </td>
                   <td className="border-b border-r border-[#64748b] px-0 py-0">
                     <input
+                      data-testid="sales-line-quantity"
                       type="number"
                       disabled={isView}
                       min="1"
@@ -447,6 +448,7 @@ export const GenericDocumentForm: React.FC<GenericDocumentFormProps> = ({
                   </td>
                   <td className="border-b border-r border-[#64748b] px-0 py-0">
                     <input
+                      data-testid="sales-line-price"
                       type="number"
                       disabled={isView}
                       min="0"
@@ -463,7 +465,7 @@ export const GenericDocumentForm: React.FC<GenericDocumentFormProps> = ({
                       value={0}
                     />
                   </td>
-                  <td className="border-b border-r border-[#64748b] px-[10px] py-[4px] text-right font-bold text-slate-900">
+                  <td data-testid="sales-line-total" className="border-b border-r border-[#64748b] px-[10px] py-[4px] text-right font-bold text-slate-900">
                     {(item.quantity * item.unitPrice).toLocaleString()}
                   </td>
                   <td className="border-b border-r border-[#64748b] px-0 py-0">
@@ -477,6 +479,7 @@ export const GenericDocumentForm: React.FC<GenericDocumentFormProps> = ({
                     <td className="border-b border-[#64748b] text-center">
                       <button
                         type="button"
+                        data-testid="sales-line-delete"
                         onClick={() => onRemoveItem(item.id)}
                         className="text-red-600 hover:text-red-800 p-1"
                       >
@@ -498,6 +501,7 @@ export const GenericDocumentForm: React.FC<GenericDocumentFormProps> = ({
                   <td colSpan={8} className="border-b border-[#64748b] px-[10px] py-[4px]">
                     <button
                       type="button"
+                      data-testid="sales-add-line"
                       onClick={onAddItem}
                       className="text-blue-700 hover:underline flex items-center gap-1 font-medium"
                     >

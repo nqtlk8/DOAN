@@ -82,6 +82,7 @@ export const MdiModuleLayout: React.FC<MdiModuleLayoutProps> = ({
       <div className="w-[26px] bg-[#e2e8f0] border-r border-[#999] flex flex-col items-center shrink-0">
         <button
           onClick={() => onSubViewChange('FORM')}
+          data-testid="subview-form"
           className={`w-full py-8 flex items-center justify-center border-b border-[#cbd5e1] hover:bg-[#cbd5e1] ${
             activeSubView === 'FORM' ? 'bg-white font-bold text-[#0f172a]' : 'text-slate-700'
           }`}
@@ -95,6 +96,7 @@ export const MdiModuleLayout: React.FC<MdiModuleLayoutProps> = ({
         </button>
         <button
           onClick={() => onSubViewChange('LIST')}
+          data-testid="subview-list"
           className={`w-full py-8 flex items-center justify-center border-b border-[#cbd5e1] hover:bg-[#cbd5e1] ${
             activeSubView === 'LIST' ? 'bg-white font-bold text-[#0f172a]' : 'text-slate-700'
           }`}
@@ -121,18 +123,21 @@ export const MdiModuleLayout: React.FC<MdiModuleLayoutProps> = ({
                 <>
                   <button
                     onClick={onAdd}
+                    data-testid="btn-add"
                     className="h-[32px] inline-flex items-center justify-center gap-[6px] px-3 bg-white border border-[#999] hover:bg-[#e2e8f0] rounded-[2px] text-[13px] font-medium transition-colors"
                   >
                     <FilePlus size={16} /> Thêm (F2)
                   </button>
                   <button
                     onClick={onEdit}
+                    data-testid="btn-edit"
                     className="h-[32px] inline-flex items-center justify-center gap-[6px] px-3 bg-white border border-[#999] hover:bg-[#e2e8f0] rounded-[2px] text-[13px] font-medium transition-colors"
                   >
                     <Edit2 size={16} /> Sửa (F3)
                   </button>
                   <button
                     onClick={onDelete}
+                    data-testid="btn-delete"
                     className="h-[32px] inline-flex items-center justify-center gap-[6px] px-3 bg-white border border-[#999] hover:bg-red-50 hover:text-red-600 rounded-[2px] text-[13px] font-medium transition-colors"
                   >
                     <Trash2 size={16} /> Xóa (F8)
@@ -143,6 +148,7 @@ export const MdiModuleLayout: React.FC<MdiModuleLayoutProps> = ({
                 <>
                   <button
                     onClick={onSave}
+                    data-testid="btn-save"
                     disabled={isLoading}
                     className="h-[32px] inline-flex items-center justify-center gap-[6px] px-4 bg-teal-600 border border-teal-700 text-white hover:bg-teal-700 rounded-[2px] text-[13px] font-medium transition-colors disabled:opacity-50"
                   >
@@ -150,6 +156,7 @@ export const MdiModuleLayout: React.FC<MdiModuleLayoutProps> = ({
                   </button>
                   <button
                     onClick={onCancel}
+                    data-testid="btn-cancel"
                     disabled={isLoading}
                     className="h-[32px] inline-flex items-center justify-center gap-[6px] px-3 bg-white border border-[#999] hover:bg-[#e2e8f0] rounded-[2px] text-[13px] font-medium transition-colors disabled:opacity-50"
                   >
@@ -163,6 +170,7 @@ export const MdiModuleLayout: React.FC<MdiModuleLayoutProps> = ({
             <div className="flex items-center gap-[8px]">
               <button
                 onClick={onPrint}
+                data-testid="btn-print"
                 disabled={!isView}
                 className="h-[32px] inline-flex items-center justify-center gap-[6px] px-3 bg-white border border-[#999] hover:bg-[#e2e8f0] rounded-[2px] text-[13px] font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
@@ -170,6 +178,7 @@ export const MdiModuleLayout: React.FC<MdiModuleLayoutProps> = ({
               </button>
               <button
                 onClick={onExit}
+                data-testid="btn-exit"
                 className="h-[32px] inline-flex items-center justify-center gap-[6px] px-3 bg-white border border-[#999] hover:bg-red-50 hover:text-red-600 rounded-[2px] text-[13px] font-medium transition-colors"
               >
                 <LogOut size={16} /> Thoát (F12)

@@ -37,12 +37,12 @@ export const Login: React.FC = () => {
         </div>
 
         {error && (
-          <div className="mb-6 p-3 bg-red-500/10 border border-red-500/50 rounded-lg">
+          <div data-testid="login-error" className="mb-6 p-3 bg-red-500/10 border border-red-500/50 rounded-lg">
             <p className="text-sm text-red-400 text-center font-medium">{error}</p>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form data-testid="login-form" onSubmit={handleSubmit} className="space-y-6">
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-2">Tên đăng nhập</label>
             <div className="relative">
@@ -50,6 +50,7 @@ export const Login: React.FC = () => {
                 <User className="h-5 w-5 text-slate-500" />
               </div>
               <input
+                data-testid="login-username"
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
@@ -67,6 +68,7 @@ export const Login: React.FC = () => {
                 <Lock className="h-5 w-5 text-slate-500" />
               </div>
               <input
+                data-testid="login-password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -78,6 +80,7 @@ export const Login: React.FC = () => {
           </div>
 
           <button
+            data-testid="login-submit"
             type="submit"
             disabled={isLoading}
             className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-teal-600 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 focus:ring-offset-slate-900 transition-all disabled:opacity-50"

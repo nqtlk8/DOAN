@@ -52,11 +52,12 @@ export const SalesList: React.FC<SalesListProps> = ({ onRowDoubleClick }) => {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
             <input
               type="text"
+              data-testid="sales-list-search"
               placeholder="Tìm kiếm đơn hàng..."
               className="pl-9 pr-4 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500/50 w-full sm:w-64"
             />
           </div>
-          <button className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
+          <button data-testid="sales-list-filter" className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
             <Filter size={16} /> Lọc
           </button>
         </div>
@@ -95,6 +96,7 @@ export const SalesList: React.FC<SalesListProps> = ({ onRowDoubleClick }) => {
               orders.map((order) => (
                 <tr
                   key={order.orderId}
+                  data-testid="sales-list-row"
                   className="hover:bg-slate-50/50 transition-colors group cursor-pointer"
                   onDoubleClick={() => {
                     if (onRowDoubleClick) onRowDoubleClick(order.orderId);
@@ -106,6 +108,7 @@ export const SalesList: React.FC<SalesListProps> = ({ onRowDoubleClick }) => {
                   <td className="px-6 py-4 font-medium text-slate-900">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(order.totalAmount)}</td>
                   <td className="px-6 py-4">
                     <span
+                      data-testid="sales-list-status"
                       className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium border ${getStatusColor(order.status)}`}
                     >
                       {order.status === 'CONFIRMED' ? 'Đã Xác Nhận' : order.status === 'DRAFT' ? 'Nháp' : order.status === 'CANCELLED' ? 'Đã Hủy' : order.status === 'PENDING' ? 'Chờ Xử Lý' : order.status === 'DELIVERED' ? 'Đã Giao' : order.status}
@@ -115,12 +118,14 @@ export const SalesList: React.FC<SalesListProps> = ({ onRowDoubleClick }) => {
                     <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
                         onClick={() => handleEdit(order)}
+                        data-testid="sales-list-action-view"
                         className="flex items-center gap-1 p-1.5 text-teal-600 hover:text-teal-700 hover:bg-teal-50 rounded-lg text-sm font-medium transition-colors"
                         title="Chi Tiết / Sửa"
                       >
                         <Eye size={16} /> <span className="hidden sm:inline">Chi Tiết / Sửa</span>
                       </button>
                       <button
+                        data-testid="sales-list-action-print"
                         className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg"
                         title="Phiếu Giao Hàng"
                       >
