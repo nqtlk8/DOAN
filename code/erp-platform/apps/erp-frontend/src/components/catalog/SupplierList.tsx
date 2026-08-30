@@ -1,14 +1,14 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { Search, Plus, X, Edit2, Trash2 } from 'lucide-react';
 import { ApiService } from '../../api/ApiService';
-import type { Distributor } from '../../types/catalog';
+import type { Supplier } from '../../types/catalog';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../context/AuthContext';
 import { DataState } from '../../shared/components/DataState/DataState';
 import { ConfirmDialog } from '../../shared/components/Dialog/ConfirmDialog';
 import { notify } from '../../shared/notifications/notification';
 
-export const DistributorList: React.FC = () => {
+export const SupplierList: React.FC = () => {
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
   const queryClient = useQueryClient();
@@ -16,21 +16,21 @@ export const DistributorList: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [confirmState, setConfirmState] = useState({ isOpen: false, id: '' });
 
-  const [formData, setFormData] = useState<Partial<Distributor>>({});
+  const [formData, setFormData] = useState<Partial<Supplier>>({});
   const [isEditing, setIsEditing] = useState(false);
 
   const { data: response, isLoading: loading, isError, error, refetch } = useQuery({
-    queryKey: ['distributors'],
-    queryFn: () => ApiService.Catalog.getDistributors(),
+    queryKey: ['suppliers'],
+    queryFn: () => ApiService.Catalog.getSuppliers(),
   });
 
-  const distributors: Distributor[] = response || [];
+  const suppliers: Supplier[] = response || [];
 
   const createMutation = useMutation({
-    mutationFn: (data: any) => ApiService.Catalog.createDistributor(data),
+    mutationFn: (data: any) => ApiService.Catalog.createSupplier(data),
     onSuccess: () => {
       notify.success('Đã tạo nhà phân phối thành công');
-      queryClient.invalidateQueries({ queryKey: ['distributors'] });
+      queryClient.invalidateQueries({ queryKey: ['suppliers'] });
       handleCloseModal();
     },
     onError: (err: any) => {
@@ -39,10 +39,10 @@ export const DistributorList: React.FC = () => {
   });
 
   const updateMutation = useMutation({
-    mutationFn: (data: { id: string; payload: any }) => ApiService.Catalog.updateDistributor(data.id, data.payload),
+    mutationFn: (data: { id: string; payload: any }) => ApiService.Catalog.updateSupplier(data.id, data.payload),
     onSuccess: () => {
       notify.success('Đã cập nhật nhà phân phối thành công');
-      queryClient.invalidateQueries({ queryKey: ['distributors'] });
+      queryClient.invalidateQueries({ queryKey: ['suppliers'] });
       handleCloseModal();
     },
     onError: (err: any) => {
@@ -51,10 +51,10 @@ export const DistributorList: React.FC = () => {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => ApiService.Catalog.deleteDistributor(id),
+    mutationFn: (id: string) => ApiService.Catalog.deleteSupplier(id),
     onSuccess: () => {
       notify.success('Đã xóa nhà phân phối thành công');
-      queryClient.invalidateQueries({ queryKey: ['distributors'] });
+      queryClient.invalidateQueries({ queryKey: ['suppliers'] });
       setConfirmState({ isOpen: false, id: '' });
     },
     onError: (err: any) => {
@@ -63,10 +63,10 @@ export const DistributorList: React.FC = () => {
     }
   });
 
-  const handleOpenModal = (distributor?: Distributor) => {
-    if (distributor) {
+  const handleOpenModal = (supplier?: Supplier) => {
+    if (supplier) {
       setIsEditing(true);
-      setFormData(distributor);
+      setFormData(supplier);
     } else {
       setIsEditing(false);
       setFormData({});
@@ -94,7 +94,7 @@ export const DistributorList: React.FC = () => {
 
   const submitting = createMutation.isPending || updateMutation.isPending;
 
-  const filtered = distributors.filter((d) => d.name?.toLowerCase().includes(searchTerm.toLowerCase()));
+  const filtered = suppliers.filter((d) => d.name?.toLowerCase().includes(searchTerm.toLowerCase()));
 
   return (
     <div className="p-6">
@@ -147,7 +147,7 @@ export const DistributorList: React.FC = () => {
                   isLoading={loading}
                   isError={isError}
                   error={error}
-                  isEmpty={distributors.length === 0}
+                  isEmpty={suppliers.length === 0}
                   onRetry={refetch}
                   loadingType="table"
                   emptyTitle="Chưa có nhà phân phối"
@@ -164,7 +164,7 @@ export const DistributorList: React.FC = () => {
                     )
                   }
                 >
-                  {distributors.length > 0 && filtered.length === 0 ? (
+                  {suppliers.length > 0 && filtered.length === 0 ? (
                     <div className="p-8 text-center text-slate-500 bg-white">
                       Không tìm thấy kết quả nào phù hợp với "{searchTerm}"
                     </div>

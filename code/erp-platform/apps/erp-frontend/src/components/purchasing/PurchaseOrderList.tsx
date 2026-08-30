@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { Search, Filter, MoreVertical, Eye, FileText } from 'lucide-react';
 import { ApiService } from '../../api/ApiService';
 import { useQuery } from '@tanstack/react-query';
@@ -97,7 +97,7 @@ export const PurchaseOrderList: React.FC<PurchaseOrderListProps> = ({ onRowDoubl
                   }}
                 >
                   <td className="px-6 py-4 font-medium text-slate-900">{order.orderNumber || order.id}</td>
-                  <td className="px-6 py-4 text-slate-600">{order.distributorName || order.distributorId}</td>
+                  <td className="px-6 py-4 text-slate-600">{order.supplierName || order.supplierId}</td>
                   <td className="px-6 py-4 text-slate-500">{new Date(order.orderDate).toLocaleDateString()}</td>
                   <td className="px-6 py-4 font-medium text-slate-900">
                     {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(order.totalAmount || 0)}

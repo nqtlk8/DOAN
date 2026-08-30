@@ -1,11 +1,11 @@
-import { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
+﻿import { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { Plus, Trash2, X, Printer } from 'lucide-react';
 import { ApiService } from '../../api/ApiService';
 import { PrintInvoice } from '../common/PrintInvoice';
 import { useTabs } from '../../context/TabContext';
 import { useAuth } from '../../context/AuthContext';
 import { SearchModal } from '../common/SearchModal';
-import type { Distributor, Product } from '../../types/catalog';
+import type { Supplier, Product } from '../../types/catalog';
 import toast from 'react-hot-toast';
 
 import { GenericDocumentForm, type OrderItem } from '../common/document/GenericDocumentForm';
@@ -46,8 +46,8 @@ export const PurchaseOrderForm = forwardRef<PurchaseOrderFormRef, PurchaseOrderF
     const [note, setNote] = useState(initialData?.note || '');
 
     // Column 2: Customer
-    const [distributorCode, setDistributorCode] = useState(initialData?.distributorCode || '');
-    const [distributorName, setDistributorName] = useState(initialData?.distributorName || initialData?.customer || '');
+    const [supplierCode, setSupplierCode] = useState(initialData?.supplierCode || '');
+    const [supplierName, setSupplierName] = useState(initialData?.supplierName || initialData?.customer || '');
     const [address, setAddress] = useState(initialData?.address || '');
     const [phone, setPhone] = useState(initialData?.phone || '');
     const [contactPerson, setContactPerson] = useState(initialData?.contactPerson || '');
@@ -72,7 +72,7 @@ export const PurchaseOrderForm = forwardRef<PurchaseOrderFormRef, PurchaseOrderF
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [showPrintModal, setShowPrintModal] = useState(false);
-    const [showDistributorSearch, setShowDistributorSearch] = useState(false);
+    const [showSupplierSearch, setShowSupplierSearch] = useState(false);
     const [showProductSearch, setShowProductSearch] = useState(false);
     const [activeItemRowId, setActiveItemRowId] = useState<string | null>(null);
 
@@ -96,8 +96,8 @@ export const PurchaseOrderForm = forwardRef<PurchaseOrderFormRef, PurchaseOrderF
       // Reset state for new order
       setMode('ADD');
       setOrderCode('AUTO-GENERATE');
-      setDistributorCode('');
-      setDistributorName('');
+      setSupplierCode('');
+      setSupplierName('');
       setAddress('');
       setPhone('');
       setContactPerson('');
@@ -160,7 +160,7 @@ export const PurchaseOrderForm = forwardRef<PurchaseOrderFormRef, PurchaseOrderF
       setFieldErrors({});
       try {
         const newErrors: Record<string, string> = {};
-        if (!distributorCode) {
+        if (!supplierCode) {
           newErrors.partner = 'Vui lòng chọn nhà phân phối';
         }
         if (items.length === 0) {
@@ -178,7 +178,7 @@ export const PurchaseOrderForm = forwardRef<PurchaseOrderFormRef, PurchaseOrderF
         }
 
         const payload = {
-          supplierId: distributorCode,
+          supplierId: supplierCode,
           lines: items.map((i) => ({
             productId: i.productId,
             quantity: i.quantity,
@@ -232,8 +232,8 @@ export const PurchaseOrderForm = forwardRef<PurchaseOrderFormRef, PurchaseOrderF
           partnerTitle="Nhà Phân Phối"
           partnerCodeLabel="Mã NPP / Tên NPP"
           partnerPlaceholder="Nhấn để chọn Nhà phân phối..."
-          partnerName={distributorName}
-          onPartnerSearch={() => setShowDistributorSearch(true)}
+          partnerName={supplierName}
+          onPartnerSearch={() => setShowSupplierSearch(true)}
           address={address}
           setAddress={setAddress}
           phone={phone}
@@ -256,22 +256,22 @@ export const PurchaseOrderForm = forwardRef<PurchaseOrderFormRef, PurchaseOrderF
           onUpdateItem={updateItem}
           renderPartnerCombobox={() => (
             <SearchableCombobox
-              value={distributorName}
+              value={supplierName}
               placeholder="Nhấn để chọn nhà phân phối..."
               disabled={mode === 'VIEW'}
-              fetchData={ApiService.Catalog.searchDistributors}
+              fetchData={ApiService.Catalog.getSuppliers}
               columns={[
-                { header: 'Mã', field: 'distributorCode', width: '20%' },
+                { header: 'Mã', field: 'supplierCode', width: '20%' },
                 { header: 'Tên', field: 'name', width: '50%' },
                 { header: 'Điện thoại', field: 'phoneNumber', width: '30%' }
               ]}
-              onSelect={(distributor) => {
-                setDistributorCode(distributor.distributorCode || distributor.distributorId || '');
-                setDistributorName(distributor.name);
-                setAddress(distributor.address || '');
-                setPhone(distributor.phoneNumber || '');
-                setContactPerson(distributor.contactPerson || '');
-                setOldDebt(distributor.currentDebt || 0);
+              onSelect={(supplier) => {
+                setSupplierCode(supplier.code || supplier.id || '');
+                setSupplierName(supplier.name);
+                setAddress(supplier.address || '');
+                setPhone(supplier.phone || '');
+                setContactPerson('' || '');
+                setOldDebt(0 || 0);
               }}
             />
           )}
@@ -319,7 +319,7 @@ export const PurchaseOrderForm = forwardRef<PurchaseOrderFormRef, PurchaseOrderF
               <div className="p-8 overflow-y-auto bg-slate-200 flex-1 flex justify-center">
                 <div className="bg-white shadow-sm" style={{ width: '148mm', minHeight: '210mm' }}>
                   <PrintInvoice
-                    distributorName={distributorName}
+                    supplierName={supplierName}
                     items={items}
                     totalAmount={totalAmount}
                     advancePayment={advancePayment}
@@ -335,7 +335,7 @@ export const PurchaseOrderForm = forwardRef<PurchaseOrderFormRef, PurchaseOrderF
 
         <PrintInvoice
           className="hidden print:block fixed inset-0 z-[9999] bg-white w-full h-full"
-          distributorName={distributorName}
+          supplierName={supplierName}
           items={items}
           totalAmount={totalAmount}
           advancePayment={advancePayment}
@@ -345,12 +345,12 @@ export const PurchaseOrderForm = forwardRef<PurchaseOrderFormRef, PurchaseOrderF
         />
 
         {/* Search Modals */}
-        <SearchModal<Distributor>
-          isOpen={showDistributorSearch}
-          onClose={() => setShowDistributorSearch(false)}
+        <SearchModal<Supplier>
+          isOpen={showSupplierSearch}
+          onClose={() => setShowSupplierSearch(false)}
           title="Tìm kiếm Nhà phân phối"
           placeholder="Nhập tên hoặc mã NPP..."
-          fetchData={(query) => ApiService.Catalog.searchDistributors(query)}
+          fetchData={(query) => ApiService.Catalog.getSuppliers()}
           renderItem={(c) => (
             <div>
               <div className="font-medium text-slate-900">
@@ -362,8 +362,8 @@ export const PurchaseOrderForm = forwardRef<PurchaseOrderFormRef, PurchaseOrderF
             </div>
           )}
           onSelect={(c) => {
-            setDistributorCode(c.id);
-            setDistributorName(c.name);
+            setSupplierCode(c.id);
+            setSupplierName(c.name);
             if (c.address) setAddress(c.address);
             if (c.phone) setPhone(c.phone);
           }}

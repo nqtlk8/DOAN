@@ -21,9 +21,9 @@ SELECT setval(pg_get_serial_sequence('role', 'id'), (SELECT MAX(id) FROM role));
 -- 3. Users (Password is 'password')
 INSERT INTO user_account (id, username, password_hash, full_name, is_active, created_at, updated_at)
 VALUES 
-(1, 'admin', '$2a$10$iGQ7Sy5sYyDeakHKzeu3AOpipgneKau3yF8Oq8BQRqofkhgevv..G', 'Quản trị viên HQ', true, now(), now()),
-(2, 'staff_tp1', '$2a$10$iGQ7Sy5sYyDeakHKzeu3AOpipgneKau3yF8Oq8BQRqofkhgevv..G', 'Nhân viên TP1', true, now(), now()),
-(3, 'staff_tp2', '$2a$10$iGQ7Sy5sYyDeakHKzeu3AOpipgneKau3yF8Oq8BQRqofkhgevv..G', 'Nhân viên TP2', true, now(), now())
+(1, 'admin', '$2a$10$F/P0AgymR4shq0Klom269uWwtOZzNDMsLs.0PqdzGsDBhCbnsXtlm', 'Quản trị viên HQ', true, now(), now()),
+(2, 'staff_tp1', '$2a$10$F/P0AgymR4shq0Klom269uWwtOZzNDMsLs.0PqdzGsDBhCbnsXtlm', 'Nhân viên TP1', true, now(), now()),
+(3, 'staff_tp2', '$2a$10$F/P0AgymR4shq0Klom269uWwtOZzNDMsLs.0PqdzGsDBhCbnsXtlm', 'Nhân viên TP2', true, now(), now())
 ON CONFLICT (username) DO NOTHING;
 SELECT setval(pg_get_serial_sequence('user_account', 'id'), (SELECT MAX(id) FROM user_account));
 

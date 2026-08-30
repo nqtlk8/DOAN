@@ -1,50 +1,86 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* 
+  Dự án này sử dụng Tailwind v4, việc khai báo token trong block @theme 
+  sẽ tự động sinh ra các utility class tương ứng (ví dụ: bg-erp-bg-ribbon, text-erp-text-primary).
+*/
 @theme {
-  --color-primary: #0d9488;
-  --color-primary-foreground: #ffffff;
-  --color-secondary: #2dd4bf;
-  --color-accent: #d97706;
-  --color-background: #f0fdfa;
-  --color-foreground: #134e4a;
-  --color-muted: #e8f1f4;
-  --color-border: #5eead4;
-  --color-destructive: #dc2626;
-  --color-ring: #0d9488;
+  /* MÀU SẮC - Giao diện Kế toán ERP Desktop */
+  --color-erp-bg-ribbon: #E4EBF4;
+  --color-erp-bg-ribbon-border: #A0B0C0;
+  --color-erp-bg-content: #FFFFFF;
+  --color-erp-bg-input: #E2E9F4;
+  --color-erp-border-input: #999999;
+  --color-erp-border-input-focus: #3366CC;
+  --color-erp-border-input-error: #D30000;
+  --color-erp-text-primary: #000000;
+  --color-erp-text-accent-red: #D30000;
+  --color-erp-bg-table-header: #E4EBF4;
+  --color-erp-border-table: #B0B0B0;
+  --color-erp-row-selected-bg: #316AC5;
+  --color-erp-row-selected-text: #FFFFFF;
+  --color-erp-row-hover-bg: #EAF3FF;
+  --color-erp-btn-bg: #F0F0F0;
+  --color-erp-btn-border: #999999;
+  --color-erp-btn-hover-bg: #E0E8F5;
+  
+  /* Bổ sung trạng thái disabled (như góp ý) */
+  --color-erp-bg-disabled: #F5F5F5;
+  --color-erp-text-disabled: #A0A0A0;
+  --color-erp-border-disabled: #D0D0D0;
 
-  --font-sans: 'Inter', sans-serif;
-  --animate-metric-pulse: metric-pulse 2s ease-in-out infinite;
-  @keyframes metric-pulse {
-    0%,
-    100% {
-      transform: scale(1);
-      opacity: 0.8;
-    }
-    50% {
-      transform: scale(1.05);
-      opacity: 1;
-    }
+  /* KÍCH THƯỚC & FONT */
+  --font-erp: 'Tahoma', 'Segoe UI', Arial, sans-serif;
+  
+  --text-erp-base: 12px;
+  --text-erp-label: 11px;
+  --text-erp-title: 13px;
+  
+  --spacing-erp-input-height: 24px;
+  --spacing-erp-row-height: 22px;
+  --spacing-erp-padding-tight: 2px;
+  
+  --radius-erp: 2px;
+}
+
+@layer base {
+  /* Khắc phục triệt để lỗi tràn viền */
+  *, *::before, *::after {
+    box-sizing: border-box;
+    /* Cấu hình scrollbar cho Firefox */
+    scrollbar-width: thin;
+    scrollbar-color: #CDCDCD #F0F0F0;
   }
-}
 
-html,
-body,
-:root {
-  height: 100%;
-  font-family: var(--font-sans);
-}
+  html {
+    height: 100%;
+    /* KHÔNG đặt font-size mặc định ở html để giữ nguyên 1rem = 16px cho Tailwind */
+  }
 
-button,
-a,
-[role='button'] {
-  cursor: pointer;
-  transition-property:
-    color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter,
-    backdrop-filter;
-  transition-duration: 200ms;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  body {
+    height: 100%;
+    font-family: var(--font-erp);
+    font-size: var(--text-erp-base);
+    color: var(--color-erp-text-primary);
+    background-color: var(--color-erp-bg-content);
+  }
+
+  /* Chỉnh scrollbar cổ điển (chỉ cho Webkit) */
+  ::-webkit-scrollbar {
+    width: 14px;
+    height: 14px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #F0F0F0;
+    border-left: 1px solid #E0E0E0;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #CDCDCD;
+    border: 1px solid #F0F0F0;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #A6A6A6;
+  }
 }

@@ -77,19 +77,19 @@ export const MdiModuleLayout: React.FC<MdiModuleLayoutProps> = ({
   }, [activeSubView, isView, onAdd, onEdit, onSave, onCancel, onDelete, onPrint, onExit]);
 
   return (
-    <div className="flex h-full bg-slate-100">
+    <div className="flex h-full bg-erp-bg-content min-h-0">
       {/* Left Vertical Tabs (Sidebar) */}
-      <div className="w-[26px] bg-[#e2e8f0] border-r border-[#999] flex flex-col items-center shrink-0">
+      <div className="w-[28px] bg-erp-bg-ribbon border-r border-erp-bg-ribbon-border flex flex-col items-center shrink-0 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-hide">
         <button
           onClick={() => onSubViewChange('FORM')}
           data-testid="subview-form"
-          className={`w-full py-8 flex items-center justify-center border-b border-[#cbd5e1] hover:bg-[#cbd5e1] ${
-            activeSubView === 'FORM' ? 'bg-white font-bold text-[#0f172a]' : 'text-slate-700'
+          className={`w-full py-6 flex items-center justify-center border-b border-erp-bg-ribbon-border transition-none shrink-0 ${
+            activeSubView === 'FORM' ? 'bg-erp-bg-content font-bold text-erp-text-primary' : 'bg-transparent hover:bg-white/40 text-slate-700'
           }`}
         >
           <span
-            style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
-            className="text-[12px] whitespace-nowrap"
+            style={{ writingMode: 'vertical-rl', textOrientation: 'mixed', transform: 'rotate(180deg)' }}
+            className="text-erp-label whitespace-nowrap overflow-visible"
           >
             Nội dung
           </span>
@@ -97,13 +97,13 @@ export const MdiModuleLayout: React.FC<MdiModuleLayoutProps> = ({
         <button
           onClick={() => onSubViewChange('LIST')}
           data-testid="subview-list"
-          className={`w-full py-8 flex items-center justify-center border-b border-[#cbd5e1] hover:bg-[#cbd5e1] ${
-            activeSubView === 'LIST' ? 'bg-white font-bold text-[#0f172a]' : 'text-slate-700'
+          className={`w-full py-6 flex items-center justify-center border-b border-erp-bg-ribbon-border transition-none shrink-0 ${
+            activeSubView === 'LIST' ? 'bg-erp-bg-content font-bold text-erp-text-primary' : 'bg-transparent hover:bg-white/40 text-slate-700'
           }`}
         >
           <span
-            style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
-            className="text-[12px] whitespace-nowrap"
+            style={{ writingMode: 'vertical-rl', textOrientation: 'mixed', transform: 'rotate(180deg)' }}
+            className="text-erp-label whitespace-nowrap overflow-visible"
           >
             Danh sách phiếu
           </span>
@@ -116,31 +116,37 @@ export const MdiModuleLayout: React.FC<MdiModuleLayoutProps> = ({
 
         {/* Bottom Toolbar (Sticky at bottom of main content) */}
         {activeSubView === 'FORM' && (
-          <div className="h-[48px] bg-[#e2e8f0] text-[#0f172a] border-t border-[#999] px-[12px] flex justify-between items-center shrink-0">
+          <div className="h-[32px] bg-erp-bg-content text-erp-text-primary border-t border-erp-btn-border px-2 flex justify-between items-center shrink-0 overflow-x-auto scrollbar-hide">
             {/* Left side actions */}
-            <div className="flex items-center gap-[8px]">
+            <div className="flex items-center gap-1 flex-nowrap">
               {isView && (
                 <>
                   <button
                     onClick={onAdd}
                     data-testid="btn-add"
-                    className="h-[32px] inline-flex items-center justify-center gap-[6px] px-3 bg-white border border-[#999] hover:bg-[#e2e8f0] rounded-[2px] text-[13px] font-medium transition-colors"
+                    className="h-[24px] inline-flex items-center gap-1 px-2 bg-erp-btn-bg border border-erp-btn-border hover:bg-erp-btn-hover-bg rounded-erp text-erp-base transition-none shrink-0"
                   >
-                    <FilePlus size={16} /> Thêm (F2)
+                    <FilePlus size={14} className="text-blue-600" />
+                    <span>Thêm</span>
+                    <span className="text-slate-500 ml-1 text-erp-label">(F2)</span>
                   </button>
                   <button
                     onClick={onEdit}
                     data-testid="btn-edit"
-                    className="h-[32px] inline-flex items-center justify-center gap-[6px] px-3 bg-white border border-[#999] hover:bg-[#e2e8f0] rounded-[2px] text-[13px] font-medium transition-colors"
+                    className="h-[24px] inline-flex items-center gap-1 px-2 bg-erp-btn-bg border border-erp-btn-border hover:bg-erp-btn-hover-bg rounded-erp text-erp-base transition-none shrink-0"
                   >
-                    <Edit2 size={16} /> Sửa (F3)
+                    <Edit2 size={14} className="text-blue-600" />
+                    <span>Sửa</span>
+                    <span className="text-slate-500 ml-1 text-erp-label">(F3)</span>
                   </button>
                   <button
                     onClick={onDelete}
                     data-testid="btn-delete"
-                    className="h-[32px] inline-flex items-center justify-center gap-[6px] px-3 bg-white border border-[#999] hover:bg-red-50 hover:text-red-600 rounded-[2px] text-[13px] font-medium transition-colors"
+                    className="h-[24px] inline-flex items-center gap-1 px-2 bg-erp-btn-bg border border-erp-btn-border hover:bg-erp-btn-hover-bg rounded-erp text-erp-base transition-none shrink-0"
                   >
-                    <Trash2 size={16} /> Xóa (F8)
+                    <Trash2 size={14} className="text-erp-text-accent-red" />
+                    <span>Xóa</span>
+                    <span className="text-slate-500 ml-1 text-erp-label">(F8)</span>
                   </button>
                 </>
               )}
@@ -150,38 +156,46 @@ export const MdiModuleLayout: React.FC<MdiModuleLayoutProps> = ({
                     onClick={onSave}
                     data-testid="btn-save"
                     disabled={isLoading}
-                    className="h-[32px] inline-flex items-center justify-center gap-[6px] px-4 bg-teal-600 border border-teal-700 text-white hover:bg-teal-700 rounded-[2px] text-[13px] font-medium transition-colors disabled:opacity-50"
+                    className="h-[24px] inline-flex items-center gap-1 px-2 bg-erp-btn-bg border border-erp-btn-border hover:bg-erp-btn-hover-bg rounded-erp text-erp-base transition-none shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <Save size={16} /> Lưu (F4)
+                    <Save size={14} className="text-blue-600" />
+                    <span>Lưu</span>
+                    <span className="text-slate-500 ml-1 text-erp-label">(F4)</span>
                   </button>
                   <button
                     onClick={onCancel}
                     data-testid="btn-cancel"
                     disabled={isLoading}
-                    className="h-[32px] inline-flex items-center justify-center gap-[6px] px-3 bg-white border border-[#999] hover:bg-[#e2e8f0] rounded-[2px] text-[13px] font-medium transition-colors disabled:opacity-50"
+                    className="h-[24px] inline-flex items-center gap-1 px-2 bg-erp-btn-bg border border-erp-btn-border hover:bg-erp-btn-hover-bg rounded-erp text-erp-base transition-none shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <X size={16} /> Hủy (Esc)
+                    <X size={14} className="text-red-500" />
+                    <span>Hủy</span>
+                    <span className="text-slate-500 ml-1 text-erp-label">(Esc)</span>
                   </button>
                 </>
               )}
             </div>
 
             {/* Right side actions */}
-            <div className="flex items-center gap-[8px]">
+            <div className="flex items-center gap-1 flex-nowrap ml-4">
               <button
                 onClick={onPrint}
                 data-testid="btn-print"
                 disabled={!isView}
-                className="h-[32px] inline-flex items-center justify-center gap-[6px] px-3 bg-white border border-[#999] hover:bg-[#e2e8f0] rounded-[2px] text-[13px] font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="h-[24px] inline-flex items-center gap-1 px-2 bg-erp-btn-bg border border-erp-btn-border hover:bg-erp-btn-hover-bg rounded-erp text-erp-base transition-none shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <Printer size={16} /> In (F7)
+                <Printer size={14} className="text-slate-700" />
+                <span>In phiếu</span>
+                <span className="text-slate-500 ml-1 text-erp-label">(F7)</span>
               </button>
               <button
                 onClick={onExit}
                 data-testid="btn-exit"
-                className="h-[32px] inline-flex items-center justify-center gap-[6px] px-3 bg-white border border-[#999] hover:bg-red-50 hover:text-red-600 rounded-[2px] text-[13px] font-medium transition-colors"
+                className="h-[24px] inline-flex items-center gap-1 px-2 bg-erp-btn-bg border border-erp-btn-border hover:bg-erp-btn-hover-bg rounded-erp text-erp-base transition-none shrink-0"
               >
-                <LogOut size={16} /> Thoát (F12)
+                <LogOut size={14} className="text-erp-text-accent-red" />
+                <span>Thoát</span>
+                <span className="text-slate-500 ml-1 text-erp-label">(F12)</span>
               </button>
             </div>
           </div>

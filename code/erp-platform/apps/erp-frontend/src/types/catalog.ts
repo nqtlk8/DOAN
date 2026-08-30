@@ -27,15 +27,16 @@ export interface Product {
   code?: string;
 }
 
-export interface Distributor {
+export interface Supplier {
   id: string;
-  code?: string;
+  branchId?: number;
+  code: string;
   name: string;
   phone?: string;
   email?: string;
   address?: string;
-  region?: string;
   taxCode?: string;
+  isActive: boolean;
   createdAt?: string;
   updatedAt?: string;
 }

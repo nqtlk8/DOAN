@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { FilePlus, ShoppingCart, FileText, RefreshCcw, PackageSearch, Truck, CreditCard, LogOut, Settings } from 'lucide-react';
+﻿import React, { useState } from 'react';
+import { FilePlus, ShoppingCart, FileText, RefreshCcw, PackageSearch, Truck, CreditCard, LogOut, Settings, Users, Box, Users2, BarChart2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useTabs } from '../../context/TabContext';
 import { Dashboard } from '../sales/Dashboard';
@@ -7,12 +7,11 @@ import { SalesModule } from '../sales/SalesModule';
 import { PurchaseModule } from '../purchasing/PurchaseModule';
 import { ProductList } from '../catalog/ProductList';
 import { CustomerList } from '../catalog/CustomerList';
-import { DistributorList } from '../catalog/DistributorList';
+import { SupplierList } from '../catalog/SupplierList';
 import { StockList } from '../inventory/StockList';
 import { DebtList } from '../crm/DebtList';
 import { BranchList } from '../admin/BranchList';
 import { GoodsReturnModule } from '../returns/GoodsReturnModule';
-import { Users, Box, Users2, BarChart2 } from 'lucide-react';
 
 export const TopRibbon: React.FC = () => {
   const { user, logout } = useAuth();
@@ -35,7 +34,6 @@ export const TopRibbon: React.FC = () => {
 
   const tabs = allTabs.filter(t => t.roles.includes(user?.role || ''));
 
-  // Nếu tab hiện tại không được phép, reset về tab đầu tiên được phép
   React.useEffect(() => {
     if (tabs.length > 0 && !tabs.find(t => t.id === activeTab)) {
       setActiveTab(tabs[0].id);
@@ -43,17 +41,17 @@ export const TopRibbon: React.FC = () => {
   }, [user?.role, activeTab, tabs]);
 
   return (
-    <div className="flex flex-col w-full shrink-0">
+    <div className="flex flex-col w-full shrink-0 bg-erp-bg-ribbon border-b border-erp-bg-ribbon-border font-erp">
       {/* Ribbon Tầng 1: Tabs ngang */}
-      <div className="flex items-end bg-[#e2e8f0] pt-1 px-1 border-b border-[#94a3b8]">
+      <div className="flex items-end px-1 pt-1 gap-0.5 border-b border-erp-bg-ribbon-border">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`px-4 py-1 text-[12px] font-medium border border-b-0 rounded-t-sm ${
+            className={`px-3 py-1 text-erp-label whitespace-nowrap border border-b-0 rounded-t-erp transition-none ${
               activeTab === tab.id
-                ? 'bg-[#f8fafc] border-[#94a3b8] z-10 -mb-[1px]'
-                : 'bg-transparent border-transparent hover:bg-[#cbd5e1] text-slate-700'
+                ? 'bg-erp-bg-content border-erp-bg-ribbon-border z-10 -mb-[1px]'
+                : 'bg-transparent border-transparent hover:bg-white/40 text-slate-700'
             }`}
           >
             {tab.label}
@@ -62,34 +60,38 @@ export const TopRibbon: React.FC = () => {
       </div>
 
       {/* Ribbon Tầng 2: Toolbar Icons */}
-      <div className="bg-[#f8fafc] border-b border-[#94a3b8] px-4 py-2 flex items-start gap-6 h-[72px]">
+      <div className="flex items-start flex-nowrap overflow-x-auto scrollbar-hide px-2 py-1 gap-1 h-[60px] bg-erp-bg-content">
         {activeTab === 'ChucNang' && (
           <>
             <button
               onClick={() => handleOpenTab('new-order', 'BÁN HÀNG', <SalesModule initialSubView="FORM" mode="ADD" />, false)}
-              className="flex flex-col items-center gap-1 hover:bg-[#e2e8f0] p-1 rounded-sm border border-transparent hover:border-[#94a3b8] min-w-[64px]"
+              className="flex flex-col items-center justify-center p-1 min-w-[60px] shrink-0 border border-transparent hover:border-erp-btn-border hover:bg-erp-btn-hover-bg rounded-erp gap-1"
             >
-              <ShoppingCart size={28} className="text-blue-600" />
-              <span className="text-[11px] text-slate-800 text-center leading-tight">Bán Hàng</span>
+              <ShoppingCart size={20} className="text-blue-600" />
+              <span className="text-erp-label whitespace-nowrap leading-none text-slate-800">Bán Hàng</span>
             </button>
-            <div className="w-[1px] h-full bg-[#cbd5e1] mx-1"></div>
-            <button className="flex flex-col items-center gap-1 hover:bg-[#e2e8f0] p-1 rounded-sm border border-transparent hover:border-[#94a3b8] min-w-[64px]">
-              <RefreshCcw size={28} className="text-red-500" />
-              <span className="text-[11px] text-slate-800 text-center leading-tight">Xuất Trả<br />Hàng Mua</span>
+            
+            <div className="w-[1px] h-[80%] my-auto bg-erp-bg-ribbon-border mx-1 shrink-0"></div>
+            
+            <button className="flex flex-col items-center justify-center p-1 min-w-[60px] shrink-0 border border-transparent hover:border-erp-btn-border hover:bg-erp-btn-hover-bg rounded-erp gap-1">
+              <RefreshCcw size={20} className="text-red-500" />
+              <span className="text-erp-label whitespace-nowrap leading-none text-slate-800">Xuất Trả Hàng Mua</span>
             </button>
+            
             <button 
               onClick={() => handleOpenTab('goods-return', 'NHẬP LẠI HÀNG BÁN', <GoodsReturnModule />)}
-              className="flex flex-col items-center gap-1 hover:bg-[#e2e8f0] p-1 rounded-sm border border-transparent hover:border-[#94a3b8] min-w-[64px]"
+              className="flex flex-col items-center justify-center p-1 min-w-[60px] shrink-0 border border-transparent hover:border-erp-btn-border hover:bg-erp-btn-hover-bg rounded-erp gap-1"
             >
-              <PackageSearch size={28} className="text-green-600" />
-              <span className="text-[11px] text-slate-800 text-center leading-tight">Nhập Lại<br />Hàng Bán</span>
+              <PackageSearch size={20} className="text-green-600" />
+              <span className="text-erp-label whitespace-nowrap leading-none text-slate-800">Nhập Lại Hàng Bán</span>
             </button>
+            
             <button 
               onClick={() => handleOpenTab('new-purchase', 'NHẬP HÀNG', <PurchaseModule initialSubView="FORM" mode="ADD" />, false)}
-              className="flex flex-col items-center gap-1 hover:bg-[#e2e8f0] p-1 rounded-sm border border-transparent hover:border-[#94a3b8] min-w-[64px]"
+              className="flex flex-col items-center justify-center p-1 min-w-[60px] shrink-0 border border-transparent hover:border-erp-btn-border hover:bg-erp-btn-hover-bg rounded-erp gap-1"
             >
-              <Truck size={28} className="text-orange-600" />
-              <span className="text-[11px] text-slate-800 text-center leading-tight">Nhập Hàng</span>
+              <Truck size={20} className="text-orange-600" />
+              <span className="text-erp-label whitespace-nowrap leading-none text-slate-800">Nhập Hàng</span>
             </button>
           </>
         )}
@@ -98,24 +100,24 @@ export const TopRibbon: React.FC = () => {
           <>
             <button
               onClick={() => handleOpenTab('products', 'SẢN PHẨM', <ProductList />)}
-              className="flex flex-col items-center gap-1 hover:bg-[#e2e8f0] p-1 rounded-sm border border-transparent hover:border-[#94a3b8] min-w-[64px]"
+              className="flex flex-col items-center justify-center p-1 min-w-[60px] shrink-0 border border-transparent hover:border-erp-btn-border hover:bg-erp-btn-hover-bg rounded-erp gap-1"
             >
-              <Box size={28} className="text-blue-600" />
-              <span className="text-[11px] text-slate-800 text-center leading-tight">Sản Phẩm</span>
+              <Box size={20} className="text-blue-600" />
+              <span className="text-erp-label whitespace-nowrap leading-none text-slate-800">Sản Phẩm</span>
             </button>
             <button
               onClick={() => handleOpenTab('customers', 'KHÁCH HÀNG', <CustomerList />)}
-              className="flex flex-col items-center gap-1 hover:bg-[#e2e8f0] p-1 rounded-sm border border-transparent hover:border-[#94a3b8] min-w-[64px]"
+              className="flex flex-col items-center justify-center p-1 min-w-[60px] shrink-0 border border-transparent hover:border-erp-btn-border hover:bg-erp-btn-hover-bg rounded-erp gap-1"
             >
-              <Users size={28} className="text-green-600" />
-              <span className="text-[11px] text-slate-800 text-center leading-tight">Khách Hàng</span>
+              <Users size={20} className="text-green-600" />
+              <span className="text-erp-label whitespace-nowrap leading-none text-slate-800">Khách Hàng</span>
             </button>
             <button
-              onClick={() => handleOpenTab('distributors', 'NHÀ PHÂN PHỐI', <DistributorList />)}
-              className="flex flex-col items-center gap-1 hover:bg-[#e2e8f0] p-1 rounded-sm border border-transparent hover:border-[#94a3b8] min-w-[64px]"
+              onClick={() => handleOpenTab('distributors', 'NHÀ PHÂN PHỐI', <SupplierList />)}
+              className="flex flex-col items-center justify-center p-1 min-w-[60px] shrink-0 border border-transparent hover:border-erp-btn-border hover:bg-erp-btn-hover-bg rounded-erp gap-1"
             >
-              <Users2 size={28} className="text-orange-600" />
-              <span className="text-[11px] text-slate-800 text-center leading-tight">Nhà Phân Phối</span>
+              <Users2 size={20} className="text-orange-600" />
+              <span className="text-erp-label whitespace-nowrap leading-none text-slate-800">Nhà Phân Phối</span>
             </button>
           </>
         )}
@@ -124,10 +126,10 @@ export const TopRibbon: React.FC = () => {
           <>
             <button
               onClick={() => handleOpenTab('stocks', 'TỒN KHO', <StockList />)}
-              className="flex flex-col items-center gap-1 hover:bg-[#e2e8f0] p-1 rounded-sm border border-transparent hover:border-[#94a3b8] min-w-[64px]"
+              className="flex flex-col items-center justify-center p-1 min-w-[60px] shrink-0 border border-transparent hover:border-erp-btn-border hover:bg-erp-btn-hover-bg rounded-erp gap-1"
             >
-              <Box size={28} className="text-blue-600" />
-              <span className="text-[11px] text-slate-800 text-center leading-tight">Tồn Kho</span>
+              <Box size={20} className="text-blue-600" />
+              <span className="text-erp-label whitespace-nowrap leading-none text-slate-800">Tồn Kho</span>
             </button>
           </>
         )}
@@ -136,10 +138,10 @@ export const TopRibbon: React.FC = () => {
           <>
             <button
               onClick={() => handleOpenTab('debts', 'CÔNG NỢ', <DebtList />)}
-              className="flex flex-col items-center gap-1 hover:bg-[#e2e8f0] p-1 rounded-sm border border-transparent hover:border-[#94a3b8] min-w-[64px]"
+              className="flex flex-col items-center justify-center p-1 min-w-[60px] shrink-0 border border-transparent hover:border-erp-btn-border hover:bg-erp-btn-hover-bg rounded-erp gap-1"
             >
-              <CreditCard size={28} className="text-red-600" />
-              <span className="text-[11px] text-slate-800 text-center leading-tight">Công Nợ</span>
+              <CreditCard size={20} className="text-red-600" />
+              <span className="text-erp-label whitespace-nowrap leading-none text-slate-800">Công Nợ</span>
             </button>
           </>
         )}
@@ -148,10 +150,10 @@ export const TopRibbon: React.FC = () => {
           <>
             <button
               onClick={() => handleOpenTab('dashboard', 'TỔNG QUAN', <Dashboard />)}
-              className="flex flex-col items-center gap-1 hover:bg-[#e2e8f0] p-1 rounded-sm border border-transparent hover:border-[#94a3b8] min-w-[64px]"
+              className="flex flex-col items-center justify-center p-1 min-w-[60px] shrink-0 border border-transparent hover:border-erp-btn-border hover:bg-erp-btn-hover-bg rounded-erp gap-1"
             >
-              <BarChart2 size={28} className="text-blue-600" />
-              <span className="text-[11px] text-slate-800 text-center leading-tight">Dashboard</span>
+              <BarChart2 size={20} className="text-blue-600" />
+              <span className="text-erp-label whitespace-nowrap leading-none text-slate-800">Dashboard</span>
             </button>
           </>
         )}
@@ -160,18 +162,18 @@ export const TopRibbon: React.FC = () => {
           <>
             <button
               onClick={() => handleOpenTab('branches', 'CHI NHÁNH', <BranchList />)}
-              className="flex flex-col items-center gap-1 hover:bg-[#e2e8f0] p-1 rounded-sm border border-transparent hover:border-[#94a3b8] min-w-[64px]"
+              className="flex flex-col items-center justify-center p-1 min-w-[60px] shrink-0 border border-transparent hover:border-erp-btn-border hover:bg-erp-btn-hover-bg rounded-erp gap-1"
             >
-              <Settings size={28} className="text-slate-600" />
-              <span className="text-[11px] text-slate-800 text-center leading-tight">Chi Nhánh</span>
+              <Settings size={20} className="text-slate-600" />
+              <span className="text-erp-label whitespace-nowrap leading-none text-slate-800">Chi Nhánh</span>
             </button>
-            <div className="w-[1px] h-full bg-[#cbd5e1] mx-1"></div>
+            <div className="w-[1px] h-[80%] my-auto bg-erp-bg-ribbon-border mx-1 shrink-0"></div>
             <button
               onClick={logout}
-              className="flex flex-col items-center gap-1 hover:bg-[#e2e8f0] p-1 rounded-sm border border-transparent hover:border-[#94a3b8] min-w-[64px]"
+              className="flex flex-col items-center justify-center p-1 min-w-[60px] shrink-0 border border-transparent hover:border-erp-btn-border hover:bg-erp-btn-hover-bg rounded-erp gap-1"
             >
-              <LogOut size={28} className="text-red-600" />
-              <span className="text-[11px] text-slate-800 text-center leading-tight">Đăng Xuất</span>
+              <LogOut size={20} className="text-red-600" />
+              <span className="text-erp-label whitespace-nowrap leading-none text-slate-800">Đăng Xuất</span>
             </button>
           </>
         )}

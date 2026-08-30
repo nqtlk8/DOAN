@@ -1,4 +1,4 @@
-﻿import axiosInstance from './axiosInstance';
+import axiosInstance from './axiosInstance';
 
 export const ApiService = {
   SalesInvoice: {
@@ -45,15 +45,13 @@ export const ApiService = {
     searchCustomers: (query: string) =>
       axiosInstance.get('/api/v1/customers?search=' + encodeURIComponent(query)).then((res: any) => res.data.data),
 
-    getDistributors: () => axiosInstance.get('/api/v1/suppliers').then((res: any) => res.data.data),
-    createDistributor: (payload: any) =>
-      axiosInstance.post('/api/v1/suppliers', payload).then((res: any) => res.data.data),
-    updateDistributor: (id: string, payload: any) =>
-      axiosInstance.put('/api/v1/suppliers/' + id, payload).then((res: any) => res.data.data),
-    deleteDistributor: (id: string) =>
-      axiosInstance.delete('/api/v1/suppliers/' + id).then((res: any) => res.data.data),
-    searchDistributors: (query: string) =>
-      axiosInstance.get('/api/v1/suppliers?search=' + encodeURIComponent(query)).then((res: any) => res.data.data),
+    getSuppliers: () => axiosInstance.get('/api/v1/suppliers').then((res: any) => res.data),
+    createSupplier: (payload: any) =>
+      axiosInstance.post('/api/v1/suppliers', payload).then((res: any) => res.data),
+    updateSupplier: (id: string, payload: any) =>
+      axiosInstance.put('/api/v1/suppliers/' + id, payload).then((res: any) => res.data),
+    deleteSupplier: (id: string) =>
+      axiosInstance.delete('/api/v1/suppliers/' + id).then((res: any) => res.data),
   },
   CustomerPrice: {
     get: (customerId: string, productId: string) =>
