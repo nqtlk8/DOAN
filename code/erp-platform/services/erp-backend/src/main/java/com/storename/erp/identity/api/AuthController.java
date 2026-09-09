@@ -1,5 +1,6 @@
 package com.storename.erp.identity.api;
 
+import lombok.extern.slf4j.Slf4j;
 import com.storename.erp.identity.api.dto.AuthRequest;
 import com.storename.erp.identity.api.dto.AuthResponse;
 import com.storename.erp.identity.api.dto.TokenRefreshRequest;
@@ -13,6 +14,7 @@ import java.util.Collections;
 @RestController
 @RequestMapping("/api/v1/auth")
 @ConditionalOnProperty(name = "instance.role", havingValue = "HQ")
+@Slf4j
 public class AuthController {
     private final AuthService authService;
 

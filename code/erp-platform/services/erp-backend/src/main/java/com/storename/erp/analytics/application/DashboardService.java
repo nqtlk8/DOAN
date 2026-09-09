@@ -2,17 +2,14 @@ package com.storename.erp.analytics.application;
 
 import com.storename.erp.analytics.api.dto.DashboardMetricsDto;
 import com.storename.erp.analytics.api.dto.ProductPerformanceDto;
+import com.storename.erp.analytics.application.port.AnalyticsDataPort;
 import com.storename.erp.analytics.infrastructure.FactSalesRepository;
-import com.storename.erp.crm.infrastructure.ReceivableDebtRepository;
-import com.storename.erp.crm.domain.ReceivableDebt;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
-import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -20,7 +17,7 @@ import java.util.List;
 @Slf4j
 public class DashboardService {
     
-    private final ReceivableDebtRepository receivableDebtRepository;
+    private final AnalyticsDataPort analyticsDataPort;
     private final FactSalesRepository factSalesRepository;
     
     @Transactional(readOnly = true)
@@ -50,7 +47,7 @@ public class DashboardService {
     }
     
     private BigDecimal calculateTotalDebt(Long branchId) {
-        BigDecimal totalDebt = receivableDebtRepository.getTotalDebt(branchId);
+        BigDecimal totalDebt = analyticsDataPort.getTotalReceivableDebt(branchId);
         return totalDebt != null ? totalDebt : BigDecimal.ZERO;
     }
 }

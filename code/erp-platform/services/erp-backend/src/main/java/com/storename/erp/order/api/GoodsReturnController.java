@@ -1,5 +1,6 @@
 package com.storename.erp.order.api;
 
+import lombok.extern.slf4j.Slf4j;
 import com.storename.erp.common.aop.BranchScoped;
 import com.storename.erp.common.aop.IdempotencyProtected;
 import com.storename.erp.common.api.ApiResponse;
@@ -23,17 +24,12 @@ import java.util.UUID;
 @RequestMapping("/api/v1/goods-returns")
 @RequiredArgsConstructor
 @Tag(name = "Goods Return", description = "Quản lý khách trả hàng")
+@Slf4j
 public class GoodsReturnController {
 
     private final GoodsReturnService returnService;
 
-    private Long getBranchId() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth != null && auth.getDetails() instanceof JwtAuthDetails details) {
-            return Long.parseLong(details.getBranchId());
-        }
-        throw new IllegalStateException("Branch ID not found in security context");
-    }
+
 
     private UUID getUserId() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
@@ -45,7 +41,7 @@ public class GoodsReturnController {
     @PreAuthorize("hasAuthority('STAFF')")
     @Operation(summary = "Tạo phiếu trả hàng (DRAFT)")
     public ResponseEntity<ApiResponse<UUID>> createDraft(@Valid @RequestBody GoodsReturnCreateDto dto) {
-        Long branchId = getBranchId();
+        Long branchId = com.storename.erp.common.security.AuthUtils.getBranchId();
         UUID returnId = returnService.createDraft(branchId, dto);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(new ApiResponse<>(true, returnId, "Goods return draft created successfully", null));
@@ -57,7 +53,7 @@ public class GoodsReturnController {
     @PreAuthorize("hasAuthority('STAFF')")
     @Operation(summary = "Xác nhận trả hàng (CONFIRM) và hoàn kho")
     public ResponseEntity<ApiResponse<Void>> confirmReturn(@PathVariable("id") UUID returnId) {
-        Long branchId = getBranchId();
+        Long branchId = com.storename.erp.common.security.AuthUtils.getBranchId();
         UUID userId = getUserId();
         returnService.confirmReturn(returnId, branchId, userId);
         return ResponseEntity.ok(new ApiResponse<>(true, null, "Goods return confirmed successfully", null));
@@ -66,14 +62,16 @@ public class GoodsReturnController {
     @GetMapping
     @PreAuthorize("hasAnyAuthority('STAFF', 'ADMIN')")
     public ApiResponse<java.util.List<com.storename.erp.order.domain.GoodsReturn>> getReturns() {
-        Long branchId = getBranchId();
+        Long branchId = com.storename.erp.common.security.AuthUtils.getBranchId();
         return ApiResponse.success(returnService.getReturnsByBranch(branchId));
     }
 
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('STAFF', 'ADMIN')")
     public ApiResponse<com.storename.erp.order.domain.GoodsReturn> getReturn(@PathVariable UUID id) {
-        Long branchId = getBranchId();
+        Long branchId = com.storename.erp.common.security.AuthUtils.getBranchId();
         return ApiResponse.success(returnService.getReturn(id, branchId));
     }
 }
+
+

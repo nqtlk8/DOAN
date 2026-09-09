@@ -18,15 +18,6 @@ public interface InventoryFacade {
     BigDecimal getAvailableQuantity(Long productId, Long branchId);
 
     /**
-     * Lấy giá vốn trung bình (Average Cost) hiện tại của sản phẩm.
-     * Cần thiết cho module Sales để tính toán lợi nhuận gộp (Gross Margin).
-     * @param productId ID của sản phẩm.
-     * @param branchId ID của chi nhánh.
-     * @return Giá vốn trung bình (0 nếu chưa có lịch sử nhập).
-     */
-    BigDecimal getAverageCost(Long productId, Long branchId);
-
-    /**
      * (Dự phòng Sprint 2.2+)
      * Xác nhận giữ chỗ tồn kho (Reservation) cho đơn hàng Sales đang xử lý.
      * @param productId ID sản phẩm.
@@ -36,4 +27,17 @@ public interface InventoryFacade {
      * @return true nếu giữ chỗ thành công, false nếu không đủ hàng.
      */
     boolean reserveStock(Long productId, Long branchId, BigDecimal quantity, UUID referenceId);
+
+    /**
+     * Ghi nhận xuất kho bán hàng (SALE): Tiêu thụ FIFO, giảm tồn kho, ghi nhận movement.
+     * @return Kết quả giá vốn (unitCostSnapshot, costBasis)
+     */
+    SaleCostResult recordSaleAndGetCost(Long productId, Long branchId, BigDecimal quantity, String invoiceId, UUID lineId, UUID userId);
+
+    /**
+     * Ghi nhận nhập kho do khách trả hàng (RETURN): Tăng tồn kho, ghi nhận movement, tạo cost layer.
+     */
+    void recordReturn(Long productId, Long branchId, BigDecimal quantity, BigDecimal returnPrice, String returnId, UUID lineId, UUID userId);
+
+    record SaleCostResult(BigDecimal unitCostSnapshot, String costBasis) {}
 }

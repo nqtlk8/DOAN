@@ -1,13 +1,12 @@
-package com.storename.erp.crm.application.dto;
-
+package com.storename.erp.catalog.application.dto;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
 @Data
-public class CustomerCreateDto {
-    private String customerCode;
+public class SupplierCreateDto {
+    @NotBlank(message = "Code is required")
+    private String code;
     
     @NotBlank(message = "Name is required")
     private String name;
@@ -16,4 +15,5 @@ public class CustomerCreateDto {
     private String email;
     private String address;
     private String taxCode;
+    private Long branchId;
 }

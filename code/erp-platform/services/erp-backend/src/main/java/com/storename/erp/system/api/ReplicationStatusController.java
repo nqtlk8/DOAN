@@ -1,5 +1,6 @@
 package com.storename.erp.system.api;
 
+import lombok.extern.slf4j.Slf4j;
 import com.storename.erp.common.api.ApiResponse;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -14,6 +15,7 @@ import java.sql.Connection;
 
 @RestController
 @RequestMapping("/api/v1/admin/system")
+@Slf4j
 public class ReplicationStatusController {
 
     private final JdbcTemplate jdbcTemplate;

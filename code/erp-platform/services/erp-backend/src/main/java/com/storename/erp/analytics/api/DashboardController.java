@@ -1,5 +1,6 @@
 package com.storename.erp.analytics.api;
 
+import lombok.extern.slf4j.Slf4j;
 import com.storename.erp.analytics.api.dto.DashboardMetricsDto;
 import com.storename.erp.analytics.application.DashboardService;
 import com.storename.erp.analytics.application.ReportExportService;
@@ -16,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/v1/analytics")
 @RequiredArgsConstructor
 @ConditionalOnProperty(name = "instance.role", havingValue = "HQ")
+@Slf4j
 public class DashboardController {
 
     private final DashboardService dashboardService;

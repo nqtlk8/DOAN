@@ -1,11 +1,10 @@
 package com.storename.erp.analytics.application;
 
+import com.storename.erp.analytics.application.port.AnalyticsDataPort;
 import com.storename.erp.analytics.domain.InventoryAlertConfig;
 import com.storename.erp.analytics.domain.InventoryAlertLog;
 import com.storename.erp.analytics.infrastructure.InventoryAlertConfigRepository;
 import com.storename.erp.analytics.infrastructure.InventoryAlertLogRepository;
-import com.storename.erp.inventory.domain.StockOnHand;
-import com.storename.erp.inventory.infrastructure.StockOnHandRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.mail.SimpleMailMessage;
@@ -14,6 +13,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
@@ -24,7 +24,7 @@ public class LowStockAlertJob {
 
     private final InventoryAlertConfigRepository configRepository;
     private final InventoryAlertLogRepository logRepository;
-    private final StockOnHandRepository stockOnHandRepository;
+    private final AnalyticsDataPort analyticsDataPort;
     // private final JavaMailSender mailSender; // Disabled for dev without mail server
 
     @Scheduled(cron = "0 0/15 * * * *") // Run every 15 mins
@@ -34,10 +34,9 @@ public class LowStockAlertJob {
         List<InventoryAlertConfig> configs = configRepository.findByIsActiveTrue();
         
         for (InventoryAlertConfig config : configs) {
-            Optional<StockOnHand> stockOpt = stockOnHandRepository.findByProductIdAndBranchId(config.getProductId(), config.getBranchId());
-            if (stockOpt.isPresent()) {
-                StockOnHand stock = stockOpt.get();
-                if (stock.getQuantity().compareTo(config.getMinQuantityThreshold()) <= 0) {
+            BigDecimal currentStock = analyticsDataPort.getCurrentStockQuantity(config.getProductId(), config.getBranchId());
+            if (currentStock != null) {
+                if (currentStock.compareTo(config.getMinQuantityThreshold()) <= 0) {
                     // It is below threshold
                     Optional<InventoryAlertLog> activeAlert = logRepository.findByProductIdAndBranchIdAndStatus(config.getProductId(), config.getBranchId(), "ACTIVE");
                     if (activeAlert.isEmpty()) {
@@ -48,7 +47,7 @@ public class LowStockAlertJob {
                                 .status("ACTIVE")
                                 .build();
                         logRepository.save(newAlert);
-                        sendAlertEmail(config, stock);
+                        sendAlertEmail(config, currentStock);
                     }
                 } else {
                     // It is above threshold, resolve any active alerts
@@ -64,15 +63,15 @@ public class LowStockAlertJob {
         log.info("[ALERT] Finished low stock check.");
     }
     
-    private void sendAlertEmail(InventoryAlertConfig config, StockOnHand stock) {
+    private void sendAlertEmail(InventoryAlertConfig config, BigDecimal currentQuantity) {
         log.warn("[ALERT-EMAIL] LOW STOCK ALERT: Product {} at Branch {} has quantity {} which is <= threshold {}. Sending email to {}", 
-                config.getProductId(), config.getBranchId(), stock.getQuantity(), config.getMinQuantityThreshold(), config.getEmailRecipients());
+                config.getProductId(), config.getBranchId(), currentQuantity, config.getMinQuantityThreshold(), config.getEmailRecipients());
                 
         // Uncomment to actually send email
         // SimpleMailMessage message = new SimpleMailMessage();
         // message.setTo(config.getEmailRecipients().split(","));
         // message.setSubject("Low Stock Alert: Product " + config.getProductId());
-        // message.setText("Quantity is " + stock.getQuantity() + " (Threshold: " + config.getMinQuantityThreshold() + ")");
+        // message.setText("Quantity is " + currentQuantity + " (Threshold: " + config.getMinQuantityThreshold() + ")");
         // mailSender.send(message);
     }
 }

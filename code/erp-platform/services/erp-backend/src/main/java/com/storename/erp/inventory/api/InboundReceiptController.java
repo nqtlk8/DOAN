@@ -1,5 +1,6 @@
 package com.storename.erp.inventory.api;
 
+import lombok.extern.slf4j.Slf4j;
 import com.storename.erp.common.aop.BranchScoped;
 import com.storename.erp.common.api.ApiResponse;
 import com.storename.erp.common.security.JwtAuthDetails;
@@ -24,17 +25,12 @@ import java.util.List;
 @RequestMapping("/api/v1/inventory/inbound")
 @RequiredArgsConstructor
 @Tag(name = "Inbound Receipt", description = "Quản lý phiếu nhập kho")
+@Slf4j
 public class InboundReceiptController {
 
     private final InboundReceiptService inboundService;
 
-    private Long getBranchId() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth != null && auth.getDetails() instanceof JwtAuthDetails details) {
-            return Long.parseLong(details.getBranchId());
-        }
-        throw new IllegalStateException("Branch ID not found in security context");
-    }
+
 
     private UUID getUserId() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
@@ -44,12 +40,12 @@ public class InboundReceiptController {
     @PostMapping
     @BranchScoped
     @PreAuthorize("hasAuthority('STAFF')")
+    @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "Tạo phiếu nhập kho (DRAFT)")
-    public ResponseEntity<ApiResponse<UUID>> createDraft(@Valid @RequestBody InboundReceiptCreateDto dto) {
-        Long branchId = getBranchId();
+    public ApiResponse<UUID> createDraft(@Valid @RequestBody InboundReceiptCreateDto dto) {
+        Long branchId = com.storename.erp.common.security.AuthUtils.getBranchId();
         UUID receiptId = inboundService.createDraft(branchId, dto);
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(new ApiResponse<>(true, receiptId, "Inbound receipt draft created successfully", null));
+        return new ApiResponse<>(true, receiptId, "Inbound receipt draft created successfully", null);
     }
 
     @PostMapping("/{id}/confirm")
@@ -57,24 +53,26 @@ public class InboundReceiptController {
     @com.storename.erp.common.aop.IdempotencyProtected
     @PreAuthorize("hasAuthority('STAFF')")
     @Operation(summary = "Xác nhận phiếu nhập kho (CONFIRM) và tăng tồn kho")
-    public ResponseEntity<ApiResponse<Void>> confirmReceipt(@PathVariable("id") UUID receiptId) {
-        Long branchId = getBranchId();
+    public ApiResponse<Void> confirmReceipt(@PathVariable("id") UUID receiptId) {
+        Long branchId = com.storename.erp.common.security.AuthUtils.getBranchId();
         UUID userId = getUserId();
         inboundService.confirmReceipt(receiptId, branchId, userId);
-        return ResponseEntity.ok(new ApiResponse<>(true, null, "Inbound receipt confirmed successfully", null));
+        return new ApiResponse<>(true, null, "Inbound receipt confirmed successfully", null);
     }
 
     @GetMapping
     @PreAuthorize("hasAnyAuthority('STAFF', 'ADMIN')")
     public ApiResponse<List<InboundReceipt>> getReceipts() {
-        Long branchId = getBranchId();
+        Long branchId = com.storename.erp.common.security.AuthUtils.getBranchId();
         return ApiResponse.success(inboundService.getReceiptsByBranch(branchId));
     }
 
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('STAFF', 'ADMIN')")
     public ApiResponse<InboundReceipt> getReceipt(@PathVariable UUID id) {
-        Long branchId = getBranchId();
+        Long branchId = com.storename.erp.common.security.AuthUtils.getBranchId();
         return ApiResponse.success(inboundService.getReceipt(id, branchId));
     }
 }
+
+

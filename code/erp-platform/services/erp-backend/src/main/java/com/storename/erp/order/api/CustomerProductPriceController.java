@@ -1,5 +1,6 @@
 package com.storename.erp.order.api;
 
+import lombok.extern.slf4j.Slf4j;
 import com.storename.erp.common.api.ApiResponse;
 import com.storename.erp.common.aop.BranchScoped;
 import com.storename.erp.common.security.JwtAuthDetails;
@@ -14,6 +15,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/v1/customer-prices")
 @BranchScoped
+@Slf4j
 public class CustomerProductPriceController {
 
     private final CustomerProductPriceService priceService;

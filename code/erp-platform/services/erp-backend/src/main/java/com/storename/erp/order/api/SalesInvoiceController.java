@@ -1,5 +1,6 @@
 package com.storename.erp.order.api;
 
+import lombok.extern.slf4j.Slf4j;
 import com.storename.erp.common.api.ApiResponse;
 import com.storename.erp.common.aop.BranchScoped;
 import com.storename.erp.common.aop.IdempotencyProtected;
@@ -18,6 +19,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/sales-invoices")
 @BranchScoped
+@Slf4j
 public class SalesInvoiceController {
 
     private final SalesInvoiceService salesInvoiceService;
@@ -26,13 +28,6 @@ public class SalesInvoiceController {
         this.salesInvoiceService = salesInvoiceService;
     }
 
-    private Long getBranchId() {
-        org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
-        if (auth != null && auth.getDetails() instanceof JwtAuthDetails details) {
-            return Long.parseLong(details.getBranchId());
-        }
-        throw new IllegalStateException("Branch ID not found in security context");
-    }
 
     private UUID getUserId() {
         org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
@@ -45,7 +40,7 @@ public class SalesInvoiceController {
     public ApiResponse<UUID> createDraft(
             @Valid @RequestBody SalesInvoiceCreateDto dto) {
         
-        Long branchId = getBranchId();
+        Long branchId = com.storename.erp.common.security.AuthUtils.getBranchId();
         SalesInvoice invoice = salesInvoiceService.createDraft(dto, branchId);
         return ApiResponse.success(invoice.getId(), "Sales invoice created successfully");
     }
@@ -56,7 +51,7 @@ public class SalesInvoiceController {
     public ApiResponse<UUID> confirmInvoice(
             @PathVariable UUID id) {
         
-        Long branchId = getBranchId();
+        Long branchId = com.storename.erp.common.security.AuthUtils.getBranchId();
         UUID userId = getUserId();
         
         SalesInvoice invoice = salesInvoiceService.confirmInvoice(id, userId, branchId);
@@ -66,14 +61,16 @@ public class SalesInvoiceController {
     @GetMapping
     @PreAuthorize("hasAuthority('STAFF')")
     public ApiResponse<List<SalesInvoice>> getInvoices() {
-        Long branchId = getBranchId();
+        Long branchId = com.storename.erp.common.security.AuthUtils.getBranchId();
         return ApiResponse.success(salesInvoiceService.getInvoicesByBranch(branchId));
     }
 
     @GetMapping("/{id}")
     @PreAuthorize("hasAuthority('STAFF')")
     public ApiResponse<SalesInvoice> getInvoice(@PathVariable UUID id) {
-        Long branchId = getBranchId();
+        Long branchId = com.storename.erp.common.security.AuthUtils.getBranchId();
         return ApiResponse.success(salesInvoiceService.getInvoice(id, branchId));
     }
 }
+
+
