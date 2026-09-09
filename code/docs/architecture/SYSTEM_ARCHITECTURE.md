@@ -19,11 +19,15 @@ Các chức năng Procurement, Customer Order, Stock Transfer, Outbound Receipt 
 
 ## 2. Nguyên tắc kiến trúc
 
-### 2.1. Modular Monolith
+### 2.1. Phân quyền (Role System)
+
+Hệ thống hiện tại chỉ sử dụng 2 role là `ADMIN` và `STAFF`. Các role cũ như HQ, STORE_MANAGER, SALES_STAFF đã bị loại bỏ hoàn toàn.
+
+### 2.2. Modular Monolith
 
 Các module nghiệp vụ nằm trong cùng một Spring Boot application. Module được tách theo trách nhiệm nhưng không được triển khai thành các microservice độc lập.
 
-### 2.2. N-instance deployment
+### 2.3. N-instance deployment
 
 Cùng một backend artifact được triển khai thành:
 
@@ -32,7 +36,7 @@ Cùng một backend artifact được triển khai thành:
 
 Mỗi Branch có database PostgreSQL riêng.
 
-### 2.3. HQ và Branch
+### 2.4. HQ và Branch
 
 **HQ**:
 - phát hành và refresh JWT;

@@ -87,11 +87,7 @@ Thông tin nhà cung cấp được dùng trực tiếp trong nghiệp vụ nh�
 
 ### `customer`
 
-Khách hàng là master data. Khóa chính kiểu UUID; `customer_code` là duy nhất. `customer_type` hiện bị giới hạn bởi database CHECK:
-
-- `RETAIL`
-- `WHOLESALE`
-- `CONSTRUCTION`
+Khách hàng là master data. Khóa chính kiểu UUID; `customer_code` là duy nhất. `customer_type` đã được loại bỏ theo yêu cầu mới nhất (tất cả khách hàng đều có thể mua chịu và được đối xử bình đẳng).
 
 ### `receivable_debt`
 
@@ -146,7 +142,7 @@ Trạng thái tồn kho hiện tại của một sản phẩm tại một branch
 (product_id, branch_id)
 ```
 
-Lưu `quantity`, `avg_cost`, `version` và metadata audit.
+Lưu `quantity`, `version` và metadata audit (đã loại bỏ `avg_cost` để tuân thủ 100% FIFO theo Cost Layer).
 
 ### `inbound_receipt`
 
@@ -166,8 +162,10 @@ Lưu sản phẩm, số lượng, đơn vị tính và đơn giá nhập.
 - `dim_date`: ngày.
 - `fact_sales`: doanh thu, giá vốn, lợi nhuận, số lượng theo giao dịch.
 - `fact_stock_movement`: biến động tồn kho.
-- `inventory_alert_config`: ngưỡng cảnh báo theo sản phẩm/branch.
+- `inventory_alert_config`: Cấu hình ngưỡng cảnh báo tồn kho tối thiểu theo sản phẩm và branch.
 - `inventory_alert_log`: lịch sử cảnh báo.
+
+*Ghi chú*: Việc thu thập dữ liệu từ các module khác (như Inventory, CRM) cho Analytics được thực hiện qua `AnalyticsDataPort` để giữ tính độc lập của các bảng schema.
 
 ## 10. Common
 

@@ -52,11 +52,12 @@ SalesInvoice, GoodsReturn, CustomerProductPrice.
 
 ### Inventory
 
-StockOnHand, InboundReceipt, CostingStrategy, UnitConversion.
+StockOnHand, InboundReceipt, StockMovement, CostLayer, InventoryFacade (Facade Pattern).
 
 ### Analytics
 
 Dashboard, ETL job, low-stock alert, report export.
+Sử dụng `AnalyticsDataPort` để giao tiếp với các module Inventory/CRM thay vì import trực tiếp Repository của các module này, đảm bảo tính đóng gói (encapsulation) giữa các bounded context.
 
 ### Common
 

@@ -72,6 +72,7 @@ com.storename.erp
 
 - `SecurityConfig` is stateless.
 - Public: auth/public/health/swagger paths.
+- Role system consists of ONLY `ADMIN` and `STAFF`. Other roles (HQ, STORE_MANAGER, SALES_STAFF, etc.) have been removed.
 - JWT authority generated as exact role without ROLE_ prefix.
 
 - `@BranchScoped` validates branchId.

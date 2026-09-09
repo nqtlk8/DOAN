@@ -47,27 +47,30 @@ Một số endpoint đặc biệt trả binary hoặc response trực tiếp the
 
 | Method | Path | Ghi chú |
 |---|---|---|
-| GET | `/api/v1/catalog/products` | ADMIN/SALES theo annotation hiện tại |
-| GET | `/api/v1/catalog/products/{id}` | ADMIN/SALES |
+| GET | `/api/v1/catalog/products` | ADMIN/STAFF theo annotation hiện tại |
+| GET | `/api/v1/catalog/products/{id}` | ADMIN/STAFF |
 | POST | `/api/v1/catalog/products` | HQ + ADMIN |
 | PUT | `/api/v1/catalog/products/{id}` | HQ + ADMIN |
-| GET | `/api/v1/suppliers` | ADMIN/SALES |
-| GET | `/api/v1/suppliers/{id}` | ADMIN/SALES |
-| POST | `/api/v1/suppliers` | ADMIN/SALES |
+| DELETE | `/api/v1/catalog/products/{id}` | HQ + ADMIN (Soft-delete) |
+| GET | `/api/v1/suppliers` | ADMIN/STAFF (Response wrapped in ApiResponse) |
+| GET | `/api/v1/suppliers/{id}` | ADMIN/STAFF (Response wrapped in ApiResponse) |
+| POST | `/api/v1/suppliers` | ADMIN/STAFF (Response wrapped in ApiResponse) |
 
 ## 6. CRM
 
 | Method | Path | Ghi chú |
 |---|---|---|
-| POST | `/api/v1/customers` | `CustomerController`; annotation hiện tại dùng `hasAnyAuthority('CUSTOMER_CREATE', 'ADMIN')` |
-| GET | `/api/v1/customers` | `hasAnyAuthority('CUSTOMER_READ', 'ADMIN', 'SALES')` |
+| POST | `/api/v1/customers` | `CustomerWriteController`; HQ-only, ADMIN |
+| PUT | `/api/v1/customers/{id}` | `CustomerWriteController`; HQ-only, ADMIN |
+| DELETE | `/api/v1/customers/{id}` | `CustomerWriteController`; HQ-only, ADMIN (Soft-delete) |
+| GET | `/api/v1/customers` | `CustomerReadController`; `hasAnyAuthority('CUSTOMER_READ', 'ADMIN', 'STAFF')` |
 | GET | `/api/v1/receivable-debts` | `@BranchScoped`; STAFF/ADMIN theo annotation |
 
 ## 7. Customer product price
 
 | Method | Path | Ghi chú |
 |---|---|---|
-| GET | `/api/v1/customer-prices/{customerId}/product/{productId}` | `@BranchScoped`; `SALE_READ`/`ADMIN` theo annotation |
+| GET | `/api/v1/customer-prices/{customerId}/product/{productId}` | `@BranchScoped`; `STAFF`/`ADMIN` theo annotation |
 
 ## 8. Sales Invoice
 
@@ -96,6 +99,7 @@ Một số endpoint đặc biệt trả binary hoặc response trực tiếp the
 | POST | `/api/v1/inventory/inbound/{id}/confirm` | `@BranchScoped` + `@IdempotencyProtected` |
 | GET | `/api/v1/inventory/inbound` | STAFF/ADMIN |
 | GET | `/api/v1/inventory/inbound/{id}` | STAFF/ADMIN |
+| GET | `/api/v1/stock-movements` | `@BranchScoped`; STAFF/ADMIN; Trả về lịch sử biến động kho |
 
 ## 11. Analytics / System
 

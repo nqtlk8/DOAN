@@ -8,11 +8,13 @@ Hệ thống sử dụng JWT với RSA/RS256.
 - HQ phát hành token.
 - Branch chỉ giữ public key và xác minh token.
 
+**Role System**: Hệ thống chỉ sử dụng 2 role người dùng là `ADMIN` và `STAFF` (các role cũ như HQ, STORE_MANAGER, SALES_STAFF, v.v. đã bị loại bỏ).
+
 JWT claims được dùng hiện tại:
 
 ```text
 sub / subject   = username
-role            = role code
+role            = role code (ADMIN or STAFF)
 branchId        = branch scope
  tokenId        = token identifier
 type            = access / refresh
