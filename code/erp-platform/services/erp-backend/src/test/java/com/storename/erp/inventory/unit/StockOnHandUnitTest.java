@@ -4,33 +4,57 @@ import com.storename.erp.inventory.domain.StockOnHand;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
-import java.util.UUID;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import com.storename.erp.inventory.domain.StockInsufficientException;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class StockOnHandUnitTest {
 
     @Test
-    public void testDoubleCheckQuantity() {
+    public void increase_addsToQuantity() {
         StockOnHand stock = new StockOnHand(1L, 1L);
-        assertEquals(0, stock.getQuantity().compareTo(BigDecimal.ZERO));
+        stock.increase(new BigDecimal("10"), "init");
+        stock.increase(new BigDecimal("5"), "increase");
+        assertThat(stock.getQuantity()).isEqualByComparingTo("15");
+    }
 
-        // Nhập: [10, 5, 8, 3, 7] -> tổng 33
-        stock.increase(new BigDecimal("10"), "Nhập");
-        stock.increase(new BigDecimal("5"), "Nhập");
-        stock.increase(new BigDecimal("8"), "Nhập");
-        stock.increase(new BigDecimal("3"), "Nhập");
-        stock.increase(new BigDecimal("7"), "Nhập");
+    @Test
+    public void increase_zeroOrNegative_throws() {
+        StockOnHand stock = new StockOnHand(1L, 1L);
+        assertThatThrownBy(() -> stock.increase(BigDecimal.ZERO, "zero"))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> stock.increase(new BigDecimal("-1"), "negative"))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
 
-        assertEquals(0, stock.getQuantity().compareTo(new BigDecimal("33")));
+    @Test
+    public void decrease_subtractsQuantity() {
+        StockOnHand stock = new StockOnHand(1L, 1L);
+        stock.increase(new BigDecimal("10"), "init");
+        stock.decrease(new BigDecimal("3"), "decrease");
+        assertThat(stock.getQuantity()).isEqualByComparingTo("7");
+    }
 
-        // Xuất: [6, 4, 2, 9] -> tổng 21
-        stock.decrease(new BigDecimal("6"), "Xuất");
-        stock.decrease(new BigDecimal("4"), "Xuất");
-        stock.decrease(new BigDecimal("2"), "Xuất");
-        stock.decrease(new BigDecimal("9"), "Xuất");
+    @Test
+    public void decrease_insufficientStock_throws() {
+        StockOnHand stock = new StockOnHand(1L, 1L);
+        stock.increase(new BigDecimal("5"), "init");
+        assertThatThrownBy(() -> stock.decrease(new BigDecimal("10"), "decrease"))
+                .isInstanceOf(StockInsufficientException.class);
+    }
 
-        // Expected: 33 - 21 = 12
-        assertEquals(0, stock.getQuantity().compareTo(new BigDecimal("12")));
+    @Test
+    public void decreaseAllowNegative_goesBelow() {
+        StockOnHand stock = new StockOnHand(1L, 1L);
+        stock.increase(new BigDecimal("5"), "init");
+        stock.decreaseAllowNegative(new BigDecimal("10"), "decrease");
+        assertThat(stock.getQuantity()).isEqualByComparingTo("-5");
+    }
+
+    @Test
+    public void decrease_zeroOrNegative_throws() {
+        StockOnHand stock = new StockOnHand(1L, 1L);
+        assertThatThrownBy(() -> stock.decrease(BigDecimal.ZERO, "zero"))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 }

@@ -56,8 +56,12 @@ public class SalesInvoiceIntegrationTest {
     private Customer customer;
     private Long productId;
 
+    @Autowired
+    private com.storename.erp.crm.infrastructure.ReceivableDebtRepository debtRepo;
+
     @BeforeEach
     void setUp() {
+        debtRepo.deleteAll();
         customerRepo.deleteAll();
         stockRepo.deleteAll();
         invoiceRepo.deleteAll();
@@ -132,5 +136,62 @@ public class SalesInvoiceIntegrationTest {
         // Debt should not increase
         BigDecimal debtAfter = debtService.getCurrentDebt(customer.getId(), branchId);
         assertEquals(0, debtAfter.compareTo(BigDecimal.ZERO));
+    }
+
+    @Test
+    void confirmInvoice_exceedsStock() {
+        SalesInvoiceCreateDto dto = new SalesInvoiceCreateDto();
+        dto.setInvoiceCode("INV-TEST-EXCEED");
+        dto.setCustomerId(customer.getId());
+        dto.setPaymentMethod(PaymentMethod.CASH);
+
+        SalesInvoiceLineDto line = new SalesInvoiceLineDto();
+        line.setProductId(productId);
+        line.setProductName("Test Product");
+        line.setQuantity(new BigDecimal("150")); // Exceeds 100 stock
+        line.setUnitPrice(new BigDecimal("1000"));
+        line.setUnitOfMeasure("PCS");
+        dto.setLines(Collections.singletonList(line));
+
+        SalesInvoice draft = invoiceService.createDraft(dto, branchId);
+        invoiceService.confirmInvoice(draft.getId(), UUID.randomUUID(), branchId);
+
+        StockOnHand stock = stockRepo.findByBranchId(branchId).get(0);
+        assertEquals(-50, stock.getQuantity().intValue());
+    }
+
+    @Test
+    void confirmInvoice_multipleProducts() {
+        Long productId2 = (long)(Math.random() * 100000L);
+        StockOnHand stock2 = new StockOnHand(productId2, branchId);
+        stock2.increase(new BigDecimal("50"), "Init");
+        stockRepo.save(stock2);
+
+        SalesInvoiceCreateDto dto = new SalesInvoiceCreateDto();
+        dto.setInvoiceCode("INV-TEST-MULTI");
+        dto.setCustomerId(customer.getId());
+        dto.setPaymentMethod(PaymentMethod.CASH);
+
+        SalesInvoiceLineDto line1 = new SalesInvoiceLineDto();
+        line1.setProductId(productId);
+        line1.setProductName("Test Product 1");
+        line1.setQuantity(new BigDecimal("30"));
+        line1.setUnitPrice(new BigDecimal("1000"));
+        line1.setUnitOfMeasure("PCS");
+
+        SalesInvoiceLineDto line2 = new SalesInvoiceLineDto();
+        line2.setProductId(productId2);
+        line2.setProductName("Test Product 2");
+        line2.setQuantity(new BigDecimal("20"));
+        line2.setUnitPrice(new BigDecimal("2000"));
+        line2.setUnitOfMeasure("PCS");
+
+        dto.setLines(java.util.Arrays.asList(line1, line2));
+
+        SalesInvoice draft = invoiceService.createDraft(dto, branchId);
+        invoiceService.confirmInvoice(draft.getId(), UUID.randomUUID(), branchId);
+
+        assertEquals(70, stockRepo.findByProductIdAndBranchId(productId, branchId).get().getQuantity().intValue());
+        assertEquals(30, stockRepo.findByProductIdAndBranchId(productId2, branchId).get().getQuantity().intValue());
     }
 }

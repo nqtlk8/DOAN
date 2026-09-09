@@ -89,7 +89,7 @@ public class GoodsReturnWithInvoiceTest {
 
         StockOnHand stock = new StockOnHand(productId, branchId);
         stock.increase(new BigDecimal("10"), "Init"); // 10 remaining
-        stock.updateAvgCost(new BigDecimal("50000"));
+
         stockRepository.save(stock);
 
         debtService.increaseDebt(customer.getId(), branchId, new BigDecimal("1000000")); // current debt 1,000,000

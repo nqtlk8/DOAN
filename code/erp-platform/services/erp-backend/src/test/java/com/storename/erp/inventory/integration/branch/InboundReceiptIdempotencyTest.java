@@ -38,7 +38,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
     "spring.jpa.hibernate.ddl-auto=create-drop",
     "spring.flyway.enabled=false",
     "spring.security.user.name=user",
-    "spring.security.user.password=password"
+    "spring.security.user.password=password",
+    "instance.role=BRANCH",
+    "branch-id=1001"
 })
 public class InboundReceiptIdempotencyTest {
 
@@ -70,9 +72,9 @@ public class InboundReceiptIdempotencyTest {
         idempotencyRepo.deleteAll();
         stockRepo.deleteAll();
         
-        branchId = (long)(Math.random() * 100000L);
+        branchId = 1001L;
         productId = (long)(Math.random() * 100000L);
-        authToken = "Bearer " + jwtTokenProvider.generateToken("testuser", "ADMIN", branchId.toString(), UUID.randomUUID().toString());
+        authToken = "Bearer " + jwtTokenProvider.generateToken(UUID.randomUUID().toString(), "STAFF", branchId.toString(), UUID.randomUUID().toString());
 
         
         StockOnHand stock = new StockOnHand(productId, branchId);
@@ -95,45 +97,35 @@ public class InboundReceiptIdempotencyTest {
     @Test
     void testIdempotency_SameKey_DoesNotDuplicateStock() throws Exception {
         String idempotencyKey = UUID.randomUUID().toString();
-        
-        CompletableFuture<Void> req1 = CompletableFuture.runAsync(() -> {
-            try {
-                mockMvc.perform(post("/api/v1/inventory/inbound/" + receiptId + "/confirm")
-                        .header("Idempotency-Key", idempotencyKey)
-                        .header("Authorization", authToken)
-                        .contentType(MediaType.APPLICATION_JSON))
-                        .andExpect(status().isOk());
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-        });
-        
-        CompletableFuture<Void> req2 = CompletableFuture.runAsync(() -> {
-            try {
-                mockMvc.perform(post("/api/v1/inventory/inbound/" + receiptId + "/confirm")
-                        .header("Idempotency-Key", idempotencyKey)
-                        .header("Authorization", authToken)
-                        .contentType(MediaType.APPLICATION_JSON))
-                        .andExpect(status().isOk());
-            } catch (Exception e) {
-                // In concurrent requests, one might fail with ConstraintViolation (due to idempotencyKey unique index)
-                // or return 200 with cached response. The framework/AOP handles it.
-            }
-        });
-        
-        try {
-            CompletableFuture.allOf(req1, req2).join();
-        } catch (Exception ignored) {}
-        
-        // Wait briefly for DB to settle if needed, though join() should wait
-        Thread.sleep(100);
-        
-        // Stock should be exactly 100 + 50 = 150 (not 200)
-        BigDecimal stockAfter = stockRepo.findByProductIdAndBranchId(productId, branchId).get().getQuantity();
-        assertEquals(0, stockAfter.compareTo(new BigDecimal("150")));
-        
-        // Idempotency record should exist once
+
+        // --- Lần 1: Gọi confirm lần đầu -> phải thành công, tồn kho tăng ---
+        mockMvc.perform(post("/api/v1/inventory/inbound/" + receiptId + "/confirm")
+                .header("Idempotency-Key", idempotencyKey)
+                .header("Authorization", authToken)
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+
+        // Verify: tồn kho phải là 100 + 50 = 150
+        BigDecimal stockAfterFirst = stockRepo.findByProductIdAndBranchId(productId, branchId)
+                .get().getQuantity();
+        assertEquals(0, stockAfterFirst.compareTo(new BigDecimal("150")),
+                "Stock should be 150 after first confirm");
+
+        // --- Lần 2: Gọi confirm lần 2 cùng key -> cached response, KHÔNG tăng tồn kho ---
+        mockMvc.perform(post("/api/v1/inventory/inbound/" + receiptId + "/confirm")
+                .header("Idempotency-Key", idempotencyKey)
+                .header("Authorization", authToken)
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+
+        // Verify: tồn kho vẫn phải là 150 (KHÔNG tăng thêm)
+        BigDecimal stockAfterSecond = stockRepo.findByProductIdAndBranchId(productId, branchId)
+                .get().getQuantity();
+        assertEquals(0, stockAfterSecond.compareTo(new BigDecimal("150")),
+                "Stock should STILL be 150 after idempotent retry");
+
+        // Verify: chỉ có đúng 1 bản ghi idempotency
         long count = idempotencyRepo.count();
-        assertEquals(1, count);
+        assertEquals(1, count, "Should have exactly 1 idempotency record");
     }
 }
