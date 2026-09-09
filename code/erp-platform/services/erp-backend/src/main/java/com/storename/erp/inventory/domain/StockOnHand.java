@@ -31,8 +31,6 @@ public class StockOnHand extends BaseEntity {
     @Column(nullable = false, precision = 19, scale = 4)
     private BigDecimal quantity = BigDecimal.ZERO;
 
-    @Column(name = "avg_cost", precision = 19, scale = 4)
-    private BigDecimal avgCost = BigDecimal.ZERO;
 
     protected StockOnHand() {}
 
@@ -65,9 +63,4 @@ public class StockOnHand extends BaseEntity {
         this.quantity = this.quantity.subtract(qty);
     }
 
-
-    /** Cập nhật avg_cost sau khi nhập hàng — gọi bởi Service sau khi tính qua CostingStrategy */
-    public void updateAvgCost(BigDecimal newAvgCost) {
-        this.avgCost = newAvgCost;
-    }
 }

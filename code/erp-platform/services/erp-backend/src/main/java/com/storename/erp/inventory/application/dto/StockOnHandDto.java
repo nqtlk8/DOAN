@@ -10,5 +10,4 @@ public class StockOnHandDto {
     private Long productId;
     private Long branchId;
     private BigDecimal quantity;
-    private BigDecimal avgCost;
 }

@@ -1,8 +1,6 @@
 package com.storename.erp.order.application;
 
 import com.storename.erp.crm.application.ReceivableDebtService;
-import com.storename.erp.inventory.domain.StockOnHand;
-import com.storename.erp.inventory.infrastructure.StockOnHandRepository;
 import com.storename.erp.order.application.dto.SalesInvoiceCreateDto;
 import com.storename.erp.order.domain.SalesInvoice;
 import com.storename.erp.order.domain.SalesInvoiceLine;
@@ -17,13 +15,15 @@ import java.math.BigDecimal;
 import java.util.UUID;
 import java.util.List;
 
+import com.storename.erp.inventory.api.InventoryFacade;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class SalesInvoiceService {
     private final SalesInvoiceRepository invoiceRepository;
-    private final StockOnHandRepository stockRepo;
     private final ReceivableDebtService debtService;
+    private final InventoryFacade inventoryFacade;
 
     @Transactional
     public SalesInvoice createDraft(SalesInvoiceCreateDto dto, Long branchId) {
@@ -41,8 +41,10 @@ public class SalesInvoiceService {
         for (var lineDto : dto.getLines()) {
             SalesInvoiceLine line = new SalesInvoiceLine();
             line.setProductId(lineDto.getProductId());
+            line.setProductName(lineDto.getProductName());
             line.setQuantity(lineDto.getQuantity());
             line.setUnitPrice(lineDto.getUnitPrice());
+            line.setUnitOfMeasure(lineDto.getUnitOfMeasure());
             line.setLineTotal(line.getQuantity().multiply(line.getUnitPrice()));
             invoice.addLine(line);
         }
@@ -73,15 +75,11 @@ public class SalesInvoiceService {
         }
 
         for (SalesInvoiceLine line : invoice.getLines()) {
-            StockOnHand stock = stockRepo.findByProductIdAndBranchId(
-                    line.getProductId(), branchId)
-                .orElseGet(() -> stockRepo.save(
-                    new StockOnHand(line.getProductId(), branchId)));
-
-            line.setUnitCost(stock.getAvgCost());
-
-            stock.decreaseAllowNegative(line.getQuantity(), "SALES_INVOICE");
-            stockRepo.save(stock);
+            InventoryFacade.SaleCostResult result = inventoryFacade.recordSaleAndGetCost(
+                    line.getProductId(), branchId, line.getQuantity(), invoice.getId().toString(), line.getId(), null);
+            
+            line.setUnitCost(result.unitCostSnapshot());
+            line.setCostBasis(result.costBasis());
         }
 
         BigDecimal currentDebt = debtService.getCurrentDebt(invoice.getCustomerId(), branchId);

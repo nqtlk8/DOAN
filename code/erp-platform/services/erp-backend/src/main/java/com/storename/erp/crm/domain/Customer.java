@@ -28,8 +28,4 @@ public class Customer extends BaseEntity {
     
     @Column(name = "tax_code", length = 20)
     private String taxCode;
-    
-    @Enumerated(EnumType.STRING)
-    @Column(name = "customer_type", length = 50)
-    private CustomerType customerType = CustomerType.RETAIL;
 }

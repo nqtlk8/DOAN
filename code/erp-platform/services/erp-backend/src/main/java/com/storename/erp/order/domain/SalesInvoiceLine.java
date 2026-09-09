@@ -33,6 +33,9 @@ public class SalesInvoiceLine extends BaseEntity {
     @Column(name = "unit_cost", precision = 19, scale = 4)
     private BigDecimal unitCost;
 
+    @Column(name = "cost_basis", length = 20)
+    private String costBasis = "NORMAL";
+
     @Column(name = "line_total", nullable = false, precision = 19, scale = 4)
     private BigDecimal lineTotal;
 

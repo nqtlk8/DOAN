@@ -1,5 +1,6 @@
 package com.storename.erp.order.application;
 
+import lombok.extern.slf4j.Slf4j;
 import com.storename.erp.order.domain.CustomerProductPrice;
 import com.storename.erp.order.infrastructure.CustomerProductPriceRepository;
 import org.springframework.stereotype.Service;
@@ -10,6 +11,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Service
+@Slf4j
 public class CustomerProductPriceService {
 
     private final CustomerProductPriceRepository priceRepository;
