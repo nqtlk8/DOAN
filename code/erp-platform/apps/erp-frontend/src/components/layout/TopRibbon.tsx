@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { FilePlus, ShoppingCart, FileText, RefreshCcw, PackageSearch, Truck, CreditCard, LogOut, Settings, Users, Box, Users2, BarChart2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useTabs } from '../../context/TabContext';
@@ -24,21 +24,22 @@ export const TopRibbon: React.FC = () => {
   };
 
   const allTabs = [
-    { id: 'ChucNang', label: 'Chức năng', roles: ['sales'] },
-    { id: 'DanhMuc', label: 'Danh mục', roles: ['admin', 'sales'] },
-    { id: 'CongNo', label: 'Công nợ', roles: ['admin', 'sales'] },
-    { id: 'TonKho', label: 'Tồn kho', roles: ['admin', 'sales'] },
-    { id: 'ThongKe', label: 'Thống kê', roles: ['admin'] },
-    { id: 'HeThong', label: 'Hệ thống', roles: ['admin', 'sales'] },
+    { id: 'ChucNang', label: 'Chức năng', roles: ['STAFF'] },
+    { id: 'DanhMuc', label: 'Danh mục', roles: ['ADMIN', 'STAFF'] },
+    { id: 'CongNo', label: 'Công nợ', roles: ['ADMIN', 'STAFF'] },
+    { id: 'TonKho', label: 'Tồn kho', roles: ['ADMIN', 'STAFF'] },
+    { id: 'ThongKe', label: 'Thống kê', roles: ['ADMIN'] },
+    { id: 'HeThong', label: 'Hệ thống', roles: ['ADMIN', 'STAFF'] },
   ];
 
-  const tabs = allTabs.filter(t => t.roles.includes(user?.role || ''));
+  const tabs = React.useMemo(() => allTabs.filter(t => t.roles.includes(user?.role || '')), [user?.role]);
 
+  // Nếu tab hiện tại không được phép, reset về tab đầu tiên được phép
   React.useEffect(() => {
     if (tabs.length > 0 && !tabs.find(t => t.id === activeTab)) {
       setActiveTab(tabs[0].id);
     }
-  }, [user?.role, activeTab, tabs]);
+  }, [activeTab, tabs]);
 
   return (
     <div className="flex flex-col w-full shrink-0 bg-erp-bg-ribbon border-b border-erp-bg-ribbon-border font-erp">

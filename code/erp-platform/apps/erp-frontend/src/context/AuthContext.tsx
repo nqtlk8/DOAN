@@ -1,7 +1,12 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
 
-export type Role = 'admin' | 'sales' | null;
+export const ROLES = {
+  ADMIN: 'ADMIN' as const,
+  STAFF: 'STAFF' as const,
+};
+
+export type Role = typeof ROLES.ADMIN | typeof ROLES.STAFF | null;
 
 export interface User {
   username: string;
@@ -13,6 +18,7 @@ interface AuthContextType {
   login: (username: string, password: string) => Promise<{ success: boolean; message?: string }>;
   logout: () => void;
   isAuthenticated: boolean;
+  hasRole: (role: string) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -23,7 +29,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
     if (storedUser) {
-      setUser(JSON.parse(storedUser));
+      try {
+        const parsed = JSON.parse(storedUser);
+        if (parsed && (parsed.role === 'ADMIN' || parsed.role === 'STAFF')) {
+          setUser(parsed);
+        } else {
+          localStorage.removeItem('user');
+          localStorage.removeItem('access_token');
+          localStorage.removeItem('refresh_token');
+        }
+      } catch(e) {
+        localStorage.removeItem('user');
+      }
     }
   }, []);
 
@@ -37,12 +54,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const roleString = authData.role || 'SALES';
         let parsedRole = roleString.toLowerCase();
         if (parsedRole === 'staff') {
-          parsedRole = 'sales';
+          parsedRole = 'STAFF';
         }
 
         console.log(`[AuthContext] Đăng nhập thành công! Role: ${parsedRole}`);
 
-        if (parsedRole === 'sales') {
+        if (parsedRole === 'STAFF') {
           const branchUrl = authData.branchUrl;
           // DISABLED FOR LOCAL TESTING
           // if (branchUrl && !window.location.href.startsWith(branchUrl)) {
@@ -84,8 +101,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const hasRole = (role: string) => {
+    return user?.role === role;
+  };
+
   return (
-    <AuthContext.Provider value={{ user, login, logout, isAuthenticated: !!user }}>{children}</AuthContext.Provider>
+    <AuthContext.Provider value={{ user, login, logout, isAuthenticated: !!user, hasRole }}>{children}</AuthContext.Provider>
   );
 };
 

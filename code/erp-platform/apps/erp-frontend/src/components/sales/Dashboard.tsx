@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { TrendingUp, ShoppingCart, DollarSign, Package, Download, AlertCircle, RefreshCw } from 'lucide-react';
-import { getDashboardMetrics, exportDashboardExcel, DashboardMetricsDto } from '../../services/DashboardApi';
+import { ApiService } from '../../api/ApiService';
+import { DashboardMetricsDto } from '../../types/analytics';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
 import { useQuery } from '@tanstack/react-query';
 import { DataState } from '../../shared/components/DataState/DataState';
@@ -80,14 +81,15 @@ export const Dashboard: React.FC = () => {
   };
 
   const { start, end } = getDatesFromPeriod();
+  const { data: branches = [] } = useQuery({ queryKey: ['branches'], queryFn: () => ApiService.Branch.getAll() });
 
   const { data: metrics, isLoading: loading, isError, error, refetch: fetchMetrics, isFetching } = useQuery({
     queryKey: ['dashboardMetrics', branchId, period],
-    queryFn: () => getDashboardMetrics(branchId, start, end),
+    queryFn: () => ApiService.Analytics.getDashboardMetrics(branchId, start, end),
   });
 
   const handleExport = () => {
-    exportDashboardExcel(branchId, start, end);
+    ApiService.Analytics.exportExcel(branchId, start, end);
   };
 
   return (
@@ -105,8 +107,7 @@ export const Dashboard: React.FC = () => {
             className="bg-white border border-slate-200 text-sm font-medium text-slate-700 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm cursor-pointer"
           >
             <option value="">Tất cả chi nhánh</option>
-            <option value="1">Chi nhánh Trung Tâm (1)</option>
-            <option value="2">Chi nhánh Quận 2 (2)</option>
+            {branches.map((b: any) => (<option key={b.id} value={b.id}>{b.name} ({b.id})</option>))}
           </select>
           <select 
             value={period}

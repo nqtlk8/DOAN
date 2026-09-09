@@ -49,9 +49,9 @@ const AppContent = () => {
 
   useEffect(() => {
     if (isAuthenticated && user) {
-      if (user.role === 'sales') {
+      if (user.role === 'STAFF') {
         openTab('new-order', 'Tạo Đơn Bán Hàng', <SalesModule initialSubView="FORM" mode="ADD" />, false);
-      } else if (user.role === 'admin') {
+      } else if (user.role === 'ADMIN') {
         openTab('dashboard', 'Tổng Quan', <Dashboard />, false);
       }
     }

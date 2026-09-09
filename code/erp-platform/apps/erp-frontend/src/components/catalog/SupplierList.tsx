@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { Search, Plus, X, Edit2, Trash2 } from 'lucide-react';
 import { ApiService } from '../../api/ApiService';
 import type { Supplier } from '../../types/catalog';
@@ -10,7 +10,7 @@ import { notify } from '../../shared/notifications/notification';
 
 export const SupplierList: React.FC = () => {
   const { user } = useAuth();
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = user?.role === 'ADMIN';
   const queryClient = useQueryClient();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -84,7 +84,7 @@ export const SupplierList: React.FC = () => {
     if (isEditing && formData.id) {
       updateMutation.mutate({ id: formData.id, payload: formData });
     } else {
-      createMutation.mutate(formData);
+      createMutation.mutate({ ...formData, code: formData.code || `SUP-${Date.now()}` });
     }
   };
 

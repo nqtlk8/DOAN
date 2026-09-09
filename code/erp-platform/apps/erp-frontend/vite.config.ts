@@ -1,8 +1,14 @@
-﻿import { defineConfig } from 'vite';
+import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 
 export default defineConfig({
+  test: { 
+    environment: 'jsdom', 
+    setupFiles: ['./vitest.setup.ts'], 
+    globals: true,
+    include: ['src/**/*.test.tsx', 'src/**/*.test.ts']
+  },
   plugins: [react()],
   resolve: {
     alias: {
@@ -19,3 +25,4 @@ export default defineConfig({
     },
   },
 });
+

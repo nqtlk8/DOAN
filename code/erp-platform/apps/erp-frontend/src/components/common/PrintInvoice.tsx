@@ -16,7 +16,7 @@ interface PrintInvoiceProps {
   advancePayment: number;
   remainingBalance: number;
   oldDebt?: number;
-  mode?: 'sales' | 'quote' | 'return' | 'edit' | 'purchase';
+  mode?: 'STAFF' | 'quote' | 'return' | 'edit' | 'purchase';
   title?: string;
   hidePrices?: boolean;
   className?: string;
@@ -34,7 +34,7 @@ export const PrintInvoice: React.FC<PrintInvoiceProps> = ({
   advancePayment,
   remainingBalance,
   oldDebt = 0,
-  mode = 'sales',
+  mode = 'STAFF',
   title,
   hidePrices = false,
   className = '',

@@ -2,16 +2,16 @@ import React, { useState } from 'react';
 import { Search, Plus, X, Edit2, Trash2 } from 'lucide-react';
 import { ApiService } from '../../api/ApiService';
 import type { Product } from '../../types/catalog';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useAuth } from '../../context/AuthContext';
+import { useQueryClient } from '@tanstack/react-query';
+import { useAuth, ROLES } from '../../context/AuthContext';
 import { DataState } from '../../shared/components/DataState/DataState';
 import { ConfirmDialog } from '../../shared/components/Dialog/ConfirmDialog';
-import { notify } from '../../shared/notifications/notification';
+import { StockMovementList } from '../inventory/StockMovementList';
+import { useProducts } from '../../hooks/useProducts';
 
 export const ProductList: React.FC = () => {
-  const { user } = useAuth();
-  const isAdmin = user?.role === 'admin';
-  const queryClient = useQueryClient();
+  const { hasRole } = useAuth();
+  const isAdmin = hasRole(ROLES.ADMIN);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [confirmState, setConfirmState] = useState({ isOpen: false, id: '' });
@@ -19,49 +19,10 @@ export const ProductList: React.FC = () => {
   const [formData, setFormData] = useState<Partial<Product>>({});
   const [isEditing, setIsEditing] = useState(false);
 
-  const { data: response, isLoading: loading, isError, error, refetch } = useQuery({
-    queryKey: ['products'],
-    queryFn: () => ApiService.Catalog.getProducts(),
-  });
+  const { query, createMutation, updateMutation, deleteMutation } = useProducts();
+  const { data: response, isLoading: loading, isError, error, refetch } = query;
 
   const products: Product[] = response || [];
-
-  const createMutation = useMutation({
-    mutationFn: (data: any) => ApiService.Catalog.createProduct(data),
-    onSuccess: () => {
-      notify.success('Đã tạo sản phẩm thành công');
-      queryClient.invalidateQueries({ queryKey: ['products'] });
-      handleCloseModal();
-    },
-    onError: (err: any) => {
-      notify.error(err.message || 'Không thể tạo sản phẩm');
-    }
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: (data: { id: string; payload: any }) => ApiService.Catalog.updateProduct(data.id, data.payload),
-    onSuccess: () => {
-      notify.success('Đã cập nhật sản phẩm thành công');
-      queryClient.invalidateQueries({ queryKey: ['products'] });
-      handleCloseModal();
-    },
-    onError: (err: any) => {
-      notify.error(err.message || 'Không thể cập nhật sản phẩm');
-    }
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => ApiService.Catalog.deleteProduct(id),
-    onSuccess: () => {
-      notify.success('Đã xóa sản phẩm thành công');
-      queryClient.invalidateQueries({ queryKey: ['products'] });
-      setConfirmState({ isOpen: false, id: '' });
-    },
-    onError: (err: any) => {
-      notify.error(err.message || 'Không thể xóa sản phẩm');
-      setConfirmState({ isOpen: false, id: '' });
-    }
-  });
 
   const handleOpenModal = (product?: Product) => {
     if (product) {
@@ -80,14 +41,29 @@ export const ProductList: React.FC = () => {
     setIsEditing(false);
   };
 
-  const handleSave = () => {
-    createMutation.mutate({
-      productCode: formData.sku || formData.code,
-      name: formData.name,
-      baseUnit: formData.unit || 'CAI',
-      categoryId: 1,
-      description: formData.description
-    });
+  const handleSave = async () => {
+    if (isEditing && formData.id) {
+      await updateMutation.mutateAsync({
+        id: formData.id.toString(),
+        payload: {
+          name: formData.name,
+          basePrice: formData.price ?? formData.basePrice,
+          cost: formData.cost,
+          unit: formData.unit,
+          description: formData.description
+        }
+      });
+      handleCloseModal();
+    } else {
+      await createMutation.mutateAsync({
+        code: formData.sku || formData.code || `PRD-${Date.now()}`,
+        name: formData.name,
+        baseUnit: formData.unit || 'CAI',
+        categoryId: 1,
+        description: formData.description
+      });
+      handleCloseModal();
+    }
   };
 
   const handleDelete = (id: string) => {
@@ -213,7 +189,7 @@ export const ProductList: React.FC = () => {
 
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl">
             <div className="flex justify-between items-center p-4 border-b border-slate-100">
               <h3 className="text-lg font-bold text-slate-900">{isEditing ? 'Cập nhật' : 'Thêm mới'} Sản Phẩm</h3>
               <button onClick={handleCloseModal} className="text-slate-900 hover:text-slate-600">
@@ -292,6 +268,11 @@ export const ProductList: React.FC = () => {
                   rows={3}
                 />
               </div>
+              {isEditing && formData.id && (
+                <div className="pt-4 border-t border-slate-100">
+                  <StockMovementList productId={formData.id.toString()} />
+                </div>
+              )}
             </div>
             <div className="flex justify-end gap-3 p-4 border-t border-slate-100 bg-slate-50 rounded-b-xl">
               <button
@@ -319,6 +300,7 @@ export const ProductList: React.FC = () => {
         message="Bạn có chắc chắn muốn xóa sản phẩm này không? Hành động này không thể hoàn tác."
         onConfirm={async () => {
           await deleteMutation.mutateAsync(confirmState.id);
+          setConfirmState({ isOpen: false, id: '' });
         }}
         onCancel={() => setConfirmState({ isOpen: false, id: '' })}
       />

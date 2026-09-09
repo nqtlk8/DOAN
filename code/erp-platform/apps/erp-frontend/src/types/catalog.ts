@@ -1,11 +1,14 @@
 export interface Customer {
   id: string;
-  code?: string;
+  customerCode?: string;
+  code?: string; // Tạm thời giữ để UI khỏi lỗi
   name: string;
   phone?: string;
   email?: string;
   address?: string;
   taxCode?: string;
+  isActive?: boolean;
+  isDeleted?: boolean;
   createdAt?: string;
   updatedAt?: string;
 }

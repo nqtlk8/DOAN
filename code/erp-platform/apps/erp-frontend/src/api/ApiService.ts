@@ -45,21 +45,41 @@ export const ApiService = {
     searchCustomers: (query: string) =>
       axiosInstance.get('/api/v1/customers?search=' + encodeURIComponent(query)).then((res: any) => res.data.data),
 
-    getSuppliers: () => axiosInstance.get('/api/v1/suppliers').then((res: any) => res.data),
+    getSuppliers: () => axiosInstance.get('/api/v1/suppliers').then((res: any) => res.data.data),
     createSupplier: (payload: any) =>
-      axiosInstance.post('/api/v1/suppliers', payload).then((res: any) => res.data),
+      axiosInstance.post('/api/v1/suppliers', payload).then((res: any) => res.data.data),
     updateSupplier: (id: string, payload: any) =>
-      axiosInstance.put('/api/v1/suppliers/' + id, payload).then((res: any) => res.data),
+      axiosInstance.put('/api/v1/suppliers/' + id, payload).then((res: any) => res.data.data),
     deleteSupplier: (id: string) =>
-      axiosInstance.delete('/api/v1/suppliers/' + id).then((res: any) => res.data),
+      axiosInstance.delete('/api/v1/suppliers/' + id).then((res: any) => res.data.data),
   },
   CustomerPrice: {
     get: (customerId: string, productId: string) =>
       axiosInstance.get(`/api/v1/customer-prices/${customerId}/product/${productId}`).then((res: any) => res.data.data),
   },
+  Analytics: {
+    getDashboardMetrics: (branchId?: number, startDateKey?: number, endDateKey?: number) => {
+      const params = new URLSearchParams();
+      if (branchId) params.append('branchId', branchId.toString());
+      if (startDateKey) params.append('startDateKey', startDateKey.toString());
+      if (endDateKey) params.append('endDateKey', endDateKey.toString());
+      return axiosInstance.get(`/api/v1/analytics/dashboard?${params.toString()}`).then((res: any) => res.data.data);
+    },
+    exportExcel: (branchId?: number, startDateKey?: number, endDateKey?: number) => {
+      const params = new URLSearchParams();
+      if (branchId) params.append('branchId', branchId.toString());
+      if (startDateKey) params.append('startDateKey', startDateKey.toString());
+      if (endDateKey) params.append('endDateKey', endDateKey.toString());
+      return axiosInstance.get(`/api/v1/analytics/export/excel?${params.toString()}`, { responseType: 'blob' })
+        .then((res: any) => res.data);
+    },
+  },
   Branch: {
     getAll: () => axiosInstance.get('/api/v1/branches').then((res: any) => res.data.data),
     getById: (id: string) => axiosInstance.get('/api/v1/branches/' + id).then((res: any) => res.data.data),
+  },
+  Inventory: {
+    getStockMovements: (productId: string) => axiosInstance.get(`/api/v1/stock-movements?productId=${productId}`).then((res: any) => res.data.data),
   },
   Stock: {
     getAll: () => axiosInstance.get('/api/v1/inventory/stock').then((res: any) => res.data.data),
