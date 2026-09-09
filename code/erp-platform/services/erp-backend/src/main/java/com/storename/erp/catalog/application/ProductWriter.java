@@ -112,4 +112,14 @@ public class ProductWriter {
                 .attributes(product.getAttributesCache())
                 .build();
     }
+
+    @Transactional
+    @CacheEvict(value = "products", allEntries = true)
+    public void softDeleteProduct(Long id) {
+        log.info("Soft-deleting product with id: {}", id);
+        Product product = productRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Product not found"));
+        product.changeActiveState(false);
+        productRepository.save(product);
+    }
 }

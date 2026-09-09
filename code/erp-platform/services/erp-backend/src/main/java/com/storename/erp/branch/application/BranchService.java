@@ -1,5 +1,6 @@
 package com.storename.erp.branch.application;
 
+import lombok.extern.slf4j.Slf4j;
 import com.storename.erp.branch.application.dto.BranchDTO;
 import com.storename.erp.branch.domain.Branch;
 import com.storename.erp.branch.infrastructure.BranchRepository;
@@ -15,6 +16,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
+@Slf4j
 public class BranchService {
 
     private final BranchRepository branchRepository;

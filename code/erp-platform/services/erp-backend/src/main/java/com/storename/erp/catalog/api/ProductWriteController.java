@@ -41,4 +41,12 @@ public class ProductWriteController {
         ProductResponseDto response = productWriter.updateProduct(id, dto);
         return ResponseEntity.ok(ApiResponse.success(response, "Product updated successfully"));
     }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('ADMIN')")
+    public ResponseEntity<ApiResponse<Void>> deleteProduct(@PathVariable Long id) {
+        log.info("REST request to soft-delete product: {}", id);
+        productWriter.softDeleteProduct(id);
+        return ResponseEntity.ok(ApiResponse.success(null, "Product deleted successfully"));
+    }
 }

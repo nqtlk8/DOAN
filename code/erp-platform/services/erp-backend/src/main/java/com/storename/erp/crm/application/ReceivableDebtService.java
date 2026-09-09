@@ -1,5 +1,6 @@
 package com.storename.erp.crm.application;
 
+import lombok.extern.slf4j.Slf4j;
 import com.storename.erp.crm.domain.Customer;
 import com.storename.erp.crm.domain.ReceivableDebt;
 import com.storename.erp.crm.infrastructure.CustomerRepository;
@@ -11,6 +12,7 @@ import java.math.BigDecimal;
 import java.util.UUID;
 
 @Service
+@Slf4j
 public class ReceivableDebtService {
 
     private final ReceivableDebtRepository debtRepository;
