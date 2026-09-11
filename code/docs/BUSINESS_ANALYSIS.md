@@ -593,10 +593,10 @@ Tổng gross_profit = 800,000 + 440,000 = 1,240,000đ
 
 | Thay đổi | Chi tiết |
 |---|---|
-| **THÊM** bảng `stock_lot` | `product_id, branch_id, unit_cost, initial_qty, remaining_qty, received_at, inbound_receipt_line_id` |
-| **THÊM** bảng `stock_ledger` | `product_id, branch_id, movement_type, quantity_change, unit_cost, balance_qty, balance_value, ref_type, ref_id, ref_line_id, lot_id, performed_by, created_at` |
-| **XÓA** cột `avg_cost` trên `stock_on_hand` | Không còn dùng weighted average — giá vốn tra từ `stock_lot` |
-| **GIỮ** `unit_cost_snapshot` trên `sales_invoice_line` | Snapshot weighted-of-lots tại thời điểm bán — cố định vĩnh viễn |
+| **THÊM** bảng `cost_layer` | `product_id, branch_id, unit_cost, initial_qty, remaining_qty, received_at, inbound_movement_id` |
+| **THÊM** bảng `stock_movement` | `product_id, branch_id, movement_type, quantity_change, unit_cost, balance_qty, balance_value, ref_type, ref_id, ref_line_id, performed_by, created_at` |
+| **XÓA** cột `avg_cost` trên `stock_on_hand` | Không còn dùng weighted average — giá vốn tra từ `cost_layer` |
+| **GIỮ** `cost_basis` trên `sales_invoice_line` | Snapshot weighted-of-lots tại thời điểm bán — cố định vĩnh viễn |
 | **GIỮ** `stock_on_hand.quantity` | Running total cho hot path — không thay đổi vai trò |
 
 ### 4.6. Edge Cases

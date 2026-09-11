@@ -55,16 +55,19 @@ Sử dụng React/Vite SPA cho ERP frontend.
 ### Trade-off
 Không có các cơ chế SSR/SSG nhưng giảm độ phức tạp runtime.
 
-## ADR-06 — Weighted Average Costing
+## ADR-06 — FIFO Costing
 
-### Bối cảnh
-Tồn kho cần có giá vốn bình quân để phục vụ bán hàng và nhập hàng.
+Status: Accepted
 
-### Quyết định
-Sử dụng strategy `WeightedAverageCostingStrategy` làm chiến lược hiện hành.
+Decision:
+* FIFO
+* CostLayer
+* FifoCostService
+* StockMovement là inventory ledger/history
+* cost_basis snapshot trên SalesInvoiceLine
 
 ### Trade-off
-Logic FIFO chưa phải chiến lược đang dùng chính thức trong runtime hiện tại.
+Tính toán phức tạp hơn do phải maintain state của nhiều CostLayer nhưng cho phép xác định chính xác lợi nhuận gộp theo từng lô hàng.
 
 ## ADR-07 — Draft → Confirm
 
