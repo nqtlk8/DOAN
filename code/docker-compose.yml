@@ -79,41 +79,51 @@ services:
       retries: 5
 
   hq-app:
-    build: 
+    build:
       context: ./erp-platform/services/erp-backend
       dockerfile: Dockerfile
+    image: code-hq-app
+    environment:
+      SPRING_PROFILES_ACTIVE: hq
+      SPRING_DATASOURCE_URL: jdbc:postgresql://hq-db:5432/erp_hq
+      SPRING_DATASOURCE_USERNAME: erp_user
+      SPRING_DATASOURCE_PASSWORD: erp_password
+      REDIS_HOST: redis-hq
+      JWT_PRIVATE_KEY_PATH: file:/app/secrets/private_key.pem
+      JWT_PUBLIC_KEY_PATH: file:/app/secrets/public_key.pem
     ports:
       - "8080:8080"
-    environment:
-      - SPRING_PROFILES_ACTIVE=hq
-      - INSTANCE_ROLE=HQ
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://hq-db:5432/erp_hq
-      - SPRING_DATASOURCE_USERNAME=erp_user
-      - SPRING_DATASOURCE_PASSWORD=erp_password
-      - REDIS_HOST=redis-hq
-      - REDIS_PORT=6379
     depends_on:
       hq-db:
         condition: service_healthy
       redis-hq:
         condition: service_healthy
+    volumes:
+      - ./secrets:/app/secrets:ro
 
   branch-tp1-app:
-    build: 
+    build:
       context: ./erp-platform/services/erp-backend
       dockerfile: Dockerfile
-    # ports:
-    #   - "8081:8080"
     environment:
-      - SPRING_PROFILES_ACTIVE=branch
-      - INSTANCE_ROLE=BRANCH
-      - BRANCH_ID=TP1
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://branch-tp1-db:5432/erp_branch_tp1
-      - SPRING_DATASOURCE_USERNAME=erp_user
-      - SPRING_DATASOURCE_PASSWORD=erp_password
+      SPRING_PROFILES_ACTIVE: branch
+      BRANCH_ID: TP1
+      SPRING_DATASOURCE_URL: jdbc:postgresql://branch-tp1-db:5432/erp_branch_tp1
+      SPRING_DATASOURCE_USERNAME: erp_user
+      SPRING_DATASOURCE_PASSWORD: erp_password
+      SPRING_FLYWAY_USER: erp_user
+      SPRING_FLYWAY_PASSWORD: erp_password
+      JWT_PUBLIC_KEY_PATH: file:/app/secrets/public_key.pem
+    ports:
+      - "8081:8080"
     depends_on:
       branch-tp1-db:
         condition: service_healthy
+    volumes:
+      - ./secrets/public_key.pem:/app/secrets/public_key.pem:ro
+
+  # No need for tp2-app right now, we can skip it or just configure db.
+
 
   branch-tp2-app:
     build: 
