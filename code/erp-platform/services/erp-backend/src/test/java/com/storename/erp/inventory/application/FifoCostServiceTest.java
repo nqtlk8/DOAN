@@ -2,6 +2,7 @@ package com.storename.erp.inventory.application;
 
 import com.storename.erp.inventory.domain.CostLayer;
 import com.storename.erp.inventory.infrastructure.CostLayerRepository;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -33,8 +34,8 @@ class FifoCostServiceTest {
 
     @BeforeEach
     void setUp() {
-        layer1 = CostLayer.fromInbound(1L, 1L, new BigDecimal("100"), new BigDecimal("10000"), 1L);
-        layer2 = CostLayer.fromInbound(1L, 1L, new BigDecimal("100"), new BigDecimal("12000"), 2L);
+        layer1 = CostLayer.fromInbound(1L, 1L, new BigDecimal("100"), new BigDecimal("10000"), UUID.randomUUID());
+        layer2 = CostLayer.fromInbound(1L, 1L, new BigDecimal("100"), new BigDecimal("12000"), UUID.randomUUID());
     }
 
     @Test

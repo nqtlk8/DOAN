@@ -9,7 +9,9 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 
-public interface CostLayerRepository extends JpaRepository<CostLayer, Long> {
+import java.util.UUID;
+
+public interface CostLayerRepository extends JpaRepository<CostLayer, UUID> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT c FROM CostLayer c WHERE c.productId=:pid AND c.branchId=:bid " +
            "AND c.remainingQty > 0 ORDER BY c.createdAt ASC")

@@ -8,7 +8,9 @@ import org.springframework.data.repository.query.Param;
 import java.math.BigDecimal;
 import java.util.List;
 
-public interface StockMovementRepository extends JpaRepository<StockMovement, Long> {
+import java.util.UUID;
+
+public interface StockMovementRepository extends JpaRepository<StockMovement, UUID> {
     List<StockMovement> findByProductIdAndBranchIdOrderByCreatedAtAsc(Long productId, Long branchId);
 
     @Query("SELECT COALESCE(SUM(m.quantity), 0) FROM StockMovement m WHERE m.productId=:pid AND m.branchId=:bid")

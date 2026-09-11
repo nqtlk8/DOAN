@@ -4,8 +4,10 @@ import com.storename.erp.inventory.domain.MovementType;
 import java.math.BigDecimal;
 import java.time.ZonedDateTime;
 
+import java.util.UUID;
+
 public record StockMovementResponseDto(
-    Long id, 
+    UUID id, 
     MovementType movementType, 
     BigDecimal quantity,
     String refType, 

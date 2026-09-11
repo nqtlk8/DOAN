@@ -17,8 +17,8 @@ import java.util.UUID;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class StockMovement {
 
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Id @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
 
     @Column(name = "product_id", nullable = false) private Long productId;
     @Column(name = "branch_id",  nullable = false) private Long branchId;
