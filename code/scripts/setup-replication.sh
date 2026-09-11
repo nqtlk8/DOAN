@@ -1,14 +1,15 @@
 #!/bin/bash
 set -euo pipefail
 
-BRANCH_ID=${1:-}
-if [ -z "$BRANCH_ID" ]; then
-    echo "Usage: $0 <branch_id>"
-    echo "Example: $0 tp1"
-    exit 1
+BRANCH_NAME=$1
+COPY_DATA=${2:-false}
+
+if [ -z "$BRANCH_NAME" ]; then
+  echo "Usage: $0 <branch_name> [copy_data=true/false] (e.g. tp1, tp2, tp3)"
+  exit 1
 fi
 
-BRANCH_ID=$(echo "$BRANCH_ID" | tr '[:upper:]' '[:lower:]')
+BRANCH_ID=$(echo "$BRANCH_NAME" | tr '[:upper:]' '[:lower:]')
 
 # Configuration
 HQ_DOCKER="code-hq-db-1"
@@ -93,12 +94,15 @@ BRANCH_SERVICE_HOST="branch-${BRANCH_ID}-db"
 # Create Branch Subscription
 SUB_EXISTS=$(docker exec "$BRANCH_DOCKER" psql -U "$BRANCH_USER" -d "$BRANCH_DB" -t -c "SELECT 1 FROM pg_subscription WHERE subname = '$BRANCH_SUB_NAME'" | xargs)
 if [ "$SUB_EXISTS" != "1" ]; then
-  docker exec "$BRANCH_DOCKER" psql -U "$BRANCH_USER" -d "$BRANCH_DB" -c "CREATE SUBSCRIPTION $BRANCH_SUB_NAME CONNECTION 'host=$HQ_SERVICE_HOST port=5432 user=$REPL_USER password=$REPL_PASSWORD dbname=$HQ_DB' PUBLICATION $HQ_PUB_NAME WITH (copy_data = false);"
+  docker exec "$BRANCH_DOCKER" psql -U "$BRANCH_USER" -d "$BRANCH_DB" -c "CREATE SUBSCRIPTION $BRANCH_SUB_NAME CONNECTION 'host=$HQ_SERVICE_HOST port=5432 user=$REPL_USER password=$REPL_PASSWORD dbname=$HQ_DB' PUBLICATION $HQ_PUB_NAME WITH (copy_data = $COPY_DATA);"
 fi
 
 # Create HQ Subscription
 SUB_EXISTS=$(docker exec "$HQ_DOCKER" psql -U "$HQ_USER" -d "$HQ_DB" -t -c "SELECT 1 FROM pg_subscription WHERE subname = '$HQ_SUB_NAME'" | xargs)
 if [ "$SUB_EXISTS" != "1" ]; then
+  # For HQ subscription, we always use copy_data = false because branch doesn't have any master data to copy to HQ anyway,
+  # and transactions will flow as they are created. Wait, if branch had transactions, we might want to copy them. But branch is empty.
+  # So copy_data = $COPY_DATA is fine.
   docker exec "$HQ_DOCKER" psql -U "$HQ_USER" -d "$HQ_DB" -c "CREATE SUBSCRIPTION $HQ_SUB_NAME CONNECTION 'host=$BRANCH_SERVICE_HOST port=5432 user=$REPL_USER password=$REPL_PASSWORD dbname=$BRANCH_DB' PUBLICATION $BRANCH_PUB_NAME WITH (copy_data = false);"
 fi
 

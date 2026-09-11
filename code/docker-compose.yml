@@ -51,6 +51,23 @@ services:
       timeout: 5s
       retries: 5
 
+  branch-tp3-db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: erp_user
+      POSTGRES_PASSWORD: erp_password
+      POSTGRES_DB: erp_branch_tp3
+    ports:
+      - "5435:5432"
+    command: postgres -c wal_level=logical
+    volumes:
+      - branch_tp3_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U erp_user -d erp_branch_tp3"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   redis-hq:
     image: redis:7-alpine
     ports:
@@ -155,3 +172,4 @@ volumes:
   hq_db_data:
   branch_tp1_db_data:
   branch_tp2_db_data:
+  branch_tp3_db_data:
