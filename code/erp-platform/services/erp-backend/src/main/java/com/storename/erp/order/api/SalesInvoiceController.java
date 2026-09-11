@@ -19,6 +19,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/sales-invoices")
 @BranchScoped
+@org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(name = "instance.role", havingValue = "BRANCH")
 @Slf4j
 public class SalesInvoiceController {
 

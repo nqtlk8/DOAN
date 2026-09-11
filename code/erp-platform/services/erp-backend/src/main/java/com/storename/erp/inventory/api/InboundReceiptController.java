@@ -25,6 +25,7 @@ import java.util.List;
 @RequestMapping("/api/v1/inventory/inbound")
 @RequiredArgsConstructor
 @Tag(name = "Inbound Receipt", description = "Quản lý phiếu nhập kho")
+@org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(name = "instance.role", havingValue = "BRANCH")
 @Slf4j
 public class InboundReceiptController {
 

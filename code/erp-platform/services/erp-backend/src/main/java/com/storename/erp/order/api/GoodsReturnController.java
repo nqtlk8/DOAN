@@ -24,6 +24,8 @@ import java.util.UUID;
 @RequestMapping("/api/v1/goods-returns")
 @RequiredArgsConstructor
 @Tag(name = "Goods Return", description = "Quản lý khách trả hàng")
+@BranchScoped
+@org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(name = "instance.role", havingValue = "BRANCH")
 @Slf4j
 public class GoodsReturnController {
 
