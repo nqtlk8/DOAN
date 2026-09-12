@@ -1,3 +1,11 @@
+-- ============================================================
+-- L?CH S?: ��y l� thi?t k? schema v1 ban d?u c?a d? �n.
+-- Schema TH?C T? dang ch?y du?c qu?n l� b?i Flyway t?i:
+-- erp-platform/services/erp-backend/src/main/resources/db/migration/
+-- File n�y gi? l?i d? tham kh?o l?ch s? thi?t k?, KH�NG ph?n �nh
+-- schema hi?n h�nh (v� d?: unit_conversion, supplier_purchase_order,
+-- outbound_receipt, stock_transfer, avg_cost d� b? lo?i b? ? V11).
+-- ============================================================
 -- ============================================================================
 -- DATABASE SCHEMA — Website & ERP Cửa hàng VLXD & TTNT
 -- PostgreSQL 15+ (yêu cầu bắt buộc — dùng row filter trong publication cho
@@ -527,3 +535,4 @@ CREATE INDEX ix_fact_stock_date_branch ON fact_stock_movement (date_key, branch_
 -- Chiều ngược lại (branch -> HQ) tạo publication tương tự cho các bảng
 -- sales_invoice, sales_invoice_line, inbound_receipt, customer_order,
 -- goods_return, supplier_purchase_order tại mỗi branch DB, subscribe từ HQ.
+
