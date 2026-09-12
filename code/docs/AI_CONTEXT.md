@@ -9,9 +9,13 @@ ERP cho cửa hàng VLXD & thiết bị thông minh nhà.
 - Java 21 + Spring Boot 3.4.0.
 - Modular Monolith.
 - Same backend artifact -> 1 HQ + N Branch instances.
-- PostgreSQL DB riêng cho từng instance.
+- PostgreSQL DB riêng cho từng instance, đồng bộ bằng **PostgreSQL Logical Replication hai chiều**:
+  - HQ publish Master Data -> Branch subscribe.
+  - Branch publish Transaction Data -> HQ subscribe.
+  - Ownership Invariant: HQ cấm API ghi transaction, Branch cấm API ghi master.
 - Redis chỉ tại HQ.
-- HQ signs JWT RS256; Branch verifies locally.
+- HQ signs JWT RS256 (sử dụng private key external mount vào thư mục `secrets/`). Branch verifies locally (chỉ mount public key).
+- Khóa chính Master Data = Long, Khóa chính Transaction (Invoice, Receipt, StockMovement) = UUID.
 
 ## Active business modules
 

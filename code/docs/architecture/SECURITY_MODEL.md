@@ -4,9 +4,10 @@
 
 Hệ thống sử dụng JWT với RSA/RS256.
 
-- HQ giữ private key.
+- HQ giữ private key để ký.
 - HQ phát hành token.
-- Branch chỉ giữ public key và xác minh token.
+- Branch chỉ giữ public key và xác minh token offline, độc lập hoàn toàn.
+- **Key Externalization (Từ Sprint 4)**: Cặp khóa RSA không còn bị hardcode trong source code. Chúng được sinh ra bởi script `scripts/generate-jwt-keys.sh` và đặt trong thư mục `secrets/` (nằm ngoài codebase). `docker-compose.yml` sẽ mount thư mục này vào containers qua biến môi trường `JWT_PRIVATE_KEY_PATH` và `JWT_PUBLIC_KEY_PATH`.
 
 **Role System**: Hệ thống chỉ sử dụng 2 role người dùng là `ADMIN` và `STAFF` (các role cũ như HQ, STORE_MANAGER, SALES_STAFF, v.v. đã bị loại bỏ).
 
@@ -67,9 +68,12 @@ Aspect lấy `branchId` từ `JwtAuthDetails` trong SecurityContext và từ ch�
 
 Thiết kế bảo vệ master data có ba lớp:
 
-### Tầng ứng dụng
+### Tầng ứng dụng (Application Level Invariants)
 
-Các writer/controller ghi master data như `ProductWriteController` được giới hạn HQ bằng `@ConditionalOnProperty(instance.role=HQ)`.
+- **HQ Protection**: Các Controller ghi master data như `ProductWriteController`, `CategoryController` được gắn `@ConditionalOnProperty(name = "instance.role", havingValue = "HQ")`.
+- **Branch Protection**: Các Controller ghi transaction data như `SalesInvoiceController`, `GoodsReturnController`, `InboundReceiptController` được gắn `@ConditionalOnProperty(name = "instance.role", havingValue = "BRANCH")`.
+
+Điều này đảm bảo về mặt vật lý, các API này sẽ trả về HTTP 404 (Not Found) nếu gọi sai instance (gọi Transaction API lên HQ, hoặc gọi Master API lên Branch), tuân thủ tuyệt đối Single-Writer Invariant.
 
 ### Tầng mạng
 

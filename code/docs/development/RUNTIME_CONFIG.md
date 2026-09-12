@@ -33,7 +33,7 @@ HQ cấu hình:
 
 - PostgreSQL HQ;
 - Redis;
-- private/public JWT key;
+- Cặp khóa bảo mật `JWT_PRIVATE_KEY_PATH` và `JWT_PUBLIC_KEY_PATH` (thường được trỏ tới file volume `/app/secrets/`);
 - access token expiration 30 phút theo property hiện tại.
 
 ## 4. Branch
@@ -48,7 +48,7 @@ branch-id = ${BRANCH_ID:HCM01}
 Branch cấu hình:
 
 - PostgreSQL riêng;
-- public JWT key;
+- Khóa `JWT_PUBLIC_KEY_PATH` để xác minh Token (không giữ private key);
 - Flyway branch migrations;
 - loại Redis auto-configuration.
 

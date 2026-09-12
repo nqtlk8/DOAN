@@ -1,74 +1,63 @@
-# Database Replication — v5
+# Database Replication Architecture (v6)
 
-## 1. Mục tiêu
+## 1. Mục tiêu và Kiến trúc
 
-Replication phục vụ mô hình nhiều database của kiến trúc HQ/Branch. HQ và mỗi Branch giữ dữ liệu cục bộ, sau đó trao đổi dữ liệu thông qua PostgreSQL Logical Replication.
+Hệ thống sử dụng **PostgreSQL Logical Replication** hai chiều để đồng bộ dữ liệu giữa HQ và các Branch. Kiến trúc được thiết kế theo nguyên tắc:
 
-## 2. Vai trò
+- **Single-Writer Invariant**: Mỗi bảng chỉ có một "Owner" duy nhất được phép ghi (thực thi trên cả Database Level và Application Level).
+- **HQ (Headquarters)**: Master node, quản lý toàn bộ Master Data.
+- **Branch (Chi nhánh)**: Transaction node, quản lý toàn bộ Transaction Data phát sinh tại chi nhánh đó.
 
+Mô hình dữ liệu di chuyển:
 ```text
-HQ PostgreSQL
-     |
-     | logical replication
-     v
-Branch PostgreSQL
+[ HQ Database ] ====== (Master Data) =======> [ Branch Database ]
+[ HQ Database ] <=== (Transaction Data) ===== [ Branch Database ]
 ```
 
-Trong thiết kế nghiệp vụ, HQ là nguồn quản lý master data; Branch là nơi phát sinh giao dịch cục bộ.
+## 2. Publications & Subscriptions
 
-## 3. PostgreSQL configuration
+Việc phân quyền replication được thực hiện rõ ràng thông qua 2 `PUBLICATION` chính:
 
-HQ trong Docker Compose được khởi động với:
+### HQ tới Branch (Master Data)
+HQ tạo `pub_hq_to_<branch_id>` bao gồm các bảng:
+`branch, category, customer, dim_date, inventory_alert_config, permission, price_list, product, role, role_permission, supplier, user_account, user_branch_role`
 
-```text
+Branch tạo `SUBSCRIPTION` tương ứng để nhận luồng dữ liệu này.
+
+### Branch tới HQ (Transaction Data)
+Branch tạo `pub_<branch_id>_to_hq` bao gồm các bảng:
+`sales_invoice, sales_invoice_line, goods_return, goods_return_line, inbound_receipt, inbound_receipt_line, stock_movement, cost_layer`
+
+HQ tạo `SUBSCRIPTION` tương ứng để nhận dữ liệu từ tất cả các nhánh.
+
+## 3. Provisioning & Runbook
+
+Hệ thống cung cấp các shell scripts chuẩn hóa trong thư mục `/scripts` để đảm bảo idempotent provisioning:
+
+- `setup-replication.sh <branch_name> [copy_data]`: Cấu hình toàn bộ Role, Publication, Subscription 2 chiều.
+- `check-schema-version.sh <branch_name>`: Kiểm tra tính đồng nhất của phiên bản Flyway (Bắt buộc HQ và Branch phải cùng version mới được phép kết nối).
+- `test-replication-e2e.sh`: Script kiểm chứng E2E chéo (Tạo Product ở HQ -> Branch nhận, Tạo Invoice ở Branch -> HQ nhận).
+- `add-branch.sh <branch_name>`: Wrapper script tự động hóa luồng thêm chi nhánh mới (Bật Container -> Init Schema -> Truncate Seed Master Data -> Bật Replication với copy_data=true -> Bật App).
+
+**Lưu ý quan trọng (Bootstrapping):**
+Khi tạo mới một nhánh (VD: TP3), Flyway sẽ tự động chạy `V2__seed_test_data.sql` tạo ra các bản ghi có sẵn. Do đó `add-branch.sh` sẽ tự động `TRUNCATE CASCADE` các bảng Master trước khi gọi `setup-replication.sh tp3 true`. Nếu không, cờ `copy_data=true` từ HQ sẽ gây lỗi trùng lặp khóa chính (Duplicate PK). Đối với các nhánh đã đồng bộ sẵn, ta dùng `copy_data=false` để tránh lặp dữ liệu.
+
+## 4. Application Level Invariants
+
+Để triệt để ngăn chặn rủi ro ghi đè dữ liệu (split-brain hoặc dual-writer):
+- Các Controller ghi dữ liệu giao dịch tại Branch (như `SalesInvoiceController`, `GoodsReturnController`, `InboundReceiptController`) được gắn annotation `@ConditionalOnProperty(name = "instance.role", havingValue = "BRANCH")`.
+- Tương tự, Master Data controller chỉ hoạt động ở HQ.
+- Lớp bảo vệ này khiến ứng dụng trả về HTTP 404 (Not Found) nếu người dùng hoặc Client cố tình bắn API ghi giao dịch trực tiếp lên HQ (hoặc ngược lại).
+
+## 5. Cấu hình PostgreSQL
+
+Để Logical Replication hoạt động, các instances trong `docker-compose.yml` bắt buộc chạy với cờ:
+```bash
 wal_level=logical
 max_replication_slots=10
 max_wal_senders=10
 ```
 
-Branch được khởi động với:
+## 6. Tính nhất quán (Consistency)
 
-```text
-wal_level=logical
-```
-
-## 4. Important implementation fact
-
-`docker-compose.yml` hiện **chưa tự động tạo** `PUBLICATION` và `SUBSCRIPTION`. Compose chỉ bật các PostgreSQL containers với cấu hình cần thiết.
-
-Replication E2E test là test thủ công (`@Disabled`) và yêu cầu tạo publication/subscription bằng SQL trước khi chạy.
-
-Ví dụ trong test:
-
-```sql
-CREATE PUBLICATION erp_pub FOR ALL TABLES;
-```
-
-và:
-
-```sql
-CREATE SUBSCRIPTION erp_sub
-CONNECTION 'host=pg-master port=5432 user=erp_user password=erp_password dbname=erp_db'
-PUBLICATION erp_pub;
-```
-
-## 5. Runtime status API
-
-Backend cung cấp:
-
-```text
-GET /api/v1/admin/system/replication-status
-```
-
-`ReplicationStatusController` kiểm tra PostgreSQL system views:
-
-- `pg_stat_replication` — trạng thái phía master;
-- `pg_stat_subscription` — trạng thái phía subscriber.
-
-## 6. Consistency
-
-Logical Replication là bất đồng bộ; do đó HQ và Branch có thể tồn tại replication lag. Hệ thống phải coi dữ liệu giữa các instance là eventual consistency, không phải strong consistency tức thời.
-
-## 7. Không đồng nhất giữa tài liệu cũ và hiện tại
-
-Các tài liệu cũ từng mô tả một bảng mẫu tên `products`. Đây chỉ là PoC lịch sử. Schema v5 dùng `product` và các bảng thực tế trong `V1__init_schema.sql`.
+Do đặc thù của Logical Replication, độ trễ (replication lag) là không thể tránh khỏi. Dữ liệu giữa HQ và Branch tuân theo mô hình **Eventual Consistency** (Nhất quán cuối). Ứng dụng Frontend và Backend cần được thiết kế (UX/UI) để chấp nhận độ trễ này (ví dụ: tạo sản phẩm mới ở HQ có thể mất 1-2 giây mới xuất hiện trên thanh tìm kiếm của Branch).

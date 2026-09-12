@@ -36,6 +36,8 @@ Schema hiện hành có **26 bảng**.
 | Inventory | `stock_on_hand` | Tồn kho hiện tại |
 | Inventory | `inbound_receipt` | Phiếu nhập |
 | Inventory | `inbound_receipt_line` | Dòng nhập |
+| Inventory | `stock_movement` | Sổ kho (Ledger) |
+| Inventory | `cost_layer` | Lớp giá FIFO |
 | Common | `idempotency_record` | Idempotency |
 | Analytics | `dim_date` | Chiều ngày |
 | Analytics | `fact_sales` | Fact bán hàng |
@@ -156,6 +158,14 @@ Liên kết với `supplier_id` và `branch_id`.
 ### `inbound_receipt_line`
 
 Lưu sản phẩm, số lượng, đơn vị tính và đơn giá nhập.
+
+### `stock_movement`
+
+Sổ kho (Inventory Ledger) ghi nhận lịch sử mọi thay đổi tồn kho (Nhập/Xuất/Bán/Trả). Khóa chính kiểu UUID. Lưu `movement_type`, `quantity`, và `reference_id`.
+
+### `cost_layer`
+
+Theo dõi các lớp giá nhập (FIFO Costing) cho từng đợt hàng để tính giá vốn chính xác khi xuất. Khóa chính kiểu UUID. Lưu `inbound_movement_id`, `original_quantity`, `remaining_quantity`, `unit_cost`.
 
 ## 9. Analytics
 
