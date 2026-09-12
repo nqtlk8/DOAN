@@ -48,6 +48,7 @@ export const TopRibbon: React.FC = () => {
         {tabs.map((tab) => (
           <button
             key={tab.id}
+            data-testid={`ribbon-tab-${tab.id}`}
             onClick={() => setActiveTab(tab.id)}
             className={`px-3 py-1 text-erp-label whitespace-nowrap border border-b-0 rounded-t-erp transition-none ${
               activeTab === tab.id
@@ -88,6 +89,7 @@ export const TopRibbon: React.FC = () => {
             </button>
             
             <button 
+              data-testid="ribbon-btn-inbound"
               onClick={() => handleOpenTab('new-inbound', 'NHẬP HÀNG', <InboundReceiptModule mode="ADD" />, false)}
               className="flex flex-col items-center justify-center p-1 min-w-[60px] shrink-0 border border-transparent hover:border-erp-btn-border hover:bg-erp-btn-hover-bg rounded-erp gap-1"
             >

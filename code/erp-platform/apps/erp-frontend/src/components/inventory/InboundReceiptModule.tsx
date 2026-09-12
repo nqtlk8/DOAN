@@ -66,12 +66,12 @@ export const InboundReceiptModule: React.FC<{ mode?: 'ADD' | 'VIEW' | 'EDIT' }> 
         <h2 className="text-2xl font-bold">Phiếu Nhập Hàng</h2>
         <div className="flex space-x-2">
           {mode === 'ADD' && !receiptId && (
-            <button onClick={onSaveDraft} disabled={isLoading} className="bg-blue-600 text-white px-4 py-2 rounded flex items-center hover:bg-blue-700">
+            <button data-testid="inbound-save-draft" onClick={onSaveDraft} disabled={isLoading} className="bg-blue-600 text-white px-4 py-2 rounded flex items-center hover:bg-blue-700">
               <Save size={18} className="mr-2" /> Lưu nháp
             </button>
           )}
           {receiptId && (
-            <button onClick={onConfirm} disabled={isLoading} className="bg-green-600 text-white px-4 py-2 rounded flex items-center hover:bg-green-700">
+            <button data-testid="inbound-confirm" onClick={onConfirm} disabled={isLoading} className="bg-green-600 text-white px-4 py-2 rounded flex items-center hover:bg-green-700">
               <Check size={18} className="mr-2" /> Xác nhận
             </button>
           )}
@@ -83,7 +83,7 @@ export const InboundReceiptModule: React.FC<{ mode?: 'ADD' | 'VIEW' | 'EDIT' }> 
           <label className="block text-sm font-medium mb-1">Nhà cung cấp</label>
           <div className="flex space-x-2">
             <input type="text" readOnly value={supplierName} className="border p-2 rounded flex-1 bg-slate-50" placeholder="Chọn nhà cung cấp..." />
-            <button onClick={() => setShowSupplierSearch(true)} className="bg-slate-200 px-3 rounded hover:bg-slate-300">Tìm</button>
+            <button data-testid="inbound-supplier-search" onClick={() => setShowSupplierSearch(true)} className="bg-slate-200 px-3 rounded hover:bg-slate-300">Tìm</button>
           </div>
           
           <label className="block text-sm font-medium mb-1 mt-4">Ghi chú</label>
@@ -99,7 +99,7 @@ export const InboundReceiptModule: React.FC<{ mode?: 'ADD' | 'VIEW' | 'EDIT' }> 
       <div className="border rounded bg-white shadow-sm flex-1 flex flex-col">
         <div className="p-4 border-b flex justify-between items-center bg-slate-50">
           <h3 className="font-semibold">Danh sách sản phẩm</h3>
-          <button onClick={() => setShowProductSearch(true)} className="text-blue-600 flex items-center hover:text-blue-800">
+          <button data-testid="inbound-add-product" onClick={() => setShowProductSearch(true)} className="text-blue-600 flex items-center hover:text-blue-800">
             <Plus size={18} className="mr-1" /> Thêm dòng
           </button>
         </div>
@@ -150,24 +150,22 @@ export const InboundReceiptModule: React.FC<{ mode?: 'ADD' | 'VIEW' | 'EDIT' }> 
         </div>
       </div>
 
-      {showSupplierSearch && (
-        <SearchModal
-          title="Chọn Nhà cung cấp"
-          items={suppliers}
-          searchKey="name"
-          onSelect={(s) => { setSupplierId(String(s.id)); setSupplierName(s.name); setShowSupplierSearch(false); }}
-          onClose={() => setShowSupplierSearch(false)}
-        />
-      )}
-      {showProductSearch && (
-        <SearchModal
-          title="Chọn Sản phẩm"
-          items={products}
-          searchKey="name"
-          onSelect={addItem}
-          onClose={() => setShowProductSearch(false)}
-        />
-      )}
+      <SearchModal
+        isOpen={showSupplierSearch}
+        title="Chọn Nhà cung cấp"
+        fetchData={async (q) => suppliers.filter(s => s.name.toLowerCase().includes(q.toLowerCase()))}
+        renderItem={(s) => <div className="font-medium text-slate-800">{s.name}</div>}
+        onSelect={(s) => { setSupplierId(String(s.id)); setSupplierName(s.name); setShowSupplierSearch(false); }}
+        onClose={() => setShowSupplierSearch(false)}
+      />
+      <SearchModal
+        isOpen={showProductSearch}
+        title="Chọn Sản phẩm"
+        fetchData={async (q) => products.filter(p => p.name.toLowerCase().includes(q.toLowerCase()))}
+        renderItem={(p) => <div className="font-medium text-slate-800">{p.name} - {p.basePrice?.toLocaleString()} đ</div>}
+        onSelect={addItem}
+        onClose={() => setShowProductSearch(false)}
+      />
     </div>
   );
 };
