@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useTabs } from '../../context/TabContext';
 import { Dashboard } from '../sales/Dashboard';
 import { SalesModule } from '../sales/SalesModule';
-import { PurchaseModule } from '../purchasing/PurchaseModule';
+import { InboundReceiptModule } from '../inventory/InboundReceiptModule';
 import { ProductList } from '../catalog/ProductList';
 import { CustomerList } from '../catalog/CustomerList';
 import { SupplierList } from '../catalog/SupplierList';
@@ -88,7 +88,7 @@ export const TopRibbon: React.FC = () => {
             </button>
             
             <button 
-              onClick={() => handleOpenTab('new-purchase', 'NHẬP HÀNG', <PurchaseModule initialSubView="FORM" mode="ADD" />, false)}
+              onClick={() => handleOpenTab('new-inbound', 'NHẬP HÀNG', <InboundReceiptModule mode="ADD" />, false)}
               className="flex flex-col items-center justify-center p-1 min-w-[60px] shrink-0 border border-transparent hover:border-erp-btn-border hover:bg-erp-btn-hover-bg rounded-erp gap-1"
             >
               <Truck size={20} className="text-orange-600" />
