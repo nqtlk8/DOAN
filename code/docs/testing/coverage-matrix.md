@@ -1,8 +1,18 @@
 # Ma trận Bao phủ Kế hoạch Kiểm thử (Test Coverage Matrix)
 
-| Tính năng / Class | Level 1 | Level 2 | Level 3 | Level 4 | Ghi chú |
+| Module / Tính năng | Level 1 (Unit) | Level 2 (WebMvc) | Level 3 (Integration) | Level 4 (E2E) | Ghi chú |
 |---|---|---|---|---|---|
-| `LowStockAlertJob` | ✅ | — | — | — | Unit test xử lý NEGATIVE_STOCK, LOW_STOCK và RESOLVED |
-| `DashboardService` | ✅ | — | — | — | Unit test logic tổng hợp Dashboard Metrics và xử lý Null |
-| `AnalyticsDataAdapter` | — | — | — | — | **[SKIP Level 3]** File này sử dụng native query của Postgres `to_date(?::text, 'YYYYMMDD')`. Do đồ án chưa setup Testcontainers PostgreSQL, tôi tạm bỏ qua Level 3 để tránh lỗi trên H2. Nếu setup xong Testcontainers thì nên bổ sung test này. |
-| `InboundReceiptModule` | ✅ (FE) | — | — | — | Đã có Playwright spec test happy-path cho luồng nhập hàng tại `inbound-receipt.spec.ts` |
+| **Identity & Auth** | ✅ | ✅ | ✅ | ✅ | Đã test JwtTokenProvider (valid/expired), Rbac (403), Context HQ/Branch, UI Login. |
+| **Catalog (Product/Supplier)** | ✅ | ✅ | ✅ | ✅ | Test Product/Supplier Write/Read, Product UI list. |
+| **CRM (Customer/Debt)** | ✅ | ✅ | ✅ | ✅ | CustomerWrite/Read, ReceivableDebt, Playwright test khách hàng, UI Debt. |
+| **Inventory (Stock/Inbound)** | ✅ | ✅ | ✅ | ✅ | StockOnHand logic, InboundReceiptService, StockController, Playwright phiếu nhập. |
+| **Order (Sales/Returns)** | ✅ | ✅ | ✅ | ✅ | GoodsReturnService, SalesInvoiceService, Playwright tạo đơn hàng & phiếu trả. |
+| **Analytics (Dashboard)** | ✅ | ✅ | ✅ | ✅ | DataAdapter native queries (H2 PgMode), DashboardController, Dashboard UI Playwright. |
+| **Architecture / Config** | N/A | N/A | ✅ | N/A | Test ConditionalBeanContext cho HQ và Branch, JpaAuditing Config. |
+
+*Chú thích:*
+- **✅**: Đã hoàn thành (Covered).
+- **Level 1**: JUnit 5 + Mockito cho Business Logic.
+- **Level 2**: `@WebMvcTest` cho HTTP Routing, Security.
+- **Level 3**: `@SpringBootTest` / `@DataJpaTest` cho Data layer, Conditional Beans, Native SQL.
+- **Level 4**: Playwright Frontend Tests.

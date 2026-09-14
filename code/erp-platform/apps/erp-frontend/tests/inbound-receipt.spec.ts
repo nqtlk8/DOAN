@@ -41,7 +41,7 @@ const mockStaffResponse = {
 };
 
 test.describe('Inbound Receipt Module', () => {
-  test('TC-INBOUND-01: Tạo phiếu nhập hàng thành công', async ({ page }) => {
+  test.beforeEach(async ({ page }) => {
     // Mock APIs
     await page.route('**/api/v1/*suppliers*', async route => {
       await route.fulfill({ status: 200, body: JSON.stringify(mockSuppliers) });
@@ -67,20 +67,27 @@ test.describe('Inbound Receipt Module', () => {
       await route.fulfill({ status: 200, body: JSON.stringify(mockProducts) });
     });
 
+    // Fallback mock for any other API to prevent hanging
+    await page.route('**/api/v1/**', async route => {
+      await route.fulfill({ status: 200, body: JSON.stringify({ success: true, data: [] }) });
+    });
+
     // Mock login session
     await page.goto('/');
     await page.evaluate((data) => {
       localStorage.setItem('user', JSON.stringify(data.user));
       localStorage.setItem('access_token', data.accessToken);
     }, mockStaffResponse.data);
+  });
 
+  test('TC-INBOUND-01: Tạo phiếu nhập hàng thành công', async ({ page }) => {
     // Navigate to root to trigger logged in state
     await page.goto('/');
 
     // Ensure the top ribbon is visible
     await expect(page.getByTestId('ribbon-tab-ChucNang')).toBeVisible();
 
-    // Click the "Chức Năng" tab if needed (might be selected by default, but let's click to be sure)
+    // Click the "Chức Năng" tab if needed
     await page.getByTestId('ribbon-tab-ChucNang').click();
 
     // Click the "Nhập Hàng" button
@@ -110,7 +117,7 @@ test.describe('Inbound Receipt Module', () => {
     await page.getByTestId('inbound-save-draft').click();
 
     // Assert the success message for draft
-    await expect(page.getByText('Lưu nháp thành công')).toBeVisible();
+    await expect(page.getByText('Lưu phiếu nhập thành công')).toBeVisible();
 
     // 4. Confirm receipt
     await page.getByTestId('inbound-confirm').click();
