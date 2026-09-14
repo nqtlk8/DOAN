@@ -32,12 +32,6 @@ public class DashboardControllerTest {
     private MockMvc mockMvc;
 
     @MockBean
-    private org.springframework.data.jpa.mapping.JpaMetamodelMappingContext jpaMappingContext;
-
-    @MockBean(name = "auditorProvider")
-    private org.springframework.data.domain.AuditorAware<java.util.UUID> auditorProvider;
-
-    @MockBean
     private DashboardService dashboardService;
     
     @MockBean
@@ -75,7 +69,7 @@ public class DashboardControllerTest {
     }
 
     @Test
-    void getDashboardMetrics_ShouldReturn403_WhenStaff() throws Exception {
+    void getDashboardMetrics_ShouldReturn403_WhenForbidden() throws Exception {
         JwtAuthDetails details = new JwtAuthDetails("1", "token-123");
         UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
                 "user", null, List.of(new SimpleGrantedAuthority("STAFF")));
@@ -86,3 +80,4 @@ public class DashboardControllerTest {
                 .andExpect(status().isForbidden());
     }
 }
+

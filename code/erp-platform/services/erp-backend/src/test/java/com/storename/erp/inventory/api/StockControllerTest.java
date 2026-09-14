@@ -32,12 +32,6 @@ public class StockControllerTest {
     private MockMvc mockMvc;
 
     @MockBean
-    private org.springframework.data.jpa.mapping.JpaMetamodelMappingContext jpaMappingContext;
-
-    @MockBean(name = "auditorProvider")
-    private org.springframework.data.domain.AuditorAware<java.util.UUID> auditorProvider;
-
-    @MockBean
     private StockOnHandRepository stockRepo;
 
     @MockBean
@@ -77,3 +71,4 @@ public class StockControllerTest {
                 .andExpect(status().isForbidden());
     }
 }
+

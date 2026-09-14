@@ -32,12 +32,6 @@ public class CustomerReadControllerTest {
     private MockMvc mockMvc;
 
     @MockBean
-    private org.springframework.data.jpa.mapping.JpaMetamodelMappingContext jpaMappingContext;
-
-    @MockBean(name = "auditorProvider")
-    private org.springframework.data.domain.AuditorAware<java.util.UUID> auditorProvider;
-
-    @MockBean
     private CustomerRepository customerRepository;
 
     @MockBean
@@ -79,3 +73,4 @@ public class CustomerReadControllerTest {
                 .andExpect(status().isForbidden());
     }
 }
+

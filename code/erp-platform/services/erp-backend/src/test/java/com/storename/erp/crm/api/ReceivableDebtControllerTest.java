@@ -31,12 +31,6 @@ public class ReceivableDebtControllerTest {
     private MockMvc mockMvc;
 
     @MockBean
-    private org.springframework.data.jpa.mapping.JpaMetamodelMappingContext jpaMappingContext;
-
-    @MockBean(name = "auditorProvider")
-    private org.springframework.data.domain.AuditorAware<java.util.UUID> auditorProvider;
-
-    @MockBean
     private ReceivableDebtRepository debtRepository;
 
     @MockBean
@@ -76,3 +70,4 @@ public class ReceivableDebtControllerTest {
                 .andExpect(status().isForbidden());
     }
 }
+

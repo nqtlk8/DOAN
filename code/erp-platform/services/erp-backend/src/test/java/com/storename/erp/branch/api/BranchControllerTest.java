@@ -35,12 +35,6 @@ public class BranchControllerTest {
     private ObjectMapper objectMapper;
 
     @MockBean
-    private org.springframework.data.jpa.mapping.JpaMetamodelMappingContext jpaMappingContext;
-
-    @MockBean(name = "auditorProvider")
-    private org.springframework.data.domain.AuditorAware<java.util.UUID> auditorProvider;
-
-    @MockBean
     private BranchService branchService;
 
     @MockBean
@@ -77,7 +71,7 @@ public class BranchControllerTest {
     }
 
     @Test
-    void createBranch_ShouldReturn403_WhenStaff() throws Exception {
+    void createBranch_ShouldReturn403_WhenForbidden() throws Exception {
         BranchDTO dto = new BranchDTO();
         dto.setCode("BR-01");
         dto.setName("Branch 1");
@@ -94,3 +88,4 @@ public class BranchControllerTest {
                 .andExpect(status().isForbidden());
     }
 }
+

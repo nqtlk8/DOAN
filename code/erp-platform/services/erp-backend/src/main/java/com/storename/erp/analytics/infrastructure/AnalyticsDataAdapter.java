@@ -15,7 +15,7 @@ public class AnalyticsDataAdapter implements AnalyticsDataPort {
 
     @Override
     public BigDecimal getTotalReceivableDebt(Long branchId) {
-        String sql = "SELECT COALESCE(SUM(remaining_amount), 0) FROM receivable_debt WHERE branch_id = ?";
+        String sql = "SELECT COALESCE(SUM(total_debt), 0) FROM receivable_debt WHERE branch_id = ?";
         return jdbcTemplate.queryForObject(sql, BigDecimal.class, branchId);
     }
 
@@ -35,7 +35,7 @@ public class AnalyticsDataAdapter implements AnalyticsDataPort {
             JOIN sales_invoice i ON l.invoice_id = i.id 
             WHERE i.branch_id = ? AND i.confirmed_at IS NOT NULL 
               AND i.confirmed_at >= to_date(?::text, 'YYYYMMDD') 
-              AND i.confirmed_at < to_date(?::text, 'YYYYMMDD') + interval '1 day'
+              AND i.confirmed_at < to_date(?::text, 'YYYYMMDD') + INTERVAL '1' DAY
               AND l.is_deleted = false AND i.is_deleted = false
             GROUP BY l.product_id, l.product_name 
             ORDER BY quantity_sold DESC LIMIT 10
@@ -58,7 +58,7 @@ public class AnalyticsDataAdapter implements AnalyticsDataPort {
             JOIN sales_invoice i ON l.invoice_id = i.id 
             WHERE i.branch_id = ? AND i.confirmed_at IS NOT NULL 
               AND i.confirmed_at >= to_date(?::text, 'YYYYMMDD') 
-              AND i.confirmed_at < to_date(?::text, 'YYYYMMDD') + interval '1 day'
+              AND i.confirmed_at < to_date(?::text, 'YYYYMMDD') + INTERVAL '1' DAY
               AND l.is_deleted = false AND i.is_deleted = false
         """;
         return jdbcTemplate.queryForObject(sql, BigDecimal.class, branchId, startDateKey, endDateKey);
@@ -72,7 +72,7 @@ public class AnalyticsDataAdapter implements AnalyticsDataPort {
             JOIN sales_invoice i ON l.invoice_id = i.id 
             WHERE i.branch_id = ? AND i.confirmed_at IS NOT NULL 
               AND i.confirmed_at >= to_date(?::text, 'YYYYMMDD') 
-              AND i.confirmed_at < to_date(?::text, 'YYYYMMDD') + interval '1 day'
+              AND i.confirmed_at < to_date(?::text, 'YYYYMMDD') + INTERVAL '1' DAY
               AND l.is_deleted = false AND i.is_deleted = false
         """;
         return jdbcTemplate.queryForObject(sql, BigDecimal.class, branchId, startDateKey, endDateKey);
@@ -86,7 +86,7 @@ public class AnalyticsDataAdapter implements AnalyticsDataPort {
             JOIN sales_invoice i ON l.invoice_id = i.id 
             WHERE i.branch_id = ? AND i.confirmed_at IS NOT NULL 
               AND i.confirmed_at >= to_date(?::text, 'YYYYMMDD') 
-              AND i.confirmed_at < to_date(?::text, 'YYYYMMDD') + interval '1 day'
+              AND i.confirmed_at < to_date(?::text, 'YYYYMMDD') + INTERVAL '1' DAY
               AND l.is_deleted = false AND i.is_deleted = false
         """;
         return jdbcTemplate.queryForObject(sql, BigDecimal.class, branchId, startDateKey, endDateKey);

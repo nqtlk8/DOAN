@@ -52,14 +52,38 @@ public class ArchitectureV3BranchTest {
 
     @Test
     public void branch_ShouldVerifyJwtLocally() throws Exception {
-        // Assume we got this token from HQ
-        // For testing, since Branch has NO private key, we can't generate it here dynamically.
-        // Wait, the Branch testing context will fail to generate if we call generateToken because no private key is loaded!
-        // This effectively proves that Branch can't sign JWT.
-        
-        // So this test needs to be performed via E2E/Docker environment or we mock a token.
-        // We will rely on manual E2E test via docker-compose for the strict JWT test (Test 3)
-        // because the Branch application-branch.yml doesn't even load the private key.
-        assertTrue(true);
+        // 1. Generate a test RSA KeyPair
+        java.security.KeyPairGenerator keyPairGen = java.security.KeyPairGenerator.getInstance("RSA");
+        keyPairGen.initialize(2048);
+        java.security.KeyPair pair = keyPairGen.generateKeyPair();
+
+        // 2. Inject the public key into the Branch's JwtTokenProvider bean using Reflection
+        org.springframework.test.util.ReflectionTestUtils.setField(jwtTokenProvider, "publicKey", pair.getPublic());
+        org.springframework.test.util.ReflectionTestUtils.setField(jwtTokenProvider, "expirationMs", 3600000L);
+
+        // 3. Act as HQ: Generate a token using the private key
+        // We temporarily set the private key to generate, then remove it to simulate Branch state
+        org.springframework.test.util.ReflectionTestUtils.setField(jwtTokenProvider, "privateKey", pair.getPrivate());
+        String token = jwtTokenProvider.generateToken("admin", "ADMIN", "HCM01", "token-1");
+        org.springframework.test.util.ReflectionTestUtils.setField(jwtTokenProvider, "privateKey", null); // Remove private key again!
+
+        // 4. Verify that without token, access to protected resource is 403 Forbidden (default Spring Security behavior)
+        mockMvc.perform(get("/api/v1/catalog/products"))
+               .andExpect(status().isForbidden());
+
+        // 5. Verify that WITH token, access is allowed (might be 200 OK or 404 Not Found if endpoint is disabled, but NOT 403)
+        mockMvc.perform(get("/api/v1/catalog/products")
+               .header("Authorization", "Bearer " + token))
+               .andExpect(result -> {
+                   int statusCode = result.getResponse().getStatus();
+                   org.junit.jupiter.api.Assertions.assertNotEquals(403, statusCode, "Should not be forbidden with a valid token");
+               });
+    }
+
+    @Test
+    public void branch_ShouldNotHaveHqOnlyBeans() {
+        assertFalse(context.containsBean("customerWriteController"), "Branch must NOT have CustomerWriteController");
+        assertFalse(context.containsBean("branchController"), "Branch must NOT have BranchController");
+        assertFalse(context.containsBean("dashboardController"), "Branch must NOT have DashboardController");
     }
 }

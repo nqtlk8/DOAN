@@ -37,12 +37,6 @@ public class CustomerWriteControllerTest {
     private ObjectMapper objectMapper;
 
     @MockBean
-    private org.springframework.data.jpa.mapping.JpaMetamodelMappingContext jpaMappingContext;
-
-    @MockBean(name = "auditorProvider")
-    private org.springframework.data.domain.AuditorAware<java.util.UUID> auditorProvider;
-
-    @MockBean
     private CustomerWriteService customerWriteService;
 
     @MockBean
@@ -84,7 +78,7 @@ public class CustomerWriteControllerTest {
     }
 
     @Test
-    void createCustomer_ShouldReturn403_WhenStaff() throws Exception {
+    void createCustomer_ShouldReturn403_WhenForbidden() throws Exception {
         CustomerCreateDto dto = new CustomerCreateDto();
         dto.setCustomerCode("KH-01");
         dto.setName("New Customer");
@@ -101,3 +95,4 @@ public class CustomerWriteControllerTest {
                 .andExpect(status().isForbidden());
     }
 }
+

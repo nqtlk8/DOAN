@@ -31,12 +31,6 @@ public class SupplierReadControllerTest {
     private MockMvc mockMvc;
 
     @MockBean
-    private org.springframework.data.jpa.mapping.JpaMetamodelMappingContext jpaMappingContext;
-
-    @MockBean(name = "auditorProvider")
-    private org.springframework.data.domain.AuditorAware<java.util.UUID> auditorProvider;
-
-    @MockBean
     private SupplierRepository supplierRepository;
 
     @MockBean
@@ -76,8 +70,9 @@ public class SupplierReadControllerTest {
     }
 
     @Test
-    void getSuppliers_ShouldReturn401_WhenUnauthorized() throws Exception {
+    void getSuppliers_ShouldReturn403_WhenUnauthenticated() throws Exception {
         mockMvc.perform(get("/api/v1/suppliers"))
                 .andExpect(status().isForbidden());
     }
 }
+
