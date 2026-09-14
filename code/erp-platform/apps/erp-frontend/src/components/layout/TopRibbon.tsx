@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useTabs } from '../../context/TabContext';
 import { Dashboard } from '../sales/Dashboard';
 import { SalesModule } from '../sales/SalesModule';
-import { PurchaseModule } from '../purchasing/PurchaseModule';
+import { InboundReceiptModule } from '../inventory/InboundReceiptModule';
 import { ProductList } from '../catalog/ProductList';
 import { CustomerList } from '../catalog/CustomerList';
 import { SupplierList } from '../catalog/SupplierList';
@@ -13,24 +13,17 @@ import { DebtList } from '../crm/DebtList';
 import { BranchList } from '../admin/BranchList';
 import { GoodsReturnModule } from '../returns/GoodsReturnModule';
 
+import { allTabs } from '../../config/menuConfig';
+
 export const TopRibbon: React.FC = () => {
   const { user, logout } = useAuth();
   const { openTab } = useTabs();
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = user?.role === 'ADMIN';
   const [activeTab, setActiveTab] = useState('BanHang');
 
   const handleOpenTab = (id: string, title: string, component: React.ReactNode, isClosable?: boolean) => {
     openTab(id, title, component, isClosable);
   };
-
-  const allTabs = [
-    { id: 'ChucNang', label: 'Chức năng', roles: ['STAFF'] },
-    { id: 'DanhMuc', label: 'Danh mục', roles: ['ADMIN', 'STAFF'] },
-    { id: 'CongNo', label: 'Công nợ', roles: ['ADMIN', 'STAFF'] },
-    { id: 'TonKho', label: 'Tồn kho', roles: ['ADMIN', 'STAFF'] },
-    { id: 'ThongKe', label: 'Thống kê', roles: ['ADMIN'] },
-    { id: 'HeThong', label: 'Hệ thống', roles: ['ADMIN', 'STAFF'] },
-  ];
 
   const tabs = React.useMemo(() => allTabs.filter(t => t.roles.includes(user?.role || '')), [user?.role]);
 
@@ -48,6 +41,7 @@ export const TopRibbon: React.FC = () => {
         {tabs.map((tab) => (
           <button
             key={tab.id}
+            data-testid={`ribbon-tab-${tab.id}`}
             onClick={() => setActiveTab(tab.id)}
             className={`px-3 py-1 text-erp-label whitespace-nowrap border border-b-0 rounded-t-erp transition-none ${
               activeTab === tab.id
@@ -88,7 +82,8 @@ export const TopRibbon: React.FC = () => {
             </button>
             
             <button 
-              onClick={() => handleOpenTab('new-purchase', 'NHẬP HÀNG', <PurchaseModule initialSubView="FORM" mode="ADD" />, false)}
+              data-testid="ribbon-btn-inbound"
+              onClick={() => handleOpenTab('new-inbound', 'NHẬP HÀNG', <InboundReceiptModule mode="ADD" />, false)}
               className="flex flex-col items-center justify-center p-1 min-w-[60px] shrink-0 border border-transparent hover:border-erp-btn-border hover:bg-erp-btn-hover-bg rounded-erp gap-1"
             >
               <Truck size={20} className="text-orange-600" />

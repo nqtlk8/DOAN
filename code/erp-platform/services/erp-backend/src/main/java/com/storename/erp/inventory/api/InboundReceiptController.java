@@ -63,16 +63,20 @@ public class InboundReceiptController {
 
     @GetMapping
     @PreAuthorize("hasAnyAuthority('STAFF', 'ADMIN')")
-    public ApiResponse<List<InboundReceipt>> getReceipts() {
+    public ApiResponse<List<com.storename.erp.inventory.api.dto.InboundReceiptResponseDto>> getReceipts() {
         Long branchId = com.storename.erp.common.security.AuthUtils.getBranchId();
-        return ApiResponse.success(inboundService.getReceiptsByBranch(branchId));
+        List<com.storename.erp.inventory.api.dto.InboundReceiptResponseDto> dtoList = inboundService.getReceiptsByBranch(branchId)
+                .stream().map(com.storename.erp.inventory.api.dto.InboundReceiptResponseDto::fromEntity)
+                .toList();
+        return ApiResponse.success(dtoList);
     }
 
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('STAFF', 'ADMIN')")
-    public ApiResponse<InboundReceipt> getReceipt(@PathVariable UUID id) {
+    public ApiResponse<com.storename.erp.inventory.api.dto.InboundReceiptResponseDto> getReceipt(@PathVariable UUID id) {
         Long branchId = com.storename.erp.common.security.AuthUtils.getBranchId();
-        return ApiResponse.success(inboundService.getReceipt(id, branchId));
+        InboundReceipt receipt = inboundService.getReceipt(id, branchId);
+        return ApiResponse.success(com.storename.erp.inventory.api.dto.InboundReceiptResponseDto.fromEntity(receipt));
     }
 }
 

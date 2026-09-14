@@ -3,13 +3,14 @@ import { ApiService } from '../api/ApiService';
 import { useTabs } from '../context/TabContext';
 import type { components } from '@erp/api-contract';
 
-type SupplierPurchaseOrderCreateDto = components['schemas']['SupplierPurchaseOrderCreateDto'];
+type InboundReceiptCreateDto = components['schemas']['InboundReceiptCreateDto'];
 
-export function usePurchaseOrder(initialData: any = null, initialMode: 'VIEW' | 'ADD' | 'EDIT' = 'VIEW') {
+export function useInboundReceipt(initialData: any = null, initialMode: 'VIEW' | 'ADD' | 'EDIT' = 'VIEW') {
   const [mode, setMode] = useState<'VIEW' | 'ADD' | 'EDIT'>(initialMode);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { closeTab, activeTabId } = useTabs();
+  const [receiptId, setReceiptId] = useState<string | null>(initialData?.id || null);
 
   const handleAdd = useCallback(() => {
     setMode('ADD');
@@ -46,15 +47,16 @@ export function usePurchaseOrder(initialData: any = null, initialMode: 'VIEW' | 
   }, [mode, activeTabId, closeTab]);
 
   const handleSubmit = useCallback(
-    async (payload: SupplierPurchaseOrderCreateDto, onSuccess: (data: any) => void) => {
+    async (payload: InboundReceiptCreateDto, onSuccess: (data: any) => void) => {
       setIsLoading(true);
       setError(null);
       try {
         if (mode === 'ADD') {
-          const response = await ApiService.Purchasing.createOrder(payload);
+          const response = await ApiService.InboundReceipt.create(payload);
+          setReceiptId(response.id);
           onSuccess(response);
         } else {
-          // Update logic
+          // Update logic (if implemented)
           onSuccess({ message: 'Updated' });
         }
         setMode('VIEW');
@@ -68,16 +70,35 @@ export function usePurchaseOrder(initialData: any = null, initialMode: 'VIEW' | 
     [mode],
   );
 
+  const handleConfirm = useCallback(
+    async (id: string, onSuccess: (data: any) => void) => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const response = await ApiService.InboundReceipt.confirm(id);
+        onSuccess(response);
+      } catch (err: any) {
+        console.error(err);
+        setError(err.message || 'Lỗi hệ thống');
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    []
+  );
+
   return {
     mode,
     setMode,
     isLoading,
     error,
+    receiptId,
     handleAdd,
     handleEdit,
     handleCancel,
     handleDelete,
     handleExit,
     handleSubmit,
+    handleConfirm,
   };
 }

@@ -7,6 +7,7 @@ import { Login } from './components/auth/Login';
 import { TabProvider, useTabs } from './context/TabContext';
 import { X } from 'lucide-react';
 import { SalesModule } from './components/sales/SalesModule';
+import { ErrorBoundary } from './components/common/ErrorBoundary';
 
 const TabBar = () => {
   const { tabs, activeTabId, setActiveTabId, closeTab } = useTabs();
@@ -80,11 +81,13 @@ const AppContent = () => {
 
 function App() {
   return (
-    <AuthProvider>
-      <TabProvider>
-        <AppContent />
-      </TabProvider>
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <TabProvider>
+          <AppContent />
+        </TabProvider>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
 

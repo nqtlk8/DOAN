@@ -79,3 +79,15 @@ Sales Invoice và Inbound Receipt dùng hai giai đoạn Draft và Confirm.
 
 ### Trade-off
 Luồng dài hơn thao tác một bước nhưng giúp kiểm soát transaction và rollback tốt hơn.
+
+## ADR-08 - API Facade & Data Transfer Objects (DTO) Enforcement
+
+### Bối cảnh
+Quá trình Code Review phát hiện Controller đang trả thẳng Domain Entity (SalesInvoice, InboundReceipt) qua API, đồng thời UI gọi trực tiếp Axios thay vì qua API Facade.
+
+### Quyết định
+1. Controller bắt buộc phải mapping Entity sang DTO (VD: SalesInvoiceResponseDto) trước khi serialize.
+2. Frontend mọi lệnh gọi HTTP bắt buộc thực hiện thông qua ApiService.ts.
+
+### Trade-off
+Tốn effort viết class DTO và mapping (bằng tay hoặc qua thư viện), nhưng đảm bảo decouple UI khỏi core Domain Model.

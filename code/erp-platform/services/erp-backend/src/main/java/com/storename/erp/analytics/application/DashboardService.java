@@ -1,9 +1,7 @@
 package com.storename.erp.analytics.application;
 
 import com.storename.erp.analytics.api.dto.DashboardMetricsDto;
-import com.storename.erp.analytics.api.dto.ProductPerformanceDto;
 import com.storename.erp.analytics.application.port.AnalyticsDataPort;
-import com.storename.erp.analytics.infrastructure.FactSalesRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -11,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -18,7 +17,6 @@ import java.util.List;
 public class DashboardService {
     
     private final AnalyticsDataPort analyticsDataPort;
-    private final FactSalesRepository factSalesRepository;
     
     @Transactional(readOnly = true)
     public DashboardMetricsDto getDashboardMetrics(Long branchId, Integer startDateKey, Integer endDateKey) {
@@ -26,10 +24,10 @@ public class DashboardService {
         
         BigDecimal overdueDebt = calculateTotalDebt(branchId);
         
-        BigDecimal totalRevenue = factSalesRepository.getTotalRevenue(branchId, startDateKey, endDateKey);
-        BigDecimal grossProfit = factSalesRepository.getTotalGrossProfit(branchId, startDateKey, endDateKey);
-        BigDecimal cogs = factSalesRepository.getTotalCogs(branchId, startDateKey, endDateKey);
-        List<ProductPerformanceDto> topSelling = factSalesRepository.getTopSellingProducts(branchId, startDateKey, endDateKey);
+        BigDecimal totalRevenue = analyticsDataPort.getTotalRevenue(branchId, startDateKey, endDateKey);
+        BigDecimal grossProfit = analyticsDataPort.getTotalGrossProfit(branchId, startDateKey, endDateKey);
+        BigDecimal cogs = analyticsDataPort.getTotalCogs(branchId, startDateKey, endDateKey);
+        List<com.storename.erp.analytics.api.dto.ProductPerformanceDto> topSelling = analyticsDataPort.getTopSellingProducts(branchId, startDateKey, endDateKey);
 
         if (totalRevenue == null) totalRevenue = BigDecimal.ZERO;
         if (grossProfit == null) grossProfit = BigDecimal.ZERO;

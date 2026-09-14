@@ -1,6 +1,13 @@
+import axios from 'axios';
 import axiosInstance from './axiosInstance';
 
 export const ApiService = {
+  Auth: {
+    login: (username: string, password: string) =>
+      axios.post('/api/v1/auth/login', { username, password }).then(res => res.data),
+    revoke: (refreshToken: string) =>
+      axios.post('/api/v1/auth/revoke', { refreshToken }).then(res => res.data),
+  },
   SalesInvoice: {
     getAll: () => axiosInstance.get('/api/v1/sales-invoices').then((res: any) => res.data.data),
     getById: (id: string) => axiosInstance.get('/api/v1/sales-invoices/' + id).then((res: any) => res.data.data),

@@ -76,7 +76,7 @@ public class GoodsReturnWithoutInvoiceTest {
     }
 
     @Test
-    void confirmReturn_WithoutInvoice_ShouldIncreaseStockButKeepDebtSame() {
+    void confirmReturn_WithoutInvoice_ShouldIncreaseStockAndDecreaseDebt() {
         GoodsReturnCreateDto dto = new GoodsReturnCreateDto();
         dto.setCustomerId(customer.getId());
         dto.setReturnCode("RET-1002");
@@ -86,7 +86,7 @@ public class GoodsReturnWithoutInvoiceTest {
         line.setProductId(productId);
         line.setQuantity(new BigDecimal("2.0"));
         line.setUnitPrice(new BigDecimal("100000"));
-        line.setUnitOfMeasure("Cái");
+        line.setUnitOfMeasure("CAi");
         dto.setLines(List.of(line));
 
         UUID returnId = returnService.createDraft(branchId, dto);
@@ -102,6 +102,6 @@ public class GoodsReturnWithoutInvoiceTest {
         assertThat(stock.getQuantity()).isEqualByComparingTo("12.0"); // 10 + 2
 
         BigDecimal debt = debtService.getCurrentDebt(customer.getId(), branchId);
-        assertThat(debt).isEqualByComparingTo("1000000"); // No change
+        assertThat(debt).isEqualByComparingTo("800000"); // 1,000,000 - 200,000
     }
 }

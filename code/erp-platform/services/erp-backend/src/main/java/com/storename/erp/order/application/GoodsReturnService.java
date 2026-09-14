@@ -116,11 +116,11 @@ public class GoodsReturnService {
                     throw new IllegalArgumentException("Total returned quantity exceeds invoice sold quantity");
                 }
             }
+        }
 
-            if (goodsReturn.getCustomer() != null) {
-                debtService.decreaseDebt(goodsReturn.getCustomer().getId(), branchId, goodsReturn.getTotalAmount());
-                log.info("Decreased debt for customer {} by {} due to goods return", goodsReturn.getCustomer().getId(), goodsReturn.getTotalAmount());
-            }
+        if (goodsReturn.getCustomer() != null) {
+            debtService.decreaseDebt(goodsReturn.getCustomer().getId(), branchId, goodsReturn.getTotalAmount());
+            log.info("Decreased debt for customer {} by {} due to goods return", goodsReturn.getCustomer().getId(), goodsReturn.getTotalAmount());
         }
 
         returnRepository.save(goodsReturn);

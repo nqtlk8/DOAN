@@ -1,6 +1,5 @@
 package com.storename.erp;
 
-import com.storename.erp.common.security.JwtTokenProvider;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -9,10 +8,8 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
@@ -48,8 +45,9 @@ public class ArchitectureV3HqTest {
     }
 
     @Test
-    public void branch_ShouldNotHaveRedisAndNoLogin() throws Exception {
-        // To test Branch profile, we normally write a separate test class annotated with @ActiveProfiles("branch").
-        // We will do that in another class.
+    public void hq_ShouldHaveHqOnlyBeans() {
+        assertTrue(context.containsBean("customerWriteController"), "HQ must have CustomerWriteController");
+        assertTrue(context.containsBean("branchController"), "HQ must have BranchController");
+        assertTrue(context.containsBean("dashboardController"), "HQ must have DashboardController");
     }
 }
