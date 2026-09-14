@@ -52,6 +52,11 @@ public class InboundReceiptService {
         return receipt.getId();
     }
 
+    @org.springframework.retry.annotation.Retryable(
+        retryFor = org.springframework.orm.ObjectOptimisticLockingFailureException.class,
+        maxAttempts = 3,
+        backoff = @org.springframework.retry.annotation.Backoff(delay = 100)
+    )
     @Transactional
     public void confirmReceipt(UUID receiptId, Long branchId, UUID userId) {
         log.info("Confirming inbound receipt {}, branch={}, userId={}", receiptId, branchId, userId);

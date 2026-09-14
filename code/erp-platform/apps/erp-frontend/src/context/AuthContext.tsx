@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import axios from 'axios';
+import { ApiService } from '../api/ApiService';
 
 export const ROLES = {
   ADMIN: 'ADMIN' as const,
@@ -47,15 +47,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (username: string, password: string): Promise<{ success: boolean; message?: string }> => {
     console.log(`[AuthContext] Đang thử đăng nhập với username: ${username}`);
     try {
-      const response = await axios.post('/api/v1/auth/login', { username, password });
-      if (response.data.success) {
-        const authData = response.data.data;
+      const response = await ApiService.Auth.login(username, password);
+      if (response.success) {
+        const authData = response.data;
         // API now returns "ADMIN" or "STAFF"
-        const roleString = authData.role || 'SALES';
-        let parsedRole = roleString.toLowerCase();
-        if (parsedRole === 'staff') {
-          parsedRole = 'STAFF';
-        }
+        const roleString = authData.role || 'STAFF';
+        const parsedRole = roleString.toUpperCase();
 
         console.log(`[AuthContext] Đăng nhập thành công! Role: ${parsedRole}`);
 
@@ -76,8 +73,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         return { success: true };
       } else {
-        console.log(`[AuthContext] Đăng nhập thất bại từ server: ${response.data.message}`);
-        return { success: false, message: response.data.message || 'Sai thông tin đăng nhập' };
+        console.log(`[AuthContext] Đăng nhập thất bại từ server: ${response.message}`);
+        return { success: false, message: response.message || 'Sai thông tin đăng nhập' };
       }
     } catch (error: any) {
       console.error('[AuthContext] Login error (Network/500/401):', error);
@@ -94,7 +91,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem('refresh_token');
     try {
       if (refreshToken) {
-        await axios.post('/api/v1/auth/revoke', { refreshToken });
+        await ApiService.Auth.revoke(refreshToken);
       }
     } catch (e) {
       console.error('Logout failed', e);

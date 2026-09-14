@@ -13,24 +13,17 @@ import { DebtList } from '../crm/DebtList';
 import { BranchList } from '../admin/BranchList';
 import { GoodsReturnModule } from '../returns/GoodsReturnModule';
 
+import { allTabs } from '../../config/menuConfig';
+
 export const TopRibbon: React.FC = () => {
   const { user, logout } = useAuth();
   const { openTab } = useTabs();
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = user?.role === 'ADMIN';
   const [activeTab, setActiveTab] = useState('BanHang');
 
   const handleOpenTab = (id: string, title: string, component: React.ReactNode, isClosable?: boolean) => {
     openTab(id, title, component, isClosable);
   };
-
-  const allTabs = [
-    { id: 'ChucNang', label: 'Chức năng', roles: ['STAFF'] },
-    { id: 'DanhMuc', label: 'Danh mục', roles: ['ADMIN', 'STAFF'] },
-    { id: 'CongNo', label: 'Công nợ', roles: ['ADMIN', 'STAFF'] },
-    { id: 'TonKho', label: 'Tồn kho', roles: ['ADMIN', 'STAFF'] },
-    { id: 'ThongKe', label: 'Thống kê', roles: ['ADMIN'] },
-    { id: 'HeThong', label: 'Hệ thống', roles: ['ADMIN', 'STAFF'] },
-  ];
 
   const tabs = React.useMemo(() => allTabs.filter(t => t.roles.includes(user?.role || '')), [user?.role]);
 

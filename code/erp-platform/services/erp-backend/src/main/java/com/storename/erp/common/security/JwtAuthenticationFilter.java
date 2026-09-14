@@ -44,6 +44,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
                 String username = claims.getSubject();
                 String role = claims.get("role", String.class);
+                
+                if (role == null || role.trim().isEmpty()) {
+                    throw new io.jsonwebtoken.JwtException("Token missing required 'role' claim");
+                }
+
                 String branchId = claims.get("branchId", String.class);
                 String tokenId = claims.get("tokenId", String.class);
 

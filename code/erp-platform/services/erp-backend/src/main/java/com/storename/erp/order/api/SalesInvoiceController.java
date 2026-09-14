@@ -61,16 +61,20 @@ public class SalesInvoiceController {
 
     @GetMapping
     @PreAuthorize("hasAuthority('STAFF')")
-    public ApiResponse<List<SalesInvoice>> getInvoices() {
+    public ApiResponse<List<com.storename.erp.order.api.dto.SalesInvoiceResponseDto>> getInvoices() {
         Long branchId = com.storename.erp.common.security.AuthUtils.getBranchId();
-        return ApiResponse.success(salesInvoiceService.getInvoicesByBranch(branchId));
+        List<com.storename.erp.order.api.dto.SalesInvoiceResponseDto> dtoList = salesInvoiceService.getInvoicesByBranch(branchId)
+                .stream().map(com.storename.erp.order.api.dto.SalesInvoiceResponseDto::fromEntity)
+                .toList();
+        return ApiResponse.success(dtoList);
     }
 
     @GetMapping("/{id}")
     @PreAuthorize("hasAuthority('STAFF')")
-    public ApiResponse<SalesInvoice> getInvoice(@PathVariable UUID id) {
+    public ApiResponse<com.storename.erp.order.api.dto.SalesInvoiceResponseDto> getInvoice(@PathVariable UUID id) {
         Long branchId = com.storename.erp.common.security.AuthUtils.getBranchId();
-        return ApiResponse.success(salesInvoiceService.getInvoice(id, branchId));
+        SalesInvoice invoice = salesInvoiceService.getInvoice(id, branchId);
+        return ApiResponse.success(com.storename.erp.order.api.dto.SalesInvoiceResponseDto.fromEntity(invoice));
     }
 }
 
