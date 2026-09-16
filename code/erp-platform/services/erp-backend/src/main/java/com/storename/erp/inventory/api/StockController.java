@@ -1,7 +1,6 @@
 package com.storename.erp.inventory.api;
 
 import lombok.extern.slf4j.Slf4j;
-import com.storename.erp.common.aop.BranchScoped;
 import com.storename.erp.common.api.ApiResponse;
 import com.storename.erp.common.security.JwtAuthDetails;
 import com.storename.erp.inventory.domain.StockOnHand;

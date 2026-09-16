@@ -60,9 +60,14 @@ Các request khác yêu cầu authentication ở SecurityFilterChain.
 
 ## 5. Branch Scope
 
-`@BranchScoped` được xử lý bởi `BranchScopedAspect`.
+Việc kiểm tra phạm vi branch được thực hiện tập trung tại `JwtAuthenticationFilter` (thay thế cho annotation `@BranchScoped` cũ).
 
-Aspect lấy `branchId` từ `JwtAuthDetails` trong SecurityContext và từ chối nếu thiếu branchId.
+**Cơ chế:**
+Khi instance đóng vai trò là `BRANCH` (cấu hình `instance.role=BRANCH`), filter sẽ kiểm tra claim `branchId` trong JWT:
+- Nếu JWT có `branchId` và khác với ID của instance (`branch-id` cấu hình trong file yaml/env), request sẽ bị chặn lập tức (HTTP 403 Forbidden).
+- Nếu JWT không có `branchId` (trường hợp token của ADMIN) hoặc nếu instance là `HQ`, filter cho phép request đi tiếp. Các lớp bảo vệ tiếp theo (như `@PreAuthorize`) sẽ tự quyết định quyền truy cập nếu cần.
+
+(Lưu ý: `@BranchScoped` và `BranchScopedAspect` hiện đã được đánh dấu `@Deprecated` và sẽ được xóa bỏ trong tương lai).
 
 ## 6. Master data protection
 

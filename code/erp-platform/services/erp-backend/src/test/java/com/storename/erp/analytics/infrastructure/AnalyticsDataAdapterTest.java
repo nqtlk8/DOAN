@@ -65,5 +65,15 @@ public class AnalyticsDataAdapterTest {
         // 6. getTotalCogs
         BigDecimal cogs = adapter.getTotalCogs(branchId, startDate, endDate);
         assertThat(cogs).isEqualByComparingTo(BigDecimal.ZERO);
+
+        // Test with null branchId (Admin case)
+        BigDecimal debtAdmin = adapter.getTotalReceivableDebt(null);
+        assertThat(debtAdmin).isEqualByComparingTo(BigDecimal.ZERO);
+
+        BigDecimal stockAdmin = adapter.getCurrentStockQuantity(10L, null);
+        assertThat(stockAdmin).isEqualByComparingTo(BigDecimal.ZERO);
+
+        List<ProductPerformanceDto> topsAdmin = adapter.getTopSellingProducts(null, startDate, endDate);
+        assertThat(topsAdmin).isEmpty();
     }
 }

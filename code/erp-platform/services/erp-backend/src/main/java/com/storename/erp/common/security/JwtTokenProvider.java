@@ -50,7 +50,7 @@ public class JwtTokenProvider {
 
     private String buildToken(String username, String role, String branchId, String tokenId, String type, long expirationTime) {
         if (privateKey == null) {
-            throw new IllegalStateException("Private key not configured. Cannot generate token.");
+            throw new com.storename.erp.identity.domain.exception.SigningKeyNotConfiguredException("Private key not configured. Cannot generate token.");
         }
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + expirationTime);

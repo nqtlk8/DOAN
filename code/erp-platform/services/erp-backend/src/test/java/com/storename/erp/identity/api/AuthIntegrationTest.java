@@ -185,4 +185,44 @@ public class AuthIntegrationTest {
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.message").value("Bad credentials"));
     }
+
+    @Test
+    public void testLoginFailure_UnexpectedException() throws Exception {
+        when(userRepository.findByUsername("erroruser"))
+            .thenThrow(new RuntimeException("Database is down"));
+
+        AuthRequest authRequest = new AuthRequest();
+        authRequest.setUsername("erroruser");
+        authRequest.setPassword("password");
+
+        mockMvc.perform(post("/api/v1/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(authRequest)))
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.message").value("Internal server error"));
+    }
+
+    @Test
+    public void testLoginFailure_NoRoles() throws Exception {
+        UserAccount noRoleUser = new UserAccount();
+        noRoleUser.setId(3L);
+        noRoleUser.setUsername("noroles");
+        noRoleUser.setPasswordHash(passwordEncoder.encode("password"));
+        noRoleUser.setActive(true);
+
+        when(userRepository.findByUsername("noroles")).thenReturn(Optional.of(noRoleUser));
+        when(userBranchRoleRepository.findByUserId(3L)).thenReturn(new ArrayList<>());
+
+        AuthRequest authRequest = new AuthRequest();
+        authRequest.setUsername("noroles");
+        authRequest.setPassword("password");
+
+        mockMvc.perform(post("/api/v1/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(authRequest)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.message").value("User has no roles assigned"));
+    }
 }

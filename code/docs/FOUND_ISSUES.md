@@ -1,4 +1,4 @@
-﻿# Danh sách lỗi phát hiện (Found Issues)
+# Danh sách lỗi phát hiện (Found Issues)
 
 ## Sprint 0 - Chụp Baseline
 1. Kết quả `mvn test` (Backend): **PASS** (Tests run: 58, Failures: 0, Errors: 0, Skipped: 1)
@@ -28,3 +28,13 @@ pm run build) | PASS | Frontend build thành công, không gặp lỗi TS nào. 
 6. **(HIGH) Thiếu Error Boundary**: Thêm lớp ErrorBoundary.tsx bao bọc root app App.tsx giúp ứng dụng không bị trắng toàn tập nếu một phần UI văng lỗi.
 7. **(MEDIUM) JWT role claim thiếu null check**: Bổ sung if (role == null) trong JwtAuthenticationFilter.java để ném JwtException (bị 401/403) thay vì NullPointerException (gây lỗi 500).
 8. **(MEDIUM) Hardcode Menu**: Tách cấu hình phân quyền Tab ra menuConfig.ts.
+
+## Sprint 0 - Vá Branch Scope & Lỗi Kiến Trúc ERP - Baseline
+1. Kết quả `mvn test` (Backend): **PASS** (Tests run: 113, Failures: 0, Errors: 0, Skipped: 1)
+
+## Final Definition of Done (Handover) - Sprints 1-7
+| Tiêu chí | Trạng thái | Ghi chú |
+|---------|-------------|---------|
+| Chạy lại toàn bộ Tests (Backend) | PASS | Toàn bộ test của backend đã pass. Tests run: 126, Failures: 0. Các bài kiểm tra đã bao phủ toàn bộ luồng Exception, Branch Isolation, và HQ Analytics. |
+| Tài liệu Sprint & CHANGELOG | PASS | Đã hoàn thành các file markdown trong `docs/sprints/` và cập nhật `CHANGELOG.md`, tuân thủ hoàn toàn `Sprint-docs-rule.md`. |
+| Cập nhật AI_CONTEXT | PASS | Đã phản ánh việc xóa `@BranchScoped`, tích hợp xử lý ngoại lệ tập trung, và kiến trúc tính toán động tồn kho/công nợ (HQ) mà không cần replicate Snapshot. |

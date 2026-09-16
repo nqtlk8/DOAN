@@ -1,7 +1,6 @@
 package com.storename.erp.order.api;
 
 import lombok.extern.slf4j.Slf4j;
-import com.storename.erp.common.aop.BranchScoped;
 import com.storename.erp.common.aop.IdempotencyProtected;
 import com.storename.erp.common.api.ApiResponse;
 import com.storename.erp.common.security.JwtAuthDetails;

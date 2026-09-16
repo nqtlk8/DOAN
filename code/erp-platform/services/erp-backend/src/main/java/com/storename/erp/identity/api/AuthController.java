@@ -24,39 +24,19 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<AuthResponse>> login(@RequestBody AuthRequest request) {
-        try {
-            AuthResponse response = authService.login(request.getUsername(), request.getPassword());
-            return ResponseEntity.ok(ApiResponse.success(response));
-        } catch (RuntimeException e) {
-            if ("Bad credentials".equals(e.getMessage()) || "Invalid credentials format".equals(e.getMessage()) || "User is inactive".equals(e.getMessage())) {
-                return ResponseEntity.status(401).body(ApiResponse.error(e.getMessage(), Collections.emptyList()));
-            }
-            throw e; 
-        }
+        AuthResponse response = authService.login(request.getUsername(), request.getPassword());
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     @PostMapping("/refresh")
     public ResponseEntity<ApiResponse<AuthResponse>> refresh(@RequestBody TokenRefreshRequest request) {
-        try {
-            AuthResponse response = authService.refresh(request.getRefreshToken());
-            return ResponseEntity.ok(ApiResponse.success(response));
-        } catch (io.jsonwebtoken.JwtException e) {
-            return ResponseEntity.status(401).body(ApiResponse.error("Invalid token", Collections.emptyList()));
-        } catch (RuntimeException e) {
-            if ("Token has been revoked".equals(e.getMessage()) || "Invalid token type. Expected refresh token.".equals(e.getMessage())) {
-                return ResponseEntity.status(401).body(ApiResponse.error(e.getMessage(), Collections.emptyList()));
-            }
-            throw e;
-        }
+        AuthResponse response = authService.refresh(request.getRefreshToken());
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     @PostMapping("/revoke")
     public ResponseEntity<ApiResponse<Void>> revoke(@RequestBody TokenRefreshRequest request) {
-        try {
-            authService.revoke(request.getRefreshToken());
-            return ResponseEntity.ok(ApiResponse.success(null, "Revoked successfully"));
-        } catch (io.jsonwebtoken.JwtException e) {
-            return ResponseEntity.status(401).body(ApiResponse.error("Invalid token", Collections.emptyList()));
-        }
+        authService.revoke(request.getRefreshToken());
+        return ResponseEntity.ok(ApiResponse.success(null, "Revoked successfully"));
     }
 }

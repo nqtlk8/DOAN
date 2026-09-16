@@ -6,7 +6,6 @@ import com.storename.erp.catalog.domain.PriceList;
 import com.storename.erp.catalog.infrastructure.PriceListRepository;
 import com.storename.erp.catalog.infrastructure.ProductRepository;
 import com.storename.erp.common.exception.ResourceNotFoundException;
-import com.storename.erp.common.aop.BranchScoped;
 import com.storename.erp.common.security.JwtAuthDetails;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -81,8 +80,10 @@ public class ProductReader {
     private ProductResponseDto mapToResponseWithPrice(Product product, Long branchId) {
         ProductResponseDto dto = mapToResponse(product);
         
-        priceListRepository.findByProductIdAndBranchId(product.getId(), branchId)
-                .ifPresent(priceList -> dto.setPrice(priceList.getPrice()));
+        if (branchId != null) {
+            priceListRepository.findByProductIdAndBranchId(product.getId(), branchId)
+                    .ifPresent(priceList -> dto.setPrice(priceList.getPrice()));
+        }
                 
         return dto;
     }
@@ -99,7 +100,7 @@ public class ProductReader {
                 }
             }
         }
-        throw new SecurityException("Branch ID is required but missing from security context");
+        return null;
     }
 }
 

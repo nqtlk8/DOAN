@@ -78,8 +78,10 @@ com.storename.erp
 - Public: auth/public/health/swagger paths.
 - Role system consists of ONLY `ADMIN` and `STAFF`. Other roles (HQ, STORE_MANAGER, SALES_STAFF, etc.) have been removed.
 - JWT authority generated as exact role without ROLE_ prefix.
+- Auth errors use domain-specific exceptions (e.g. `NoRoleAssignedException`) handled centrally by `GlobalExceptionHandler`.
 
-- `@BranchScoped` validates branchId.
+- `@BranchScoped` is removed/deprecated. Branch isolation is now verified centrally inside `JwtAuthenticationFilter` using `instance.role` and `branch-id` config.
+- HQ Analytics dynamically aggregates stock and debt via `stock_movement` and `sales_invoice` rather than copying snapshot tables (`stock_on_hand`, `receivable_debt`).
 - `@IdempotencyProtected` prevents duplicate processing.
 - Branch master tables are restricted by `V9__branch_db_security.sql` for `erp_user` in Docker runtime.
 

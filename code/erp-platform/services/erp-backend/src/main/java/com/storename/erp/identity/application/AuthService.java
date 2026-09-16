@@ -45,7 +45,7 @@ public class AuthService {
         log.info("Attempting login for user: {}", username);
         if (username == null || username.trim().isEmpty() || password == null || password.isEmpty()) {
             log.warn("Invalid credentials format for user: {}", username);
-            throw new RuntimeException("Invalid credentials format");
+            throw new IllegalArgumentException("Invalid credentials format");
         }
 
         UserAccount user = userRepository.findByUsername(username)
@@ -61,13 +61,13 @@ public class AuthService {
 
         if (!user.isActive()) {
             log.warn("User is inactive: {}", username);
-            throw new RuntimeException("User is inactive");
+            throw new org.springframework.security.authentication.DisabledException("User is inactive");
         }
 
         List<UserBranchRole> roles = userBranchRoleRepository.findByUserId(user.getId());
         if (roles.isEmpty()) {
             log.warn("User has no roles assigned: {}", username);
-            throw new RuntimeException("User has no roles");
+            throw new com.storename.erp.identity.domain.exception.NoRoleAssignedException("User has no roles assigned");
         }
 
         UserBranchRole primaryRole = roles.get(0);
@@ -92,14 +92,14 @@ public class AuthService {
         String type = claims.get("type", String.class);
         if (!"refresh".equals(type)) {
             log.warn("Attempt to refresh with non-refresh token");
-            throw new RuntimeException("Invalid token type. Expected refresh token.");
+            throw new io.jsonwebtoken.JwtException("Invalid token type. Expected refresh token.");
         }
 
         String tokenId = claims.get("tokenId", String.class);
 
         if (Boolean.TRUE.equals(redisTemplate.hasKey(REVOKED_TOKEN_PREFIX + tokenId))) {
             log.warn("Attempt to use revoked refresh token: {}", tokenId);
-            throw new RuntimeException("Token has been revoked");
+            throw new io.jsonwebtoken.JwtException("Token has been revoked");
         }
 
         String username = claims.getSubject();

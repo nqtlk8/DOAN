@@ -7,6 +7,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -22,6 +23,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtTokenProvider tokenProvider;
     private final ObjectMapper objectMapper;
+
+    @Value("${instance.role:HQ}")
+    private String instanceRole;
+
+    @Value("${branch-id:}")
+    private String configuredBranchId;
 
     public JwtAuthenticationFilter(JwtTokenProvider tokenProvider, ObjectMapper objectMapper) {
         this.tokenProvider = tokenProvider;
@@ -50,6 +57,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 }
 
                 String branchId = claims.get("branchId", String.class);
+                
+                if ("BRANCH".equalsIgnoreCase(instanceRole) && branchId != null && !branchId.equals(configuredBranchId)) {
+                    logger.error(String.format("Branch isolation violation: token branchId %s does not match configured branchId %s", branchId, configuredBranchId));
+                    response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                    response.setContentType("application/json");
+                    response.setCharacterEncoding("UTF-8");
+                    ApiResponse<Void> apiResponse = ApiResponse.error("Branch isolation violation", Collections.singletonList("FORBIDDEN_BRANCH"));
+                    response.getWriter().write(objectMapper.writeValueAsString(apiResponse));
+                    return;
+                }
+
                 String tokenId = claims.get("tokenId", String.class);
 
                 UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
