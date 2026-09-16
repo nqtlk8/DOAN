@@ -1,15 +1,10 @@
 # Tài liệu Phân tích Nghiệp vụ — ERP Cửa hàng Vật liệu Xây dựng & Thiết bị Thông minh Nhà
 
-**Phiên bản:** 1.3  
-**Ngày:** 2026-09-15  
+**Phiên bản:** 1.2  
+**Ngày:** 2026-09-08  
 **Trạng thái:** Chính thức  
 **Đối tượng:** Business Stakeholder · System Engineer · Architect
 
-> **Changelog v1.3:**
-> - Đồng bộ hoàn toàn thuật ngữ với DB schema hiện hành (V11, V12): thay thế triệt để cost_layer (thay cho stock_lot), stock_movement (thay cho stock_ledger).
-> - Xác nhận Customer Order, Purchase Order, Stock Transfer, Outbound Receipt, Payable Debt là **OUT OF SCOPE / LEGACY** theo thiết kế hiện hành.
-> - Cập nhật cấu trúc bảng stock_movement và cost_layer sử dụng UUID.
->
 > **Changelog v1.2:**
 > - Xác nhận FIFO là phương pháp tính giá vốn chính thức
 > - Thêm nghiệp vụ **Stock Movement (Sổ cái tồn kho)** — ghi nhận toàn bộ lịch sử biến động kho, truy vết giao dịch tạo nên tồn kho hiện tại
@@ -135,7 +130,7 @@ Ghi nhận giao dịch bán hàng, trừ kho, cập nhật công nợ, lưu lị
 #### Vòng đời Hóa đơn Bán hàng
 
 ```
-[DRAFT] ─────── Xác nhận ──────→ [CONFIRMED]
+[DRAFT] ──────────────── Xác nhận ────────────→ [CONFIRMED]
    |                                                  |
    |  Sửa / Thêm dòng sản phẩm                        |
    |  Không ảnh hưởng kho & công nợ                   |  Bất biến — không sửa được
@@ -153,9 +148,12 @@ Ghi nhận giao dịch bán hàng, trừ kho, cập nhật công nợ, lưu lị
 4. **Cập nhật công nợ** — `receivable_debt.current_balance += remaining_debt`
 5. **Cập nhật giá gần nhất theo khách hàng** — `customer_product_price.last_price = unit_price`
 
-#### Đơn đặt hàng Khách hàng (Customer Order) [OUT OF SCOPE / LEGACY]
+#### Đơn đặt hàng Khách hàng (Customer Order)
 
-Chức năng này đã được đưa ra khỏi phạm vi phát triển hiện tại (Out of Scope) để tập trung vào luồng bán hàng trực tiếp (Sales Invoice). Các thiết kế liên quan chỉ mang tính chất tham khảo.
+Dành cho khách đặt hàng trước khi hàng về kho:
+- Ghi nhận số lượng & giá thỏa thuận
+- Khi hóa đơn được tạo từ đơn đặt hàng, `fulfilled_quantity` cộng dần
+- Không được vượt `ordered_quantity` (CHECK constraint + optimistic locking)
 
 ---
 
@@ -204,9 +202,10 @@ Ghi nhận hàng nhập về kho từ nhà cung cấp, cập nhật tồn kho v�
 
 Nhà cung cấp được **tạo và quản lý tập trung tại HQ**. Tuy nhiên, mỗi NCC được gán phạm vi hoạt động theo chi nhánh — chi nhánh chỉ nhìn thấy và mua từ NCC của mình, **không thể thấy NCC của chi nhánh khác**. Dữ liệu NCC đồng bộ từ HQ xuống chi nhánh qua logical replication (read-only tại chi nhánh).
 
-#### Đơn đặt hàng NCC (Purchase Order) [OUT OF SCOPE / LEGACY]
+#### Đơn đặt hàng NCC (Purchase Order)
 
-Chức năng này đã được đưa ra khỏi phạm vi phát triển hiện tại (Out of Scope). Các thiết kế liên quan chỉ mang tính chất tham khảo.
+- Là công cụ theo dõi, **không ảnh hưởng tồn kho** khi tạo
+- Chỉ khi phiếu nhập kho được xác nhận (CONFIRMED) thì kho mới tăng và lô mới được tạo
 
 ---
 
@@ -566,8 +565,11 @@ Bước 4 — Ghi stock_movement (2 dòng vì lấy từ 2 lot):
 **Nguồn dữ liệu:** `stock_movement` (movement_type = 'SALE') JOIN `sales_invoice_line`
 
 ```
-gross_profit_per_line = (sales_invoice_line.unit_price - sales_invoice_line.unit_cost_snapshot) * sales_invoice_line.quantity
-gross_profit_total = SUM(gross_profit_per_line) cho tất cả dòng SALE trong kỳ báo cáo
+gross_profit_per_ledger_line = (sales_invoice_line.unit_price - stock_movement.unit_cost)
+                               × ABS(stock_movement.quantity)
+
+gross_profit_total = SUM(gross_profit_per_ledger_line)
+                     cho tất cả dòng SALE trong kỳ báo cáo
 ```
 
 **Ví dụ đầy đủ:**
@@ -777,4 +779,5 @@ Mọi bảng nghiệp vụ có `created_at TIMESTAMPTZ`, `updated_at TIMESTAMPTZ
 
 *Tài liệu này là nguồn tham chiếu chính thức cho toàn bộ quyết định thiết kế hệ thống.*  
 *Mọi thay đổi yêu cầu nghiệp vụ phải được phản ánh vào tài liệu này TRƯỚC khi thực hiện thay đổi code hoặc schema.*
+
 

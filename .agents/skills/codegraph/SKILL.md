@@ -1,3 +1,8 @@
+---
+name: codegraph
+description: Hướng dẫn sử dụng CodeGraph để phân tích codebase
+---
+
 # Skill: Sử dụng CodeGraph (dành cho Gemini Pro / Gemini CLI)
 
 ## Tóm tắt

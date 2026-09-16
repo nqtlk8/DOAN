@@ -7,7 +7,7 @@ const mockStaffResponse = {
     user: {
       id: "staff-123",
       username: "staff",
-      role: "sales",
+      role: "STAFF",
       fullName: "Staff User",
       email: "staff@erp.com"
     },

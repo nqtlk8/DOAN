@@ -10,7 +10,8 @@ import type { Customer, Product } from '../../types/catalog';
 import { GenericDocumentForm, type OrderItem } from '../common/document/GenericDocumentForm';
 import { SearchableCombobox } from '../common/SearchableCombobox';
 import { ConfirmDialog } from '../../shared/components/Dialog/ConfirmDialog';
-import { toast } from 'react-hot-toast';
+import toast from 'react-hot-toast';
+import { useSalesInvoice } from '../../hooks/useSalesInvoice';
 
 export type FormMode = 'VIEW' | 'ADD' | 'EDIT';
 
@@ -47,6 +48,7 @@ export const SalesOrderForm = forwardRef<SalesOrderFormRef, SalesOrderFormProps>
 
     // Column 2: Customer
     const [customerCode, setCustomerCode] = useState(initialData?.customerCode || '');
+    const [customerId, setCustomerId] = useState(initialData?.customerId || '');
     const [customerName, setCustomerName] = useState(initialData?.customerName || initialData?.customer || '');
     const [address, setAddress] = useState(initialData?.address || '');
     const [phone, setPhone] = useState(initialData?.phone || '');
@@ -97,6 +99,7 @@ export const SalesOrderForm = forwardRef<SalesOrderFormRef, SalesOrderFormProps>
       setMode('ADD');
       setOrderCode('AUTO-GENERATE');
       setCustomerCode('');
+      setCustomerId('');
       setCustomerName('');
       setAddress('');
       setPhone('');
@@ -154,13 +157,15 @@ export const SalesOrderForm = forwardRef<SalesOrderFormRef, SalesOrderFormProps>
 
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
+    const { createMutation } = useSalesInvoice();
+
     const handleSubmit = async () => {
       setIsLoading(true);
       setError(null);
       setFieldErrors({});
       try {
         const newErrors: Record<string, string> = {};
-        if (!customerCode) {
+        if (!customerId) {
           newErrors.partner = 'Vui lòng chọn khách hàng';
         }
         if (items.length === 0) {
@@ -179,7 +184,7 @@ export const SalesOrderForm = forwardRef<SalesOrderFormRef, SalesOrderFormProps>
         }
 
         const payload = {
-          customerId: customerCode,
+          customerId: customerId,
           paymentMethod,
           lines: items.map((i) => ({
             productId: i.productId,
@@ -191,11 +196,8 @@ export const SalesOrderForm = forwardRef<SalesOrderFormRef, SalesOrderFormProps>
         };
 
         if (mode === 'ADD') {
-          const response = await ApiService.SalesInvoice.create(payload);
-          toast.success(`Order created successfully! ID: ${response}`);
+          const response = await createMutation.mutateAsync(payload);
           setOrderCode(response);
-        } else {
-          toast.success('Order updated successfully!');
         }
 
         setMode('VIEW');
@@ -271,6 +273,7 @@ export const SalesOrderForm = forwardRef<SalesOrderFormRef, SalesOrderFormProps>
               ]}
               onSelect={(customer) => {
                 setCustomerCode(customer.customerCode || customer.customerId || '');
+                setCustomerId(customer.id);
                 setCustomerName(customer.name);
                 setAddress(customer.address || '');
                 setPhone(customer.phoneNumber || '');

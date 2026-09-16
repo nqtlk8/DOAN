@@ -23,7 +23,7 @@ public class SupplierReadController {
     @GetMapping
     @PreAuthorize("hasAnyAuthority('STAFF', 'ADMIN')")
     public ApiResponse<List<SupplierResponseDto>> getSuppliers() {
-        Long branchId = com.storename.erp.common.security.AuthUtils.getBranchId();
+        Long branchId = com.storename.erp.common.security.AuthUtils.getBranchIdOrNull();
         log.info("REST request to get suppliers, branchId: {}", branchId);
         List<Supplier> suppliers;
         if (branchId != null) {
@@ -47,7 +47,7 @@ public class SupplierReadController {
         Supplier supplier = supplierRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Supplier not found"));
                 
-        Long branchId = com.storename.erp.common.security.AuthUtils.getBranchId();
+        Long branchId = com.storename.erp.common.security.AuthUtils.getBranchIdOrNull();
         if (branchId != null && !branchId.equals(supplier.getBranchId())) {
              throw new org.springframework.security.access.AccessDeniedException("Unauthorized");
         }

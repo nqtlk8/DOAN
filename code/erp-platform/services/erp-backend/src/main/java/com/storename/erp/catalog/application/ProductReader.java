@@ -45,7 +45,6 @@ public class ProductReader {
         return mapToResponse(product);
     }
 
-    @BranchScoped
     @Transactional(readOnly = true)
     public List<ProductResponseDto> getAllProductsWithBranchPrice() {
         log.info("Fetching all products with branch price");
@@ -56,7 +55,6 @@ public class ProductReader {
                 .collect(Collectors.toList());
     }
 
-    @BranchScoped
     @Transactional(readOnly = true)
     public ProductResponseDto getProductByIdWithBranchPrice(Long id) {
         log.info("Fetching product with id: {} and branch price", id);
@@ -104,3 +102,4 @@ public class ProductReader {
         throw new SecurityException("Branch ID is required but missing from security context");
     }
 }
+

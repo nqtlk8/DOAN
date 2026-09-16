@@ -14,7 +14,6 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/customer-prices")
-@BranchScoped
 @Slf4j
 public class CustomerProductPriceController {
 
@@ -38,3 +37,4 @@ public class CustomerProductPriceController {
                 .orElseGet(() -> ApiResponse.success(null, "No special price found"));
     }
 }
+

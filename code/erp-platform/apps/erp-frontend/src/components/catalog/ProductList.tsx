@@ -41,38 +41,32 @@ export const ProductList: React.FC = () => {
     setIsEditing(false);
   };
 
-  const handleSave = async () => {
+  const handleSave = () => {
     if (isEditing && formData.id) {
-      await updateMutation.mutateAsync({
-        id: formData.id.toString(),
+      updateMutation.mutate({
+        id: formData.id,
         payload: {
           name: formData.name,
-          basePrice: formData.price ?? formData.basePrice,
-          cost: formData.cost,
-          unit: formData.unit,
-          description: formData.description
+          categoryId: formData.categoryId,
+          baseUnit: formData.baseUnit,
+          isActive: formData.isActive,
         }
-      });
-      handleCloseModal();
+      }, { onSuccess: handleCloseModal });
     } else {
-      await createMutation.mutateAsync({
-        code: formData.sku || formData.code || `PRD-${Date.now()}`,
+      createMutation.mutate({
+        code: formData.code || `PRD-${Date.now()}`,
         name: formData.name,
-        baseUnit: formData.unit || 'CAI',
-        categoryId: 1,
-        description: formData.description
-      });
-      handleCloseModal();
+        categoryId: formData.categoryId || 1,
+        baseUnit: formData.baseUnit || 'CAI',
+        isActive: formData.isActive ?? true,
+      }, { onSuccess: handleCloseModal });
     }
   };
 
-  const handleDelete = (id: string) => {
-    setConfirmState({ isOpen: true, id });
-  };
 
   const submitting = createMutation.isPending;
 
-  const filtered = products.filter((p) => p.name?.toLowerCase().includes(searchTerm.toLowerCase()));
+  const filtered = products.filter((p) => p.isActive !== false && p.name?.toLowerCase().includes(searchTerm.toLowerCase()));
 
   return (
     <div className="p-6">
@@ -152,12 +146,12 @@ export const ProductList: React.FC = () => {
               filtered.map((p) => (
                 <tr key={p.id} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
                   <td className="px-4 py-1.5 text-sm text-slate-900">{p.id}</td>
-                  <td className="px-4 py-1.5 text-sm text-slate-900">{p.sku || p.code || '-'}</td>
+                  <td className="px-4 py-1.5 text-sm text-slate-900">{p.code || '-'}</td>
                   <td className="px-4 py-1.5 text-sm text-slate-900 font-medium">{p.name}</td>
                   <td className="px-4 py-1.5 text-sm text-slate-900">
-                    {(p.price ?? p.basePrice)?.toLocaleString() || 0} đ
+                    {p.price?.toLocaleString() || 0} đ
                   </td>
-                  <td className="px-4 py-1.5 text-sm text-slate-900">{p.unit || '-'}</td>
+                  <td className="px-4 py-1.5 text-sm text-slate-900">{p.baseUnit || '-'}</td>
                   <td className="px-4 py-1.5 text-sm text-right space-x-2">
                     <button
                       onClick={() => handleOpenModal(p)}
@@ -168,11 +162,7 @@ export const ProductList: React.FC = () => {
                     </button>
                     {isAdmin && (
                       <button
-                        onClick={() => {
-                          if (confirm('Xác nhận xóa?')) {
-                            deleteMutation.mutate(p.id!);
-                          }
-                        }}
+                        onClick={() => setConfirmState({ isOpen: true, id: p.id.toString() })}
                         className="text-slate-400 hover:text-red-600 transition-colors"
                         title="Xóa"
                       >
@@ -199,10 +189,10 @@ export const ProductList: React.FC = () => {
             <div className="p-4 space-y-4 max-h-[70vh] overflow-y-auto">
               {isEditing && (
                 <div>
-                  <label className="block text-xs font-medium text-slate-500 mb-1">Mã sản phẩm (SKU)</label>
+                  <label className="block text-xs font-medium text-slate-500 mb-1">Mã sản phẩm</label>
                   <input
                     type="text"
-                    value={formData.sku || formData.code || ''}
+                    value={formData.code || ''}
                     disabled={true}
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-slate-100 text-slate-500 cursor-not-allowed"
                   />
@@ -218,54 +208,35 @@ export const ProductList: React.FC = () => {
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-slate-900 disabled:bg-slate-100 disabled:text-slate-500"
                 />
               </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Đơn giá bán</label>
-                <input
-                  type="number"
-                  value={formData.price ?? formData.basePrice ?? ''}
-                  onChange={(e) => setFormData({ ...formData, price: Number(e.target.value) })}
-                  disabled={!isAdmin}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-slate-900 disabled:bg-slate-100 disabled:text-slate-500"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Giá vốn (Cost)</label>
-                <input
-                  type="number"
-                  value={formData.cost ?? ''}
-                  onChange={(e) => setFormData({ ...formData, cost: Number(e.target.value) })}
-                  disabled={!isAdmin}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-slate-900 disabled:bg-slate-100 disabled:text-slate-500"
-                />
-              </div>
+              {isEditing && (
+                <div>
+                  <label className="block text-xs font-medium text-slate-500 mb-1">Đơn giá bán (Từ Price List)</label>
+                  <input
+                    type="number"
+                    value={formData.price ?? ''}
+                    disabled={true}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-slate-100 text-slate-500 cursor-not-allowed"
+                  />
+                </div>
+              )}
               <div>
                 <label className="block text-xs font-medium text-slate-500 mb-1">Đơn vị tính</label>
                 <input
                   type="text"
-                  value={formData.unit || ''}
-                  onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
+                  value={formData.baseUnit || ''}
+                  onChange={(e) => setFormData({ ...formData, baseUnit: e.target.value })}
                   disabled={!isAdmin}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-slate-900 disabled:bg-slate-100 disabled:text-slate-500"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Danh mục (Category)</label>
+                <label className="block text-xs font-medium text-slate-500 mb-1">Danh mục (Category ID)</label>
                 <input
-                  type="text"
-                  value={formData.category || ''}
-                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                  type="number"
+                  value={formData.categoryId || ''}
+                  onChange={(e) => setFormData({ ...formData, categoryId: Number(e.target.value) })}
                   disabled={!isAdmin}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-slate-900 disabled:bg-slate-100 disabled:text-slate-500"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Mô tả</label>
-                <textarea
-                  value={formData.description || ''}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  disabled={!isAdmin}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-slate-900 disabled:bg-slate-100 disabled:text-slate-500"
-                  rows={3}
                 />
               </div>
               {isEditing && formData.id && (
@@ -298,9 +269,10 @@ export const ProductList: React.FC = () => {
         isOpen={confirmState.isOpen}
         title="Xóa sản phẩm"
         message="Bạn có chắc chắn muốn xóa sản phẩm này không? Hành động này không thể hoàn tác."
-        onConfirm={async () => {
-          await deleteMutation.mutateAsync(confirmState.id);
-          setConfirmState({ isOpen: false, id: '' });
+        onConfirm={() => {
+          deleteMutation.mutate(Number(confirmState.id), {
+            onSuccess: () => setConfirmState({ isOpen: false, id: '' })
+          });
         }}
         onCancel={() => setConfirmState({ isOpen: false, id: '' })}
       />

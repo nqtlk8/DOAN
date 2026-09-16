@@ -4,7 +4,7 @@ const mockStaffResponse = {
   success: true,
   data: {
     accessToken: "mock-token-staff",
-    user: { id: "U2", username: "staff1", role: "sales" }
+    user: { id: "U2", username: "staff1", role: "STAFF" }
   }
 };
 

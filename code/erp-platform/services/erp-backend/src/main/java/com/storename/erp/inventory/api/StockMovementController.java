@@ -24,7 +24,7 @@ public class StockMovementController {
     @GetMapping
     @PreAuthorize("hasAnyAuthority('STAFF', 'ADMIN')")
     public ApiResponse<List<StockMovementResponseDto>> getMovements(@RequestParam Long productId) {
-        Long branchId = com.storename.erp.common.security.AuthUtils.getBranchId();
+        Long branchId = com.storename.erp.common.security.AuthUtils.getBranchIdOrNull();
         log.info("REST request to get stock movements for product {} in branch {}", productId, branchId);
         List<StockMovementResponseDto> movements = queryService.getStockMovements(productId, branchId);
         return ApiResponse.success(movements);
@@ -32,4 +32,5 @@ public class StockMovementController {
 
     
 }
+
 
