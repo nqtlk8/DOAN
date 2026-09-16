@@ -8,7 +8,7 @@ const mockAdminResponse = {
     user: {
       id: "admin-123",
       username: "admin",
-      role: "admin",
+      role: "ADMIN",
       fullName: "Admin User",
       email: "admin@erp.com"
     },

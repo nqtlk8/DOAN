@@ -34,3 +34,4 @@ public class HealthControllerTest {
                .andExpect(content().string("OK"));
     }
 }
+

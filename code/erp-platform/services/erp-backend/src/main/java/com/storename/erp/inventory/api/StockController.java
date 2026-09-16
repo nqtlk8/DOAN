@@ -17,7 +17,6 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/inventory/stock")
 @RequiredArgsConstructor
-@BranchScoped
 @Slf4j
 public class StockController {
     
@@ -28,8 +27,13 @@ public class StockController {
     @GetMapping
     @PreAuthorize("hasAnyAuthority('STAFF', 'ADMIN')")
     public ApiResponse<List<StockOnHand>> getStock() {
-        return ApiResponse.success(stockRepo.findByBranchId(com.storename.erp.common.security.AuthUtils.getBranchId()));
+        Long branchId = com.storename.erp.common.security.AuthUtils.getBranchIdOrNull();
+        if (branchId == null) {
+            return ApiResponse.success(stockRepo.findAll());
+        }
+        return ApiResponse.success(stockRepo.findByBranchId(branchId));
     }
 }
+
 
 

@@ -7,27 +7,23 @@ export interface Customer {
   email?: string;
   address?: string;
   taxCode?: string;
-  isActive?: boolean;
   isDeleted?: boolean;
   createdAt?: string;
   updatedAt?: string;
 }
 
 export interface Product {
-  id: string;
-  sku?: string;
+  id: number;
+  code: string;
   name: string;
-  description?: string;
-  price: number;
-  cost?: number;
-  unit?: string;
-  category?: string;
+  categoryId?: number;
+  categoryName?: string;
+  baseUnit?: string;
+  isActive?: boolean;
+  attributes?: Record<string, unknown>;
+  price?: number;
   createdAt?: string;
   updatedAt?: string;
-  // keep old fields if needed for UI compatibility, or refactor UI components
-  basePrice?: number;
-  stockQuantity?: number;
-  code?: string;
 }
 
 export interface Supplier {

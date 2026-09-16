@@ -17,7 +17,6 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/receivable-debts")
 @RequiredArgsConstructor
-@BranchScoped
 @Slf4j
 public class ReceivableDebtController {
 
@@ -28,7 +27,11 @@ public class ReceivableDebtController {
     @GetMapping
     @PreAuthorize("hasAnyAuthority('STAFF', 'ADMIN')")
     public ApiResponse<List<ReceivableDebt>> getDebts() {
-        return ApiResponse.success(debtRepository.findByBranchId(com.storename.erp.common.security.AuthUtils.getBranchId()));
+        Long branchId = com.storename.erp.common.security.AuthUtils.getBranchIdOrNull();
+        if (branchId == null) {
+            return ApiResponse.success(debtRepository.findAll());
+        }
+        return ApiResponse.success(debtRepository.findByBranchId(branchId));
     }
 }
 

@@ -39,23 +39,21 @@ public class InboundReceiptController {
     }
 
     @PostMapping
-    @BranchScoped
     @PreAuthorize("hasAuthority('STAFF')")
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "Tạo phiếu nhập kho (DRAFT)")
     public ApiResponse<UUID> createDraft(@Valid @RequestBody InboundReceiptCreateDto dto) {
-        Long branchId = com.storename.erp.common.security.AuthUtils.getBranchId();
+        Long branchId = com.storename.erp.common.security.AuthUtils.getBranchIdOrNull();
         UUID receiptId = inboundService.createDraft(branchId, dto);
         return new ApiResponse<>(true, receiptId, "Inbound receipt draft created successfully", null);
     }
 
     @PostMapping("/{id}/confirm")
-    @BranchScoped
     @com.storename.erp.common.aop.IdempotencyProtected
     @PreAuthorize("hasAuthority('STAFF')")
     @Operation(summary = "Xác nhận phiếu nhập kho (CONFIRM) và tăng tồn kho")
     public ApiResponse<Void> confirmReceipt(@PathVariable("id") UUID receiptId) {
-        Long branchId = com.storename.erp.common.security.AuthUtils.getBranchId();
+        Long branchId = com.storename.erp.common.security.AuthUtils.getBranchIdOrNull();
         UUID userId = getUserId();
         inboundService.confirmReceipt(receiptId, branchId, userId);
         return new ApiResponse<>(true, null, "Inbound receipt confirmed successfully", null);
@@ -64,7 +62,7 @@ public class InboundReceiptController {
     @GetMapping
     @PreAuthorize("hasAnyAuthority('STAFF', 'ADMIN')")
     public ApiResponse<List<com.storename.erp.inventory.api.dto.InboundReceiptResponseDto>> getReceipts() {
-        Long branchId = com.storename.erp.common.security.AuthUtils.getBranchId();
+        Long branchId = com.storename.erp.common.security.AuthUtils.getBranchIdOrNull();
         List<com.storename.erp.inventory.api.dto.InboundReceiptResponseDto> dtoList = inboundService.getReceiptsByBranch(branchId)
                 .stream().map(com.storename.erp.inventory.api.dto.InboundReceiptResponseDto::fromEntity)
                 .toList();
@@ -74,10 +72,11 @@ public class InboundReceiptController {
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('STAFF', 'ADMIN')")
     public ApiResponse<com.storename.erp.inventory.api.dto.InboundReceiptResponseDto> getReceipt(@PathVariable UUID id) {
-        Long branchId = com.storename.erp.common.security.AuthUtils.getBranchId();
+        Long branchId = com.storename.erp.common.security.AuthUtils.getBranchIdOrNull();
         InboundReceipt receipt = inboundService.getReceipt(id, branchId);
         return ApiResponse.success(com.storename.erp.inventory.api.dto.InboundReceiptResponseDto.fromEntity(receipt));
     }
 }
+
 
 

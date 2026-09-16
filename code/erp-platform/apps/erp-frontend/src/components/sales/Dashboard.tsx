@@ -88,8 +88,20 @@ export const Dashboard: React.FC = () => {
     queryFn: () => ApiService.Analytics.getDashboardMetrics(branchId, start, end),
   });
 
-  const handleExport = () => {
-    ApiService.Analytics.exportExcel(branchId, start, end);
+  const handleExport = async () => {
+    try {
+      const blob = await ApiService.Analytics.exportExcel(branchId, start, end);
+      const url = window.URL.createObjectURL(new Blob([blob]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `bao-cao-kinh-doanh-${start}-${end}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error('Lỗi khi xuất excel', e);
+    }
   };
 
   return (

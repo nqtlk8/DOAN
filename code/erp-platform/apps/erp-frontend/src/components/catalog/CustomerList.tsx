@@ -69,7 +69,7 @@ export const CustomerList: React.FC = () => {
 
   const submitting = isCreating || isUpdating;
 
-  const filtered = customers.filter((c) => c.name?.toLowerCase().includes(searchTerm.toLowerCase()));
+  const filtered = customers.filter((c) => !c.isDeleted && c.name?.toLowerCase().includes(searchTerm.toLowerCase()));
 
   return (
     <div data-testid="customer-page" className="p-6">
@@ -108,7 +108,6 @@ export const CustomerList: React.FC = () => {
               <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-slate-500">Tên KH</th>
               <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-slate-500">Số Điện Thoại</th>
               <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-slate-500">Địa Chỉ</th>
-              <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-slate-500">Trạng Thái</th>
               {isAdmin && (
                 <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-slate-500 text-right">
                   Thao Tác
@@ -118,7 +117,7 @@ export const CustomerList: React.FC = () => {
           </thead>
           <tbody>
             <tr>
-              <td colSpan={isAdmin ? 7 : 6} className="p-0">
+              <td colSpan={isAdmin ? 6 : 5} className="p-0">
                 <DataState
                   isLoading={loading}
                   isError={isError}
@@ -144,11 +143,6 @@ export const CustomerList: React.FC = () => {
                   <td className="px-4 py-1.5 text-sm font-medium text-slate-900">{c.name}</td>
                   <td className="px-4 py-1.5 text-sm text-slate-900">{c.phone || '-'}</td>
                   <td className="px-4 py-1.5 text-sm text-slate-900 truncate max-w-xs">{c.address || '-'}</td>
-                  <td className="px-4 py-1.5 text-sm">
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${c.isActive ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'}`}>
-                      {c.isActive ? 'Hoạt Động' : 'Khóa'}
-                    </span>
-                  </td>
                   
                 </tr>
               ))
@@ -194,19 +188,7 @@ export const CustomerList: React.FC = () => {
                   placeholder="VD: Nguyễn Văn A"
                 />
               </div>
-              <div className="grid grid-cols-1 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Trạng thái</label>
-                  <select
-                    value={formData.isActive ? 'true' : 'false'}
-                    onChange={(e) => setFormData({ ...formData, isActive: e.target.value === 'true' })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
-                  >
-                    <option value="true">Hoạt Động</option>
-                    <option value="false">Khóa</option>
-                  </select>
-                </div>
-              </div>
+
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Số Điện Thoại</label>
                 <input

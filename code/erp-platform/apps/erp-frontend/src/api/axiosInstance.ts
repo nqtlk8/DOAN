@@ -15,7 +15,10 @@ axiosInstance.interceptors.request.use(
   (config: any) => {
     // Add Idempotency-Key
     if (config.method === 'post' || config.method === 'put') {
-      config.headers['Idempotency-Key'] = crypto.randomUUID();
+      config.headers['Idempotency-Key'] =
+        (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function')
+          ? crypto.randomUUID()
+          : `${Date.now().toString(36)}-${Math.random().toString(36).substring(2)}`;
     }
 
     // Add token
@@ -116,10 +119,9 @@ axiosInstance.interceptors.response.use(
     // Only toast automatically for mutations (POST, PUT, DELETE, PATCH)
     // GET requests should be handled by ErrorState in the component (Phase 3)
     const method = originalRequest?.method?.toLowerCase();
-    if (method && method !== 'get') {
-      if (!normalizedError.status || normalizedError.status === 403 || normalizedError.status >= 500) {
-        notify.error(normalizedError.message);
-      }
+    const skipToast = (originalRequest as any)?.skipGlobalErrorToast === true;
+    if (method && method !== 'get' && !skipToast) {
+      notify.error(normalizedError.message);
     }
 
     return Promise.reject(new ApiError(normalizedError));

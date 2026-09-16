@@ -16,6 +16,7 @@ import java.util.UUID;
 @Setter
 public class ReceivableDebt extends BaseEntity {
 
+    @com.fasterxml.jackson.annotation.JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "customer_id", nullable = false)
     private Customer customer;

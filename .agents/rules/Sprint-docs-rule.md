@@ -1,3 +1,9 @@
+---
+name: sprint-docs-rule
+description: Quy tắc bắt buộc về viết tài liệu kết thúc Sprint
+trigger: always_on
+---
+
 # Agent Rules — Debug Protocol & Sprint Documentation
 
 Quy tắc bắt buộc cho AI Agent (Gemini, Claude Code, v.v.) khi làm việc trong repo này.

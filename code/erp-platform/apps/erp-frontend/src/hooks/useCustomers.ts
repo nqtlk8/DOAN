@@ -16,9 +16,6 @@ export const useCustomers = () => {
     onSuccess: () => {
       notify.success('Đã tạo khách hàng thành công');
       queryClient.invalidateQueries({ queryKey: ['customers'] });
-    },
-    onError: (err: any) => {
-      notify.error(err.message || 'Không thể tạo khách hàng');
     }
   });
 
@@ -27,9 +24,6 @@ export const useCustomers = () => {
     onSuccess: () => {
       notify.success('Đã cập nhật khách hàng thành công');
       queryClient.invalidateQueries({ queryKey: ['customers'] });
-    },
-    onError: (err: any) => {
-      notify.error(err.message || 'Không thể cập nhật khách hàng');
     }
   });
 
@@ -38,9 +32,6 @@ export const useCustomers = () => {
     onSuccess: () => {
       notify.success('Đã xóa khách hàng thành công');
       queryClient.invalidateQueries({ queryKey: ['customers'] });
-    },
-    onError: (err: any) => {
-      notify.error(err.message || 'Không thể xóa khách hàng');
     }
   });
 
