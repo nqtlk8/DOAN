@@ -37,12 +37,15 @@ public class SalesInvoiceController {
     @PreAuthorize("hasAuthority('STAFF')")
     @ResponseStatus(HttpStatus.CREATED)
     @IdempotencyProtected
-    public ApiResponse<com.storename.erp.order.application.dto.SalesInvoiceCreateResponseDto> createDraft(
+    public ApiResponse<com.storename.erp.order.application.dto.SalesInvoiceCreateResponseDto> createInvoice(
             @Valid @RequestBody SalesInvoiceCreateDto dto) {
-        
+
+        // Bấm "Lưu" tạo đơn và xác nhận luôn trong cùng 1 giao dịch: trừ tồn kho + cộng
+        // công nợ ngay lập tức, không để lại đơn ở trạng thái DRAFT chưa xác nhận.
         Long branchId = com.storename.erp.common.security.AuthUtils.getBranchIdOrNull();
-        SalesInvoice invoice = salesInvoiceService.createDraft(dto, branchId);
-        return ApiResponse.success(new com.storename.erp.order.application.dto.SalesInvoiceCreateResponseDto(invoice.getId(), invoice.getInvoiceCode()), "Sales invoice created successfully");
+        UUID userId = getUserId();
+        SalesInvoice invoice = salesInvoiceService.createAndConfirm(dto, branchId, userId);
+        return ApiResponse.success(new com.storename.erp.order.application.dto.SalesInvoiceCreateResponseDto(invoice.getId(), invoice.getInvoiceCode()), "Sales invoice created and confirmed successfully");
     }
 
     @PostMapping("/{id}/confirm")

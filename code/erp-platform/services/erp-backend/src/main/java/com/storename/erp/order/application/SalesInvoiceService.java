@@ -29,8 +29,12 @@ public class SalesInvoiceService {
     private final InventoryFacade inventoryFacade;
     private final CrmFacade crmFacade;
 
-    @Transactional
-    public SalesInvoice createDraft(SalesInvoiceCreateDto dto, Long branchId) {
+    /**
+     * Builds a SalesInvoice aggregate (header + lines) from the create request,
+     * validating the advance payment, WITHOUT persisting it.
+     * Shared by {@link #createDraft} and {@link #createAndConfirm}.
+     */
+    private SalesInvoice buildInvoice(SalesInvoiceCreateDto dto, Long branchId) {
         SalesInvoice invoice = new SalesInvoice();
         invoice.setBranchId(branchId);
         invoice.setCustomerId(dto.getCustomerId());
@@ -44,7 +48,7 @@ public class SalesInvoiceService {
         if (dto.getAdvancePayment() != null) {
             invoice.setAdvancePayment(dto.getAdvancePayment());
         }
-        
+
         for (var lineDto : dto.getLines()) {
             SalesInvoiceLine line = new SalesInvoiceLine();
             line.setProductId(lineDto.getProductId());
@@ -55,7 +59,7 @@ public class SalesInvoiceService {
             line.setLineTotal(line.getQuantity().multiply(line.getUnitPrice()));
             invoice.addLine(line);
         }
-        
+
         invoice.calculateTotal();
 
         if (invoice.getAdvancePayment() != null) {
@@ -66,6 +70,75 @@ public class SalesInvoiceService {
                 throw new IllegalArgumentException("Advance payment cannot exceed the total invoice amount");
             }
         }
+
+        return invoice;
+    }
+
+    /**
+     * Applies the effects of confirming an invoice: deducts inventory (cost snapshot per line),
+     * raises the customer's receivable debt by the invoice total, then reduces it back by any
+     * advance payment already collected, and finally flips the entity to CONFIRMED.
+     * Shared by {@link #confirmInvoice} (explicit two-step confirm of an existing DRAFT) and
+     * {@link #createAndConfirm} (single-step create, still inside the same DB transaction).
+     */
+    private void applyConfirmationEffects(SalesInvoice invoice, Long branchId, UUID userId) {
+        for (SalesInvoiceLine line : invoice.getLines()) {
+            InventoryFacade.SaleCostResult result = inventoryFacade.recordSaleAndGetCost(
+                    line.getProductId(), branchId, line.getQuantity(), invoice.getId().toString(), line.getId(), null);
+
+            line.setUnitCost(result.unitCostSnapshot());
+            line.setCostBasis(result.costBasis());
+        }
+
+        BigDecimal currentDebt = debtService.getCurrentDebt(invoice.getCustomerId(), branchId);
+
+        // 1. Ghi nhận công nợ từ đơn bán
+        debtService.increaseDebt(invoice.getCustomerId(), branchId, invoice.getTotalAmount(),
+                com.storename.erp.crm.domain.ReceivableDebtMovementType.INVOICE,
+                "SALES_INVOICE", invoice.getId().toString(), userId, "Bán hàng " + invoice.getInvoiceCode());
+
+        // 2. Trừ công nợ nếu có thanh toán trước
+        BigDecimal advance = invoice.getAdvancePayment() != null ? invoice.getAdvancePayment() : BigDecimal.ZERO;
+        if (advance.compareTo(BigDecimal.ZERO) > 0) {
+            debtService.decreaseDebt(invoice.getCustomerId(), branchId, advance,
+                    com.storename.erp.crm.domain.ReceivableDebtMovementType.PAYMENT,
+                    "SALES_INVOICE_ADVANCE", invoice.getId().toString(), userId, "Khách trả trước " + invoice.getInvoiceCode());
+        }
+
+        BigDecimal newDebt = currentDebt.add(invoice.getTotalAmount()).subtract(advance);
+        invoice.snapshotDebt(currentDebt, newDebt);
+        invoice.confirm(userId);
+    }
+
+    @Transactional
+    public SalesInvoice createDraft(SalesInvoiceCreateDto dto, Long branchId) {
+        return invoiceRepository.save(buildInvoice(dto, branchId));
+    }
+
+    /**
+     * Creates the invoice and confirms it in the same step: no DRAFT row is ever left
+     * behind for the user to lose track of. Build + persist (to obtain generated ids for
+     * the invoice/lines) + inventory deduction + debt update all happen inside this single
+     * {@code @Transactional} boundary, so if anything fails (e.g. inventory/debt service
+     * throws), the whole insert rolls back and nothing is saved — the caller gets an error
+     * instead of an orphaned, unconfirmed invoice.
+     */
+    @org.springframework.retry.annotation.Retryable(
+        retryFor = {
+            org.springframework.orm.ObjectOptimisticLockingFailureException.class,
+            org.springframework.dao.DataIntegrityViolationException.class
+        },
+        maxAttempts = 3,
+        backoff = @org.springframework.retry.annotation.Backoff(delay = 100)
+    )
+    @Transactional
+    public SalesInvoice createAndConfirm(SalesInvoiceCreateDto dto, Long branchId, UUID userId) {
+        SalesInvoice invoice = invoiceRepository.save(buildInvoice(dto, branchId));
+
+        applyConfirmationEffects(invoice, branchId, userId);
+
+        log.info("Invoice {} created and confirmed directly (no draft step), totalAmount: {}, previousDebt: {}, remainingDebt: {}",
+                invoice.getInvoiceCode(), invoice.getTotalAmount(), invoice.getPreviousDebt(), invoice.getRemainingDebt());
 
         return invoiceRepository.save(invoice);
     }
@@ -91,35 +164,10 @@ public class SalesInvoiceService {
             throw new IllegalStateException("Invoice is not DRAFT");
         }
 
-        for (SalesInvoiceLine line : invoice.getLines()) {
-            InventoryFacade.SaleCostResult result = inventoryFacade.recordSaleAndGetCost(
-                    line.getProductId(), branchId, line.getQuantity(), invoice.getId().toString(), line.getId(), null);
-            
-            line.setUnitCost(result.unitCostSnapshot());
-            line.setCostBasis(result.costBasis());
-        }
-
-        BigDecimal currentDebt = debtService.getCurrentDebt(invoice.getCustomerId(), branchId);
-        
-        // 1. Ghi nhận công nợ từ đơn bán
-        debtService.increaseDebt(invoice.getCustomerId(), branchId, invoice.getTotalAmount(),
-                com.storename.erp.crm.domain.ReceivableDebtMovementType.INVOICE, 
-                "SALES_INVOICE", invoice.getId().toString(), userId, "Bán hàng " + invoice.getInvoiceCode());
-        
-        // 2. Trừ công nợ nếu có thanh toán trước
-        BigDecimal advance = invoice.getAdvancePayment() != null ? invoice.getAdvancePayment() : BigDecimal.ZERO;
-        if (advance.compareTo(BigDecimal.ZERO) > 0) {
-            debtService.decreaseDebt(invoice.getCustomerId(), branchId, advance,
-                    com.storename.erp.crm.domain.ReceivableDebtMovementType.PAYMENT,
-                    "SALES_INVOICE_ADVANCE", invoice.getId().toString(), userId, "Khách trả trước " + invoice.getInvoiceCode());
-        }
-        
-        BigDecimal newDebt = currentDebt.add(invoice.getTotalAmount()).subtract(advance);
-        invoice.snapshotDebt(currentDebt, newDebt);
-        invoice.confirm(userId);
+        applyConfirmationEffects(invoice, branchId, userId);
 
         log.info("Invoice {} confirmed, totalAmount: {}, previousDebt: {}, remainingDebt: {}",
-                invoice.getInvoiceCode(), invoice.getTotalAmount(), currentDebt, newDebt);
+                invoice.getInvoiceCode(), invoice.getTotalAmount(), invoice.getPreviousDebt(), invoice.getRemainingDebt());
 
         return invoiceRepository.save(invoice);
     }
@@ -166,4 +214,3 @@ public class SalesInvoiceService {
         return crmFacade.getCustomerNames(java.util.List.of(customerId)).get(customerId);
     }
 }
-

@@ -149,6 +149,57 @@ public class SalesInvoiceServiceTest {
     }
 
     @Test
+    void createAndConfirm_ShouldPersistAlreadyConfirmed_DeductInventoryAndIncreaseDebtInOneStep() {
+        UUID userId = UUID.randomUUID();
+
+        SalesInvoiceCreateDto dto = new SalesInvoiceCreateDto();
+        dto.setCustomerId(customerId);
+        dto.setInvoiceCode("HD-TEST-AUTOCONFIRM");
+        dto.setPaymentMethod(com.storename.erp.order.domain.PaymentMethod.CASH);
+
+        com.storename.erp.order.application.dto.SalesInvoiceLineDto lineDto = new com.storename.erp.order.application.dto.SalesInvoiceLineDto();
+        lineDto.setProductId(1L);
+        lineDto.setQuantity(new BigDecimal("2.0"));
+        lineDto.setUnitPrice(new BigDecimal("100.0"));
+        lineDto.setUnitOfMeasure("Cai");
+        dto.setLines(List.of(lineDto));
+
+        // save() must assign generated ids in-memory (Hibernate GenerationType.UUID),
+        // exactly like the real repository does, since applyConfirmationEffects needs
+        // invoice.getId()/line.getId() right after the first save().
+        when(invoiceRepository.save(any(SalesInvoice.class))).thenAnswer(i -> {
+            SalesInvoice inv = i.getArgument(0);
+            if (inv.getId() == null) {
+                org.springframework.test.util.ReflectionTestUtils.setField(inv, "id", UUID.randomUUID());
+            }
+            inv.getLines().forEach(l -> {
+                if (l.getId() == null) {
+                    org.springframework.test.util.ReflectionTestUtils.setField(l, "id", UUID.randomUUID());
+                }
+            });
+            return inv;
+        });
+
+        InventoryFacade.SaleCostResult mockResult = new InventoryFacade.SaleCostResult(new BigDecimal("80.0"), "FIFO");
+        when(inventoryFacade.recordSaleAndGetCost(eq(1L), eq(branchId), eq(new BigDecimal("2.0")), anyString(), any(), isNull()))
+                .thenReturn(mockResult);
+        when(debtService.getCurrentDebt(customerId, branchId)).thenReturn(new BigDecimal("500.0"));
+
+        SalesInvoice result = salesInvoiceService.createAndConfirm(dto, branchId, userId);
+
+        assertEquals(SalesInvoiceStatus.CONFIRMED, result.getStatus());
+        assertEquals(0, new BigDecimal("80.0").compareTo(result.getLines().get(0).getUnitCost()));
+        assertEquals("FIFO", result.getLines().get(0).getCostBasis());
+        assertEquals(0, new BigDecimal("500.0").compareTo(result.getPreviousDebt()));
+        assertEquals(0, new BigDecimal("700.0").compareTo(result.getRemainingDebt()));
+
+        verify(debtService).increaseDebt(eq(customerId), eq(branchId), eq(new BigDecimal("200.0")), any(), anyString(), anyString(), any(), anyString());
+        // Persisted exactly twice: once to obtain ids, once with the confirmed state.
+        // No intermediate DRAFT row is ever visible outside this transaction.
+        verify(invoiceRepository, org.mockito.Mockito.times(2)).save(any(SalesInvoice.class));
+    }
+
+    @Test
     void confirmInvoice_ShouldThrowException_WhenNotDraft() {
         UUID invoiceId = UUID.randomUUID();
         SalesInvoice invoice = new SalesInvoice();

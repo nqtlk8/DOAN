@@ -27,6 +27,7 @@ export interface SalesOrderFormRef {
   handleCancel: () => void;
   handleDelete: () => void;
   handleSubmit: () => void;
+  handleConfirm: () => void;
   handlePrint: () => void;
   handleExit: () => void;
 }
@@ -38,6 +39,8 @@ export const SalesOrderForm = forwardRef<SalesOrderFormRef, SalesOrderFormProps>
 
     const [mode, setMode] = useState<FormMode>(initialMode);
     const isView = mode === 'VIEW';
+    const [currentInvoiceId, setCurrentInvoiceId] = useState<string | null>(initialData?.id || null);
+    const [invoiceStatus, setInvoiceStatus] = useState<string>(initialData?.status || 'DRAFT');
 
     // Column 1: Internal
     const creator = initialData?.creator || user?.username || 'Admin';
@@ -90,6 +93,7 @@ export const SalesOrderForm = forwardRef<SalesOrderFormRef, SalesOrderFormProps>
       handleCancel,
       handleDelete,
       handleSubmit,
+      handleConfirm,
       handlePrint: () => setShowPrintModal(true),
       handleExit,
     }));
@@ -158,7 +162,7 @@ export const SalesOrderForm = forwardRef<SalesOrderFormRef, SalesOrderFormProps>
 
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
-    const { createMutation } = useSalesInvoice();
+    const { createMutation, confirmMutation } = useSalesInvoice();
 
     const handleSubmit = async () => {
       setError(null);
@@ -190,6 +194,7 @@ export const SalesOrderForm = forwardRef<SalesOrderFormRef, SalesOrderFormProps>
         const payload = {
           customerId: customerId,
           paymentMethod,
+          note,
           advancePayment,
           lines: items.map((i) => ({
             productId: Number(i.productId),
@@ -201,9 +206,17 @@ export const SalesOrderForm = forwardRef<SalesOrderFormRef, SalesOrderFormProps>
         };
 
         if (mode === 'ADD') {
+          // Backend tạo và xác nhận đơn trong cùng 1 giao dịch (bỏ bước Draft riêng):
+          // bấm "Lưu" là trừ tồn kho + cộng công nợ ngay, không cần bấm Xác nhận thêm
+          // lần nữa. Nếu có lỗi (vd. tồn kho/công nợ), toàn bộ giao dịch rollback ở
+          // backend nên sẽ không có đơn "mồ côi" ở trạng thái Draft.
           const response = await createMutation.mutateAsync(payload);
           if (response && response.invoiceCode) {
             setOrderCode(response.invoiceCode);
+            if (response.id) {
+              setCurrentInvoiceId(response.id);
+            }
+            setInvoiceStatus('CONFIRMED');
           }
         }
 
@@ -211,6 +224,28 @@ export const SalesOrderForm = forwardRef<SalesOrderFormRef, SalesOrderFormProps>
       } catch (err: any) {
         console.error(err);
         toast.error(err.message || 'Lỗi khi lưu đơn hàng');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    const handleConfirm = async () => {
+      if (!currentInvoiceId) {
+        toast.error('Chưa có ID hóa đơn, vui lòng lưu trước khi xác nhận.');
+        return;
+      }
+      if (invoiceStatus === 'CONFIRMED') {
+        // Đơn tạo qua nút "Lưu" đã được xác nhận ngay từ đầu, không còn ở trạng thái Draft.
+        toast.error('Đơn hàng đã được xác nhận (đã trừ tồn kho và cộng công nợ).');
+        return;
+      }
+      setIsLoading(true);
+      try {
+        await confirmMutation.mutateAsync(currentInvoiceId);
+        setInvoiceStatus('CONFIRMED');
+      } catch (err: any) {
+        console.error(err);
+        toast.error(err.message || 'Lỗi khi xác nhận đơn hàng');
       } finally {
         setIsLoading(false);
       }
