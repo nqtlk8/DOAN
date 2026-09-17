@@ -161,29 +161,32 @@ export const SalesOrderForm = forwardRef<SalesOrderFormRef, SalesOrderFormProps>
     const { createMutation } = useSalesInvoice();
 
     const handleSubmit = async () => {
-      setIsLoading(true);
       setError(null);
       setFieldErrors({});
+
+      const newErrors: Record<string, string> = {};
+      if (!customerId) {
+        newErrors.partner = 'Vui lòng chọn khách hàng';
+      }
+      if (items.length === 0) {
+        toast.error('Đơn hàng phải có ít nhất 1 sản phẩm.');
+        return;
+      }
+
+      // check items
+      items.forEach((item, index) => {
+        if (!item.productId) newErrors[`item_${index}_product`] = 'Chọn sản phẩm';
+        if (item.quantity <= 0) newErrors[`item_${index}_quantity`] = 'Số lượng > 0';
+      });
+
+      if (Object.keys(newErrors).length > 0) {
+        setFieldErrors(newErrors);
+        toast.error('Vui lòng kiểm tra lại thông tin nhập.');
+        return;
+      }
+
+      setIsLoading(true);
       try {
-        const newErrors: Record<string, string> = {};
-        if (!customerId) {
-          newErrors.partner = 'Vui lòng chọn khách hàng';
-        }
-        if (items.length === 0) {
-          throw new Error('Đơn hàng phải có ít nhất 1 sản phẩm.');
-        }
-
-        // check items
-        items.forEach((item, index) => {
-          if (!item.productId) newErrors[`item_${index}_product`] = 'Chọn sản phẩm';
-          if (item.quantity <= 0) newErrors[`item_${index}_quantity`] = 'Số lượng > 0';
-        });
-
-        if (Object.keys(newErrors).length > 0) {
-          setFieldErrors(newErrors);
-          throw new Error('Vui lòng kiểm tra lại thông tin nhập.');
-        }
-
         const payload = {
           customerId: customerId,
           paymentMethod,
@@ -265,12 +268,13 @@ export const SalesOrderForm = forwardRef<SalesOrderFormRef, SalesOrderFormProps>
           onAddItem={addItem}
           onRemoveItem={removeItem}
           onUpdateItem={updateItem}
-          renderPartnerCombobox={() => (
+          renderPartnerCombobox={(hasError) => (
             <SearchableCombobox
               data-testid="sales-customer-combo"
               value={customerName}
               placeholder="Nhấn để chọn khách hàng..."
               disabled={mode === 'VIEW'}
+              error={hasError}
               fetchData={ApiService.Catalog.searchCustomers}
               columns={[
                 { header: 'Mã KH', field: 'customerCode', width: '20%' },
@@ -294,20 +298,21 @@ export const SalesOrderForm = forwardRef<SalesOrderFormRef, SalesOrderFormProps>
               }}
             />
           )}
-          renderProductCombobox={(itemId, currentVal) => (
+          renderProductCombobox={(itemId, currentVal, hasError) => (
             <SearchableCombobox
               data-testid={`sales-product-combo-${itemId}`}
               value={currentVal}
               placeholder="Nhấn để chọn..."
               disabled={mode === 'VIEW'}
+              error={hasError}
               fetchData={ApiService.Catalog.searchProducts}
               columns={[
-                { header: 'Mã', field: 'productCode', width: '20%' },
+                { header: 'Mã', field: 'code', width: '20%' },
                 { header: 'Tên', field: 'name', width: '50%' },
                 { header: 'Giá', field: 'price', width: '30%', format: (val) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val || 0) }
               ]}
               onSelect={(product) => {
-                updateItem(itemId, 'productId', product.productId);
+                updateItem(itemId, 'productId', String(product.id));
                 updateItem(itemId, 'productName', product.name);
                 updateItem(itemId, 'unitPrice', product.price);
               }}
