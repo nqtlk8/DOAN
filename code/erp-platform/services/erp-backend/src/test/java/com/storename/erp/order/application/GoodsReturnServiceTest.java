@@ -118,7 +118,7 @@ public class GoodsReturnServiceTest {
         invoice.addLine(invoiceLine);
 
         when(returnRepository.findById(returnId)).thenReturn(Optional.of(goodsReturn));
-        when(invoiceRepository.findById(invoiceId)).thenReturn(Optional.of(invoice));
+        when(invoiceRepository.findByIdForUpdate(invoiceId)).thenReturn(Optional.of(invoice));
         when(returnRepository.getTotalReturnedQuantity(invoiceId, 10L)).thenReturn(BigDecimal.ZERO);
 
         goodsReturnService.confirmReturn(returnId, branchId, userId);

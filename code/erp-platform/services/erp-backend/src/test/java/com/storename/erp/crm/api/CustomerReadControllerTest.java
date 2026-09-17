@@ -54,7 +54,7 @@ public class CustomerReadControllerTest {
         customer.setName("Customer A");
         customer.setBranchId(1L);
 
-        when(customerRepository.findAll()).thenReturn(List.of(customer));
+        when(customerRepository.findAllByBranchIdOrNull(1L)).thenReturn(List.of(customer));
 
         JwtAuthDetails details = new JwtAuthDetails("1", "token-123");
         UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(

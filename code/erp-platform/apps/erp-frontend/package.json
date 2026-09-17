@@ -7,7 +7,7 @@
         "build": "vite build",
         "preview": "vite preview",
         "test": "vitest",
-        "lint": "eslint"
+        "lint": "eslint ."
     },
     "dependencies": {
         "@erp/api-contract": "*",
@@ -32,9 +32,13 @@
         "@types/react": "^19",
         "@types/react-dom": "^19",
         "eslint": "^9",
+        "eslint-plugin-react-hooks": "^7.1.1",
+        "eslint-plugin-react-refresh": "^0.5.7",
+        "globals": "^17.12.0",
         "jsdom": "^30.0.1",
         "tailwindcss": "^4",
         "typescript": "^5",
+        "typescript-eslint": "^8.70.0",
         "vitest": "^4.1.11"
     }
 }

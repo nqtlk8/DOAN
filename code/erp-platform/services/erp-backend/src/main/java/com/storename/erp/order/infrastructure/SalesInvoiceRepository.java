@@ -11,4 +11,8 @@ import java.util.UUID;
 public interface SalesInvoiceRepository extends JpaRepository<SalesInvoice, UUID> {
     Optional<SalesInvoice> findByInvoiceCode(String invoiceCode);
     java.util.List<SalesInvoice> findByBranchId(Long branchId);
+
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @org.springframework.data.jpa.repository.Query("SELECT i FROM SalesInvoice i WHERE i.id = :id")
+    Optional<SalesInvoice> findByIdForUpdate(@org.springframework.data.repository.query.Param("id") UUID id);
 }

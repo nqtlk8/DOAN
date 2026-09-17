@@ -85,18 +85,12 @@ public class GoodsReturnService {
             throw new IllegalArgumentException("Return does not belong to this branch");
         }
 
-        goodsReturn.confirm(userId);
-
-        for (GoodsReturnLine line : goodsReturn.getLines()) {
-            inventoryFacade.recordReturn(line.getProductId(), branchId, line.getQuantity(), line.getUnitPrice(), goodsReturn.getId().toString(), line.getId(), userId);
-        }
-
         if (goodsReturn.getInvoiceId() != null) {
-            com.storename.erp.order.domain.SalesInvoice invoice = invoiceRepository.findById(goodsReturn.getInvoiceId())
+            com.storename.erp.order.domain.SalesInvoice invoice = invoiceRepository.findByIdForUpdate(goodsReturn.getInvoiceId())
                     .orElseThrow(() -> new IllegalArgumentException("Original invoice not found"));
             
             if (!invoice.getBranchId().equals(branchId) || !invoice.getCustomerId().equals(goodsReturn.getCustomerId())) {
-                throw new IllegalArgumentException("Invoice does not belong to this branch or customer");
+                throw new IllegalArgumentException("Invoice does not belong to the correct branch/customer");
             }
             if (invoice.getStatus() != com.storename.erp.order.domain.SalesInvoiceStatus.CONFIRMED) {
                 throw new IllegalArgumentException("Cannot return goods for unconfirmed invoice");
@@ -116,6 +110,12 @@ public class GoodsReturnService {
                     throw new IllegalArgumentException("Total returned quantity exceeds invoice sold quantity");
                 }
             }
+        }
+
+        goodsReturn.confirm(userId);
+
+        for (GoodsReturnLine line : goodsReturn.getLines()) {
+            inventoryFacade.recordReturn(line.getProductId(), branchId, line.getQuantity(), line.getUnitPrice(), goodsReturn.getId().toString(), line.getId(), userId);
         }
 
         if (goodsReturn.getCustomerId() != null) {
