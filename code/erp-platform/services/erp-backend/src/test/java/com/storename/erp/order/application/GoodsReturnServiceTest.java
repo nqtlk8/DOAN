@@ -125,7 +125,7 @@ public class GoodsReturnServiceTest {
 
         assertEquals(GoodsReturnStatus.CONFIRMED, goodsReturn.getStatus());
         verify(inventoryFacade).recordReturn(eq(10L), eq(branchId), eq(new BigDecimal("2.0")), eq(new BigDecimal("50.0")), eq(returnId.toString()), eq(line.getId()), eq(userId));
-        verify(debtService).decreaseDebt(eq(customerId), eq(branchId), argThat(a -> a.compareTo(new BigDecimal("100.0")) == 0));
+        verify(debtService).decreaseDebt(eq(customerId), eq(branchId), argThat(a -> a.compareTo(new BigDecimal("100.0")) == 0), any(), anyString(), anyString(), any(), anyString());
         verify(returnRepository).save(goodsReturn);
     }
 }

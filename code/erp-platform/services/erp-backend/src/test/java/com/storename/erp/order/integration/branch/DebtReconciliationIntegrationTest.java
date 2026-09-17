@@ -51,8 +51,16 @@ public class DebtReconciliationIntegrationTest {
     private Customer customer;
     private Long productId;
 
+    @Autowired
+    private com.storename.erp.crm.infrastructure.ReceivableDebtRepository debtRepo;
+
+    @Autowired
+    private com.storename.erp.crm.infrastructure.ReceivableDebtMovementRepository movementRepo;
+
     @BeforeEach
     void setUp() {
+        movementRepo.deleteAll();
+        debtRepo.deleteAll();
         customerRepo.deleteAll();
         stockRepo.deleteAll();
         

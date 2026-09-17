@@ -16,7 +16,7 @@ interface PrintInvoiceProps {
   advancePayment: number;
   remainingBalance: number;
   oldDebt?: number;
-  mode?: 'STAFF' | 'quote' | 'return' | 'edit' | 'purchase';
+  mode?: 'STAFF' | 'quote' | 'return' | 'edit' | 'purchase' | 'sales';
   title?: string;
   hidePrices?: boolean;
   className?: string;

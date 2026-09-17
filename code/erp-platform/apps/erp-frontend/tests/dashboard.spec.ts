@@ -105,7 +105,7 @@ test.describe('Dashboard flow', () => {
   });
 
   test('TC-DASHBOARD-03: Lọc dữ liệu theo thời gian', async ({ page }) => {
-    let capturedUrl: URL | null = null;
+    let capturedUrl: any = null;
     
     await page.route('**/api/v1/analytics/dashboard*', async route => {
       if (route.request().method() === 'GET') {

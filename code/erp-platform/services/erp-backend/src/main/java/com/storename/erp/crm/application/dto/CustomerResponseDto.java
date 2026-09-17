@@ -1,6 +1,5 @@
 package com.storename.erp.crm.application.dto;
 
-
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -21,6 +20,7 @@ public class CustomerResponseDto {
     private String email;
     private String address;
     private String taxCode;
+    private Long branchId;
     private boolean isDeleted;
     private LocalDateTime createdAt;
 
@@ -34,6 +34,7 @@ public class CustomerResponseDto {
                 .email(customer.getEmail())
                 .address(customer.getAddress())
                 .taxCode(customer.getTaxCode())
+                .branchId(customer.getBranchId())
                 .isDeleted(customer.isDeleted())
                 .createdAt(customer.getCreatedAt())
                 .build();

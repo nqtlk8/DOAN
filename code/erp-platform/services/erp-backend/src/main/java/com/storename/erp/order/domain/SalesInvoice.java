@@ -46,6 +46,9 @@ public class SalesInvoice extends BaseEntity {
     @Column(columnDefinition = "TEXT")
     private String note;
 
+    @Column(name = "advance_payment", precision = 19, scale = 4)
+    private BigDecimal advancePayment = BigDecimal.ZERO;
+
     @Column(name = "confirmed_at")
     private LocalDateTime confirmedAt;
 

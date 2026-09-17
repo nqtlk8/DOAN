@@ -37,7 +37,7 @@ export const StockMovementList: React.FC<StockMovementListProps> = ({ productId 
                 loadingType="table"
                 emptyTitle="Chưa có movement"
                 emptyMessage="Sản phẩm này chưa có lịch sử xuất nhập tồn."
-              />
+              >{null}</DataState>
             </td>
           </tr>
           {!isLoading && !isError && movements && movements.length > 0 && (

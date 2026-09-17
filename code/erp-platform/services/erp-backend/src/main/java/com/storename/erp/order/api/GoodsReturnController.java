@@ -38,6 +38,7 @@ public class GoodsReturnController {
 
     @PostMapping
     @PreAuthorize("hasAuthority('STAFF')")
+    @IdempotencyProtected
     @Operation(summary = "Tạo phiếu trả hàng (DRAFT)")
     public ResponseEntity<ApiResponse<UUID>> createDraft(@Valid @RequestBody GoodsReturnCreateDto dto) {
         Long branchId = com.storename.erp.common.security.AuthUtils.getBranchIdOrNull();

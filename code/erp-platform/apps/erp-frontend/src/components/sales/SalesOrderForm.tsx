@@ -186,8 +186,9 @@ export const SalesOrderForm = forwardRef<SalesOrderFormRef, SalesOrderFormProps>
         const payload = {
           customerId: customerId,
           paymentMethod,
+          advancePayment,
           lines: items.map((i) => ({
-            productId: i.productId,
+            productId: Number(i.productId),
             productName: i.productName,
             quantity: i.quantity,
             unitPrice: i.unitPrice,
@@ -197,7 +198,9 @@ export const SalesOrderForm = forwardRef<SalesOrderFormRef, SalesOrderFormProps>
 
         if (mode === 'ADD') {
           const response = await createMutation.mutateAsync(payload);
-          setOrderCode(response);
+          if (response && response.invoiceCode) {
+            setOrderCode(response.invoiceCode);
+          }
         }
 
         setMode('VIEW');
@@ -239,6 +242,7 @@ export const SalesOrderForm = forwardRef<SalesOrderFormRef, SalesOrderFormProps>
           partnerPlaceholder="Nhấn để chọn khách hàng..."
           partnerName={customerName}
           onPartnerSearch={() => setShowCustomerSearch(true)}
+          onProductSearch={() => setShowProductSearch(true)}
           address={address}
           setAddress={setAddress}
           phone={phone}
@@ -271,14 +275,20 @@ export const SalesOrderForm = forwardRef<SalesOrderFormRef, SalesOrderFormProps>
                 { header: 'Tên KH', field: 'name', width: '50%' },
                 { header: 'Điện thoại', field: 'phoneNumber', width: '30%' }
               ]}
-              onSelect={(customer) => {
+              onSelect={async (customer) => {
                 setCustomerCode(customer.customerCode || customer.customerId || '');
                 setCustomerId(customer.id);
                 setCustomerName(customer.name);
                 setAddress(customer.address || '');
                 setPhone(customer.phoneNumber || '');
                 setContactPerson(customer.contactPerson || '');
-                setOldDebt(customer.currentDebt || 0);
+                try {
+                  const debt = await ApiService.Debt.getBalance(customer.id);
+                  setOldDebt(debt || 0);
+                } catch (e) {
+                  console.error('Failed to fetch debt', e);
+                  setOldDebt(0);
+                }
               }}
             />
           )}
@@ -394,7 +404,7 @@ export const SalesOrderForm = forwardRef<SalesOrderFormRef, SalesOrderFormProps>
                 </div>
               </div>
               <div className="text-sm font-semibold text-teal-600">
-                {(p.price ?? p.basePrice ?? 0).toLocaleString()} ₫
+                {(p.price ?? 0).toLocaleString()} ₫
               </div>
             </div>
           )}
@@ -405,9 +415,9 @@ export const SalesOrderForm = forwardRef<SalesOrderFormRef, SalesOrderFormProps>
                   item.id === activeItemRowId
                     ? {
                         ...item,
-                        productId: p.id,
+                        productId: String(p.id),
                         productName: p.name,
-                        unitPrice: p.price ?? p.basePrice ?? 0,
+                        unitPrice: p.price ?? 0,
                       }
                     : item,
                 ),

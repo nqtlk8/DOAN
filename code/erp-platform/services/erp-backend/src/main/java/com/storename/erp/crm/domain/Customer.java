@@ -28,4 +28,7 @@ public class Customer extends BaseEntity {
     
     @Column(name = "tax_code", length = 20)
     private String taxCode;
+    
+    @Column(name = "branch_id")
+    private Long branchId;
 }

@@ -34,6 +34,9 @@ public class ReceivableDebtControllerTest {
     private ReceivableDebtRepository debtRepository;
 
     @MockBean
+    private com.storename.erp.crm.application.ReceivableDebtService debtService;
+
+    @MockBean
     private JwtAuthenticationFilter jwtAuthenticationFilter;
 
     @BeforeEach

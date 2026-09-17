@@ -45,7 +45,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const login = async (username: string, password: string): Promise<{ success: boolean; message?: string }> => {
-    console.log(`[AuthContext] Đang thử đăng nhập với username: ${username}`);
     try {
       const response = await ApiService.Auth.login(username, password);
       if (response.success) {
@@ -54,7 +53,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const roleString = authData.role || 'STAFF';
         const parsedRole = roleString.toUpperCase();
 
-        console.log(`[AuthContext] Đăng nhập thành công! Role: ${parsedRole}`);
 
         if (parsedRole === 'STAFF') {
           const branchUrl = authData.branchUrl;
@@ -73,7 +71,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         return { success: true };
       } else {
-        console.log(`[AuthContext] Đăng nhập thất bại từ server: ${response.message}`);
         return { success: false, message: response.message || 'Sai thông tin đăng nhập' };
       }
     } catch (error: any) {

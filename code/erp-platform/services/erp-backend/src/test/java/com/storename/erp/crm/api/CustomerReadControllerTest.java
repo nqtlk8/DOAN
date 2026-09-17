@@ -52,6 +52,7 @@ public class CustomerReadControllerTest {
         customer.setId(UUID.randomUUID());
         customer.setCustomerCode("KH-01");
         customer.setName("Customer A");
+        customer.setBranchId(1L);
 
         when(customerRepository.findAll()).thenReturn(List.of(customer));
 

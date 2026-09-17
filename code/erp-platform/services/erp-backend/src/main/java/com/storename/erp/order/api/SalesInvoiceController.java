@@ -36,34 +36,33 @@ public class SalesInvoiceController {
     @PostMapping
     @PreAuthorize("hasAuthority('STAFF')")
     @ResponseStatus(HttpStatus.CREATED)
-    public ApiResponse<UUID> createDraft(
+    @IdempotencyProtected
+    public ApiResponse<com.storename.erp.order.application.dto.SalesInvoiceCreateResponseDto> createDraft(
             @Valid @RequestBody SalesInvoiceCreateDto dto) {
         
         Long branchId = com.storename.erp.common.security.AuthUtils.getBranchIdOrNull();
         SalesInvoice invoice = salesInvoiceService.createDraft(dto, branchId);
-        return ApiResponse.success(invoice.getId(), "Sales invoice created successfully");
+        return ApiResponse.success(new com.storename.erp.order.application.dto.SalesInvoiceCreateResponseDto(invoice.getId(), invoice.getInvoiceCode()), "Sales invoice created successfully");
     }
 
     @PostMapping("/{id}/confirm")
     @PreAuthorize("hasAuthority('STAFF')")
     @IdempotencyProtected
-    public ApiResponse<UUID> confirmInvoice(
+    public ApiResponse<com.storename.erp.order.application.dto.SalesInvoiceCreateResponseDto> confirmInvoice(
             @PathVariable UUID id) {
         
         Long branchId = com.storename.erp.common.security.AuthUtils.getBranchIdOrNull();
         UUID userId = getUserId();
         
         SalesInvoice invoice = salesInvoiceService.confirmInvoice(id, userId, branchId);
-        return ApiResponse.success(invoice.getId(), "Sales invoice confirmed successfully");
+        return ApiResponse.success(new com.storename.erp.order.application.dto.SalesInvoiceCreateResponseDto(invoice.getId(), invoice.getInvoiceCode()), "Sales invoice confirmed successfully");
     }
 
     @GetMapping
     @PreAuthorize("hasAuthority('STAFF')")
     public ApiResponse<List<com.storename.erp.order.api.dto.SalesInvoiceResponseDto>> getInvoices() {
         Long branchId = com.storename.erp.common.security.AuthUtils.getBranchIdOrNull();
-        List<com.storename.erp.order.api.dto.SalesInvoiceResponseDto> dtoList = salesInvoiceService.getInvoicesByBranch(branchId)
-                .stream().map(com.storename.erp.order.api.dto.SalesInvoiceResponseDto::fromEntity)
-                .toList();
+        List<com.storename.erp.order.api.dto.SalesInvoiceResponseDto> dtoList = salesInvoiceService.getInvoicesDtoByBranch(branchId);
         return ApiResponse.success(dtoList);
     }
 
@@ -71,8 +70,8 @@ public class SalesInvoiceController {
     @PreAuthorize("hasAuthority('STAFF')")
     public ApiResponse<com.storename.erp.order.api.dto.SalesInvoiceResponseDto> getInvoice(@PathVariable UUID id) {
         Long branchId = com.storename.erp.common.security.AuthUtils.getBranchIdOrNull();
-        SalesInvoice invoice = salesInvoiceService.getInvoice(id, branchId);
-        return ApiResponse.success(com.storename.erp.order.api.dto.SalesInvoiceResponseDto.fromEntity(invoice));
+        com.storename.erp.order.api.dto.SalesInvoiceResponseDto invoiceDto = salesInvoiceService.getInvoiceDto(id, branchId);
+        return ApiResponse.success(invoiceDto);
     }
 }
 

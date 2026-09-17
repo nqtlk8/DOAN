@@ -32,7 +32,7 @@ public class StockControllerTest {
     private MockMvc mockMvc;
 
     @MockBean
-    private StockOnHandRepository stockRepo;
+    private com.storename.erp.inventory.application.StockService stockService;
 
     @MockBean
     private JwtAuthenticationFilter jwtAuthenticationFilter;
@@ -48,11 +48,13 @@ public class StockControllerTest {
 
     @Test
     void getStock_ShouldReturn200_WhenAuthorized() throws Exception {
-        StockOnHand stock = new StockOnHand(10L, 1L);
-        org.springframework.test.util.ReflectionTestUtils.setField(stock, "id", UUID.randomUUID());
-        stock.increase(new BigDecimal("100"), "test");
+        com.storename.erp.inventory.application.dto.StockOnHandResponseDto dto = com.storename.erp.inventory.application.dto.StockOnHandResponseDto.builder()
+                .productId(10L)
+                .branchId(1L)
+                .quantity(new BigDecimal("100"))
+                .build();
 
-        when(stockRepo.findByBranchId(1L)).thenReturn(List.of(stock));
+        when(stockService.getStockByBranch(1L)).thenReturn(List.of(dto));
 
         JwtAuthDetails details = new JwtAuthDetails("1", "token-123");
         UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(

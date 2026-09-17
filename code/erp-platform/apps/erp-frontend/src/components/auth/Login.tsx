@@ -13,11 +13,9 @@ export const Login: React.FC = () => {
     e.preventDefault();
     setError('');
     setIsLoading(true);
-    console.log(`[Login UI] Bắt đầu gọi hàm login cho user: ${username}`);
 
     const result = await login(username, password);
     if (!result.success) {
-      console.log(`[Login UI] Hiển thị lỗi ra màn hình: ${result.message}`);
       setError(result.message || 'Đăng nhập thất bại');
     }
     setIsLoading(false);

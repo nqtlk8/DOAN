@@ -72,7 +72,8 @@ public class GoodsReturnWithoutInvoiceTest {
 
         stockRepository.save(stock);
 
-        debtService.increaseDebt(customer.getId(), branchId, new BigDecimal("1000000")); // current debt 1,000,000
+        debtService.increaseDebt(customer.getId(), branchId, new BigDecimal("1000000"),
+                com.storename.erp.crm.domain.ReceivableDebtMovementType.ADJUSTMENT, "TEST", "TEST", UUID.randomUUID(), "test"); // current debt 1,000,000
     }
 
     @Test

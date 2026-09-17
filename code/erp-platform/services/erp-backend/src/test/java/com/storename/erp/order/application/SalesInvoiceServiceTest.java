@@ -108,7 +108,7 @@ public class SalesInvoiceServiceTest {
         assertEquals(0, new BigDecimal("80.0").compareTo(confirmed.getLines().get(0).getUnitCost()));
         assertEquals("FIFO", confirmed.getLines().get(0).getCostBasis());
         
-        verify(debtService).increaseDebt(customerId, branchId, new BigDecimal("200.0"));
+        verify(debtService).increaseDebt(eq(customerId), eq(branchId), eq(new BigDecimal("200.0")), any(), anyString(), anyString(), any(), anyString());
         verify(invoiceRepository).save(invoice);
     }
 

@@ -17,11 +17,13 @@ public class SalesInvoiceResponseDto {
     private UUID id;
     private Long branchId;
     private UUID customerId;
+    private String customerName;
     private String invoiceCode;
     private SalesInvoiceStatus status;
     private BigDecimal totalAmount;
     private BigDecimal previousDebt;
     private BigDecimal remainingDebt;
+    private BigDecimal advancePayment;
     private PaymentMethod paymentMethod;
     private String note;
     private LocalDateTime confirmedAt;
@@ -54,16 +56,18 @@ public class SalesInvoiceResponseDto {
         }
     }
 
-    public static SalesInvoiceResponseDto fromEntity(SalesInvoice entity) {
+    public static SalesInvoiceResponseDto fromEntity(SalesInvoice entity, String customerName) {
         SalesInvoiceResponseDto dto = new SalesInvoiceResponseDto();
         dto.setId(entity.getId());
         dto.setBranchId(entity.getBranchId());
         dto.setCustomerId(entity.getCustomerId());
+        dto.setCustomerName(customerName);
         dto.setInvoiceCode(entity.getInvoiceCode());
         dto.setStatus(entity.getStatus());
         dto.setTotalAmount(entity.getTotalAmount());
         dto.setPreviousDebt(entity.getPreviousDebt());
         dto.setRemainingDebt(entity.getRemainingDebt());
+        dto.setAdvancePayment(entity.getAdvancePayment());
         dto.setPaymentMethod(entity.getPaymentMethod());
         dto.setNote(entity.getNote());
         dto.setConfirmedAt(entity.getConfirmedAt());

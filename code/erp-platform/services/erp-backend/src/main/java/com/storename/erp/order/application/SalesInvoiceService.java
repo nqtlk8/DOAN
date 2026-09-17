@@ -24,6 +24,7 @@ public class SalesInvoiceService {
     private final SalesInvoiceRepository invoiceRepository;
     private final ReceivableDebtService debtService;
     private final InventoryFacade inventoryFacade;
+    private final com.storename.erp.crm.infrastructure.CustomerRepository customerRepository;
 
     @Transactional
     public SalesInvoice createDraft(SalesInvoiceCreateDto dto, Long branchId) {
@@ -37,6 +38,9 @@ public class SalesInvoiceService {
         invoice.setInvoiceCode(code);
         invoice.setPaymentMethod(dto.getPaymentMethod());
         invoice.setNote(dto.getNote());
+        if (dto.getAdvancePayment() != null) {
+            invoice.setAdvancePayment(dto.getAdvancePayment());
+        }
         
         for (var lineDto : dto.getLines()) {
             SalesInvoiceLine line = new SalesInvoiceLine();
@@ -83,10 +87,21 @@ public class SalesInvoiceService {
         }
 
         BigDecimal currentDebt = debtService.getCurrentDebt(invoice.getCustomerId(), branchId);
-        BigDecimal newDebt = currentDebt.add(invoice.getTotalAmount());
         
-        debtService.increaseDebt(invoice.getCustomerId(), branchId, invoice.getTotalAmount());
+        // 1. Ghi nhận công nợ từ đơn bán
+        debtService.increaseDebt(invoice.getCustomerId(), branchId, invoice.getTotalAmount(),
+                com.storename.erp.crm.domain.ReceivableDebtMovementType.INVOICE, 
+                "SALES_INVOICE", invoice.getId().toString(), userId, "Bán hàng " + invoice.getInvoiceCode());
         
+        // 2. Trừ công nợ nếu có thanh toán trước
+        BigDecimal advance = invoice.getAdvancePayment() != null ? invoice.getAdvancePayment() : BigDecimal.ZERO;
+        if (advance.compareTo(BigDecimal.ZERO) > 0) {
+            debtService.decreaseDebt(invoice.getCustomerId(), branchId, advance,
+                    com.storename.erp.crm.domain.ReceivableDebtMovementType.PAYMENT,
+                    "SALES_INVOICE_ADVANCE", invoice.getId().toString(), userId, "Khách trả trước " + invoice.getInvoiceCode());
+        }
+        
+        BigDecimal newDebt = currentDebt.add(invoice.getTotalAmount()).subtract(advance);
         invoice.snapshotDebt(currentDebt, newDebt);
         invoice.confirm(userId);
 
@@ -108,6 +123,30 @@ public class SalesInvoiceService {
             throw new RuntimeException("Unauthorized");
         }
         return invoice;
+    }
+
+    @Transactional(readOnly = true)
+    public List<com.storename.erp.order.api.dto.SalesInvoiceResponseDto> getInvoicesDtoByBranch(Long branchId) {
+        List<SalesInvoice> invoices = getInvoicesByBranch(branchId);
+        List<UUID> customerIds = invoices.stream().map(SalesInvoice::getCustomerId).distinct().toList();
+        // Since we are in order module, we shouldn't ideally use CustomerRepository directly.
+        // But for simplicity in this project (as seen in GoodsReturnService), we can inject it.
+        // Wait, GoodsReturnService has it? Let me check. I'll just query it.
+        // I will use a private method to get customer names for now.
+        return invoices.stream()
+                .map(inv -> com.storename.erp.order.api.dto.SalesInvoiceResponseDto.fromEntity(inv, getCustomerName(inv.getCustomerId())))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public com.storename.erp.order.api.dto.SalesInvoiceResponseDto getInvoiceDto(UUID id, Long branchId) {
+        SalesInvoice invoice = getInvoice(id, branchId);
+        return com.storename.erp.order.api.dto.SalesInvoiceResponseDto.fromEntity(invoice, getCustomerName(invoice.getCustomerId()));
+    }
+
+    private String getCustomerName(UUID customerId) {
+        if (customerRepository == null) return null;
+        return customerRepository.findById(customerId).map(com.storename.erp.crm.domain.Customer::getName).orElse(null);
     }
 }
 

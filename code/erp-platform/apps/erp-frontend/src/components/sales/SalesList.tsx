@@ -4,6 +4,7 @@ import { ApiService } from '../../api/ApiService';
 import type { OrderListItem } from '../../types/sales';
 import { useQuery } from '@tanstack/react-query';
 import { DataState } from '../../shared/components/DataState/DataState';
+import type { components } from '@erp/api-contract';
 
 interface SalesListProps {
   setActiveTab?: (tab: string) => void;
@@ -14,12 +15,12 @@ export const SalesList: React.FC<SalesListProps> = ({ onRowDoubleClick }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
 
-  const { data: response, isLoading, isError, error, refetch } = useQuery({
+  const { data: response, isLoading, isError, error, refetch } = useQuery<components['schemas']['SalesInvoiceResponseDto'][]>({
     queryKey: ['salesOrders', statusFilter],
     queryFn: () => ApiService.SalesInvoice.getAll(),
   });
 
-  const orders: OrderListItem[] = response || [];
+  const orders = response || [];
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -36,9 +37,9 @@ export const SalesList: React.FC<SalesListProps> = ({ onRowDoubleClick }) => {
     }
   };
 
-  const handleEdit = (order: OrderListItem) => {
-    if (onRowDoubleClick) {
-      onRowDoubleClick(order.orderId);
+  const handleEdit = (order: components['schemas']['SalesInvoiceResponseDto']) => {
+    if (onRowDoubleClick && order.id) {
+      onRowDoubleClick(order.id);
     }
   };
 
@@ -89,29 +90,29 @@ export const SalesList: React.FC<SalesListProps> = ({ onRowDoubleClick }) => {
                   loadingType="table"
                   emptyTitle="Chưa có đơn hàng"
                   emptyMessage="Hiện tại chưa có đơn hàng bán nào được ghi nhận."
-                />
+                >{null}</DataState>
               </td>
             </tr>
             {!isLoading && !isError && orders.length > 0 && (
               orders.map((order) => (
                 <tr
-                  key={order.orderId}
+                  key={order.id}
                   data-testid="sales-list-row"
                   className="hover:bg-slate-50/50 transition-colors group cursor-pointer"
                   onDoubleClick={() => {
-                    if (onRowDoubleClick) onRowDoubleClick(order.orderId);
+                    if (onRowDoubleClick && order.id) onRowDoubleClick(order.id);
                   }}
                 >
-                  <td className="px-6 py-4 font-medium text-slate-900">{order.code || order.orderId}</td>
-                  <td className="px-6 py-4 text-slate-600">{order.customerName || order.customerId}</td>
-                  <td className="px-6 py-4 text-slate-500">{new Date(order.createdAt).toLocaleDateString()}</td>
-                  <td className="px-6 py-4 font-medium text-slate-900">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(order.totalAmount)}</td>
+                  <td className="px-6 py-4 font-medium text-slate-900">{order.invoiceCode || '-'}</td>
+                  <td className="px-6 py-4 text-slate-600">{order.customerName || '-'}</td>
+                  <td className="px-6 py-4 text-slate-500">{order.createdAt ? new Date(order.createdAt).toLocaleDateString() : '-'}</td>
+                  <td className="px-6 py-4 font-medium text-slate-900">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(order.totalAmount || 0)}</td>
                   <td className="px-6 py-4">
                     <span
                       data-testid="sales-list-status"
-                      className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium border ${getStatusColor(order.status)}`}
+                      className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium border ${getStatusColor(order.status || '')}`}
                     >
-                      {order.status === 'CONFIRMED' ? 'Đã Xác Nhận' : order.status === 'DRAFT' ? 'Nháp' : order.status === 'CANCELLED' ? 'Đã Hủy' : order.status === 'PENDING' ? 'Chờ Xử Lý' : order.status === 'DELIVERED' ? 'Đã Giao' : order.status}
+                      {order.status === 'CONFIRMED' ? 'Đã Xác Nhận' : order.status === 'DRAFT' ? 'Nháp' : order.status === 'CANCELLED' ? 'Đã Hủy' : order.status === 'PENDING' ? 'Chờ Xử Lý' : order.status === 'DELIVERED' ? 'Đã Giao' : (order.status || 'Chưa rõ')}
                     </span>
                   </td>
                   <td className="px-6 py-4 text-right">

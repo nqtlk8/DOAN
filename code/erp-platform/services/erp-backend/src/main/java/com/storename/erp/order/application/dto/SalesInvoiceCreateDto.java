@@ -7,6 +7,7 @@ import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
@@ -25,4 +26,6 @@ public class SalesInvoiceCreateDto {
     @NotEmpty(message = "Invoice lines cannot be empty")
     @Valid
     private List<SalesInvoiceLineDto> lines;
+
+    private BigDecimal advancePayment;
 }

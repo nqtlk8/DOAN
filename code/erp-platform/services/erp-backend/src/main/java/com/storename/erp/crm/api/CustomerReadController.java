@@ -24,9 +24,11 @@ public class CustomerReadController {
     public ApiResponse<List<CustomerResponseDto>> getCustomers(@RequestParam(required = false) String search) {
         log.info("REST request to get customers, search: {}", search);
         
+        Long branchId = com.storename.erp.common.security.AuthUtils.getBranchIdOrNull();
         List<Customer> all = customerRepository.findAll();
         List<CustomerResponseDto> result = all.stream()
                 .filter(c -> !c.isDeleted()) // Filter out soft-deleted
+                .filter(c -> branchId == null || branchId.equals(c.getBranchId())) // Tenant isolation
                 .filter(c -> {
                     if (search == null || search.trim().isEmpty()) return true;
                     String lowerSearch = search.toLowerCase();

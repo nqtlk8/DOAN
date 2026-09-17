@@ -28,6 +28,9 @@ public class ReceivableDebtServiceTest {
     @Mock
     private CustomerRepository customerRepository;
 
+    @Mock
+    private com.storename.erp.crm.infrastructure.ReceivableDebtMovementRepository movementRepository;
+
     @InjectMocks
     private ReceivableDebtService receivableDebtService;
 
@@ -49,50 +52,59 @@ public class ReceivableDebtServiceTest {
         when(customerRepository.findById(customerId)).thenReturn(Optional.of(mockCustomer));
         when(debtRepository.save(any(ReceivableDebt.class))).thenAnswer(i -> i.getArgument(0));
 
-        ReceivableDebt result = receivableDebtService.increaseDebt(customerId, branchId, amount);
+        ReceivableDebt result = receivableDebtService.increaseDebt(customerId, branchId, amount,
+                com.storename.erp.crm.domain.ReceivableDebtMovementType.INVOICE, "TEST", "TEST", UUID.randomUUID(), "test");
 
         assertNotNull(result);
         assertEquals(0, amount.compareTo(result.getTotalDebt()));
         verify(debtRepository).save(any(ReceivableDebt.class));
+        verify(movementRepository).save(any());
     }
 
     @Test
     void increaseDebt_ShouldIncreaseExistingDebt_WhenExists() {
         BigDecimal amount = new BigDecimal("500.0");
         ReceivableDebt existingDebt = new ReceivableDebt();
+        existingDebt.setCustomer(mockCustomer);
         existingDebt.setTotalDebt(new BigDecimal("1000.0"));
         
         when(debtRepository.findByCustomerIdAndBranchId(customerId, branchId)).thenReturn(Optional.of(existingDebt));
         when(debtRepository.save(any(ReceivableDebt.class))).thenAnswer(i -> i.getArgument(0));
 
-        ReceivableDebt result = receivableDebtService.increaseDebt(customerId, branchId, amount);
+        ReceivableDebt result = receivableDebtService.increaseDebt(customerId, branchId, amount,
+                com.storename.erp.crm.domain.ReceivableDebtMovementType.INVOICE, "TEST", "TEST", UUID.randomUUID(), "test");
 
         assertNotNull(result);
         assertEquals(0, new BigDecimal("1500.0").compareTo(result.getTotalDebt()));
         verify(customerRepository, never()).findById(any());
         verify(debtRepository).save(existingDebt);
+        verify(movementRepository).save(any());
     }
 
     @Test
     void decreaseDebt_ShouldDecrease_WhenExists() {
         BigDecimal amount = new BigDecimal("200.0");
         ReceivableDebt existingDebt = new ReceivableDebt();
+        existingDebt.setCustomer(mockCustomer);
         existingDebt.setTotalDebt(new BigDecimal("1000.0"));
         
         when(debtRepository.findByCustomerIdAndBranchId(customerId, branchId)).thenReturn(Optional.of(existingDebt));
         when(debtRepository.save(any(ReceivableDebt.class))).thenAnswer(i -> i.getArgument(0));
 
-        ReceivableDebt result = receivableDebtService.decreaseDebt(customerId, branchId, amount);
+        ReceivableDebt result = receivableDebtService.decreaseDebt(customerId, branchId, amount,
+                com.storename.erp.crm.domain.ReceivableDebtMovementType.PAYMENT, "TEST", "TEST", UUID.randomUUID(), "test");
 
         assertNotNull(result);
         assertEquals(0, new BigDecimal("800.0").compareTo(result.getTotalDebt()));
+        verify(movementRepository).save(any());
     }
 
     @Test
     void decreaseDebt_ShouldThrowException_WhenNotExists() {
         when(debtRepository.findByCustomerIdAndBranchId(customerId, branchId)).thenReturn(Optional.empty());
 
-        assertThrows(RuntimeException.class, () -> receivableDebtService.decreaseDebt(customerId, branchId, new BigDecimal("100.0")));
+        assertThrows(RuntimeException.class, () -> receivableDebtService.decreaseDebt(customerId, branchId, new BigDecimal("100.0"),
+                com.storename.erp.crm.domain.ReceivableDebtMovementType.PAYMENT, "TEST", "TEST", UUID.randomUUID(), "test"));
     }
 
     @Test
@@ -113,5 +125,27 @@ public class ReceivableDebtServiceTest {
         BigDecimal result = receivableDebtService.getCurrentDebt(customerId, branchId);
 
         assertEquals(0, new BigDecimal("1234.5").compareTo(result));
+    }
+
+    @Test
+    void setOpeningBalance_ShouldThrowException_WhenMovementsExist() {
+        when(movementRepository.existsByCustomerIdAndBranchId(customerId, branchId)).thenReturn(true);
+        assertThrows(RuntimeException.class, () -> receivableDebtService.setOpeningBalance(customerId, branchId, new BigDecimal("100"), UUID.randomUUID(), "Note"));
+    }
+
+    @Test
+    void setOpeningBalance_ShouldSetBalance_WhenNoMovementsExist() {
+        BigDecimal amount = new BigDecimal("1000.0");
+        when(movementRepository.existsByCustomerIdAndBranchId(customerId, branchId)).thenReturn(false);
+        when(debtRepository.findByCustomerIdAndBranchId(customerId, branchId)).thenReturn(Optional.empty());
+        when(customerRepository.findById(customerId)).thenReturn(Optional.of(mockCustomer));
+        when(debtRepository.save(any(ReceivableDebt.class))).thenAnswer(i -> i.getArgument(0));
+
+        ReceivableDebt result = receivableDebtService.setOpeningBalance(customerId, branchId, amount, UUID.randomUUID(), "Initial Balance");
+
+        assertNotNull(result);
+        assertEquals(0, amount.compareTo(result.getTotalDebt()));
+        verify(movementRepository).save(any());
+        verify(debtRepository).save(any(ReceivableDebt.class));
     }
 }

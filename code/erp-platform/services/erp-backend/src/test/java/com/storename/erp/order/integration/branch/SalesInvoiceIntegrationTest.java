@@ -59,8 +59,12 @@ public class SalesInvoiceIntegrationTest {
     @Autowired
     private com.storename.erp.crm.infrastructure.ReceivableDebtRepository debtRepo;
 
+    @Autowired
+    private com.storename.erp.crm.infrastructure.ReceivableDebtMovementRepository movementRepo;
+
     @BeforeEach
     void setUp() {
+        movementRepo.deleteAll();
         debtRepo.deleteAll();
         customerRepo.deleteAll();
         stockRepo.deleteAll();
@@ -101,7 +105,8 @@ public class SalesInvoiceIntegrationTest {
         assertEquals(0, confirmed.getRemainingDebt().compareTo(new BigDecimal("2000")));
 
         // Modify debt outside of invoice
-        debtService.increaseDebt(customer.getId(), branchId, new BigDecimal("5000"));
+        debtService.increaseDebt(customer.getId(), branchId, new BigDecimal("5000"),
+                com.storename.erp.crm.domain.ReceivableDebtMovementType.ADJUSTMENT, "TEST", "TEST", UUID.randomUUID(), "test");
 
         // Refetch invoice
         SalesInvoice refetched = invoiceRepo.findById(confirmed.getId()).orElseThrow();

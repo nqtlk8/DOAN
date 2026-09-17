@@ -36,6 +36,7 @@ public class CustomerWriteService {
         customer.setEmail(dto.getEmail());
         customer.setAddress(dto.getAddress());
         customer.setTaxCode(dto.getTaxCode());
+        if (dto.getBranchId() != null) customer.setBranchId(dto.getBranchId());
         
         Customer saved = customerRepository.save(customer);
         return CustomerResponseDto.fromEntity(saved);
@@ -52,6 +53,7 @@ public class CustomerWriteService {
         if (dto.getEmail() != null) customer.setEmail(dto.getEmail());
         if (dto.getAddress() != null) customer.setAddress(dto.getAddress());
         if (dto.getTaxCode() != null) customer.setTaxCode(dto.getTaxCode());
+        if (dto.getBranchId() != null) customer.setBranchId(dto.getBranchId());
 
         Customer saved = customerRepository.save(customer);
         return CustomerResponseDto.fromEntity(saved);

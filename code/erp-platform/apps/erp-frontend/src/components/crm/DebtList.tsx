@@ -1,19 +1,34 @@
 import React, { useState } from 'react';
-import { Search } from 'lucide-react';
+import { Search, Eye } from 'lucide-react';
 import { ApiService } from '../../api/ApiService';
 import { useQuery } from '@tanstack/react-query';
 import { DataState } from '../../shared/components/DataState/DataState';
+import type { components } from '@erp/api-contract';
+import { useTabs } from '../../context/TabContext';
+import { DebtStatement } from './DebtStatement';
 
 export const DebtList: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
+  const { openTab } = useTabs();
 
-  const { data: response, isLoading: loading, isError, error, refetch } = useQuery({
+  const { data: response, isLoading: loading, isError, error, refetch } = useQuery<components['schemas']['ReceivableDebtResponseDto'][]>({
     queryKey: ['debts'],
     queryFn: () => ApiService.Debt.getAll(),
   });
 
-  const items: any[] = response || [];
-  const filtered = items.filter((c) => c.partnerName?.toLowerCase().includes(searchTerm.toLowerCase()));
+  const items = response || [];
+  const filtered = items.filter((c) => c.customerName?.toLowerCase().includes(searchTerm.toLowerCase()));
+
+  const handleViewStatement = (debt: components['schemas']['ReceivableDebtResponseDto']) => {
+    if (debt.customerId && debt.customerName) {
+      openTab(
+        `debt-${debt.customerId}`,
+        `SAO KÊ: ${debt.customerName.substring(0, 10).toUpperCase()}...`,
+        <DebtStatement customerId={debt.customerId} customerName={debt.customerName} />,
+        true
+      );
+    }
+  };
 
   return (
     <div className="p-6">
@@ -38,14 +53,15 @@ export const DebtList: React.FC = () => {
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-slate-50 border-b border-slate-100">
-              <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-slate-500">Mã Đối Tác</th>
+              <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-slate-500">MÃ Đối Tác</th>
               <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-slate-500">Tên Đối Tác</th>
               <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-slate-500">Dư Nợ</th>
+              <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-slate-500 text-right">Thao Tác</th>
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td colSpan={3} className="p-0">
+              <td colSpan={4} className="p-0">
                 <DataState
                   isLoading={loading}
                   isError={isError}
@@ -66,10 +82,25 @@ export const DebtList: React.FC = () => {
             </tr>
             {!loading && !isError && filtered.length > 0 && (
               filtered.map((c, i) => (
-                <tr key={i} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
-                  <td className="px-4 py-1.5 text-sm text-slate-900">{c.partnerCode || '-'}</td>
-                  <td className="px-4 py-1.5 text-sm text-slate-900 font-medium">{c.partnerName}</td>
-                  <td className="px-4 py-1.5 text-sm text-slate-900">{c.debtAmount || 0}</td>
+                <tr 
+                  key={i} 
+                  className="border-b border-slate-50 hover:bg-slate-50 transition-colors cursor-pointer group"
+                  onDoubleClick={() => handleViewStatement(c)}
+                >
+                  <td className="px-4 py-2 text-sm text-slate-900">{c.customerCode || '-'}</td>
+                  <td className="px-4 py-2 text-sm text-slate-900 font-medium">{c.customerName}</td>
+                  <td className="px-4 py-2 text-sm text-slate-900">
+                    {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(c.totalDebt || 0)}
+                  </td>
+                  <td className="px-4 py-2 text-right">
+                    <button
+                      onClick={() => handleViewStatement(c)}
+                      className="inline-flex items-center gap-1 px-2 py-1 text-sm text-teal-600 hover:text-teal-700 hover:bg-teal-50 rounded transition-colors opacity-0 group-hover:opacity-100"
+                      title="Xem sao kê"
+                    >
+                      <Eye size={16} /> Sao kê
+                    </button>
+                  </td>
                 </tr>
               ))
             )}

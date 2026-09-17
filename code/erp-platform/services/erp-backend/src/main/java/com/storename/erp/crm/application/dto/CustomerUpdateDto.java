@@ -1,6 +1,5 @@
 package com.storename.erp.crm.application.dto;
 
-
 import lombok.Data;
 
 @Data
@@ -10,4 +9,5 @@ public class CustomerUpdateDto {
     private String email;
     private String address;
     private String taxCode;
+    private Long branchId;
 }

@@ -228,7 +228,7 @@ export const Dashboard: React.FC = () => {
                     <Tooltip content={<CustomTooltip />} />
                     <Legend wrapperStyle={{ paddingTop: '20px' }} />
                     <Bar yAxisId="left" dataKey="revenue" name="Doanh thu" radius={[6, 6, 0, 0]}>
-                      {metrics.topSellingProducts?.map((entry, index) => (
+                      {metrics.topSellingProducts?.map((entry: any, index: number) => (
                         <Cell key={`cell-${index}`} fill={['#10b981', '#3b82f6', '#6366f1', '#8b5cf6', '#ec4899'][index % 5]} />
                       ))}
                     </Bar>
@@ -246,7 +246,7 @@ export const Dashboard: React.FC = () => {
               </div>
               <div className="overflow-y-auto pr-2 flex-grow custom-scrollbar">
                 <div className="space-y-4">
-                  {metrics.topSellingProducts?.map((product, i) => (
+                  {metrics.topSellingProducts?.map((product: any, i: number) => (
                     <div key={i} className="flex items-center p-3 hover:bg-slate-50 rounded-xl transition-colors border border-transparent hover:border-slate-100">
                       <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-sm mr-4 shrink-0">
                         #{i + 1}

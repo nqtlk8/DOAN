@@ -11,14 +11,27 @@ const axiosInstance = axios.create({
   },
 });
 
+const idempotencyCache = new Map<string, { key: string, timestamp: number }>();
+
 axiosInstance.interceptors.request.use(
   (config: any) => {
     // Add Idempotency-Key
     if (config.method === 'post' || config.method === 'put') {
-      config.headers['Idempotency-Key'] =
-        (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function')
+      const payloadStr = config.data ? JSON.stringify(config.data) : '';
+      const cacheKey = `${config.method}:${config.url}:${payloadStr}`;
+      const now = Date.now();
+      let idKey = idempotencyCache.get(cacheKey);
+      
+      // Cache key for 5 seconds to prevent double click
+      if (!idKey || (now - idKey.timestamp > 5000)) {
+        const newKey = (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function')
           ? crypto.randomUUID()
           : `${Date.now().toString(36)}-${Math.random().toString(36).substring(2)}`;
+        idKey = { key: newKey, timestamp: now };
+        idempotencyCache.set(cacheKey, idKey);
+      }
+      
+      config.headers['Idempotency-Key'] = idKey.key;
     }
 
     // Add token

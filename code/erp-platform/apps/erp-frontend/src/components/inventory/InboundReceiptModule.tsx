@@ -52,7 +52,7 @@ export const InboundReceiptModule: React.FC<{ mode?: 'ADD' | 'VIEW' | 'EDIT' }> 
   };
 
   const addItem = (product: Product) => {
-    setItems(prev => [...prev, { productId: String(product.id), productName: product.name, quantity: 1, unitPrice: product.basePrice || 0, unit: product.baseUnit }]);
+    setItems(prev => [...prev, { productId: String(product.id), productName: product.name, quantity: 1, unitPrice: product.price || 0, unit: product.baseUnit || '' }]);
     setShowProductSearch(false);
   };
 
@@ -162,7 +162,7 @@ export const InboundReceiptModule: React.FC<{ mode?: 'ADD' | 'VIEW' | 'EDIT' }> 
         isOpen={showProductSearch}
         title="Chọn Sản phẩm"
         fetchData={async (q) => products.filter(p => p.name.toLowerCase().includes(q.toLowerCase()))}
-        renderItem={(p) => <div className="font-medium text-slate-800">{p.name} - {p.basePrice?.toLocaleString()} đ</div>}
+        renderItem={(p) => <div className="font-medium text-slate-800">{p.name} - {p.price?.toLocaleString()} đ</div>}
         onSelect={addItem}
         onClose={() => setShowProductSearch(false)}
       />

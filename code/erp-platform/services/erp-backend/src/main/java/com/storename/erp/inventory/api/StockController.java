@@ -18,19 +18,13 @@ import java.util.List;
 @RequiredArgsConstructor
 @Slf4j
 public class StockController {
-    
-    private final StockOnHandRepository stockRepo;
-
-
+    private final com.storename.erp.inventory.application.StockService stockService;
 
     @GetMapping
     @PreAuthorize("hasAnyAuthority('STAFF', 'ADMIN')")
-    public ApiResponse<List<StockOnHand>> getStock() {
+    public ApiResponse<List<com.storename.erp.inventory.application.dto.StockOnHandResponseDto>> getStock() {
         Long branchId = com.storename.erp.common.security.AuthUtils.getBranchIdOrNull();
-        if (branchId == null) {
-            return ApiResponse.success(stockRepo.findAll());
-        }
-        return ApiResponse.success(stockRepo.findByBranchId(branchId));
+        return ApiResponse.success(stockService.getStockByBranch(branchId));
     }
 }
 

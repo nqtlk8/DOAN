@@ -1,5 +1,6 @@
 import axios from 'axios';
 import axiosInstance from './axiosInstance';
+import type { components } from '@erp/api-contract';
 
 export const ApiService = {
   Auth: {
@@ -9,17 +10,17 @@ export const ApiService = {
       axios.post('/api/v1/auth/revoke', { refreshToken }).then(res => res.data),
   },
   SalesInvoice: {
-    getAll: () => axiosInstance.get('/api/v1/sales-invoices').then((res: any) => res.data.data),
-    getById: (id: string) => axiosInstance.get('/api/v1/sales-invoices/' + id).then((res: any) => res.data.data),
-    create: (payload: any) =>
+    getAll: (): Promise<components['schemas']['SalesInvoiceResponseDto'][]> => axiosInstance.get('/api/v1/sales-invoices').then((res: any) => res.data.data),
+    getById: (id: string): Promise<components['schemas']['SalesInvoiceResponseDto']> => axiosInstance.get('/api/v1/sales-invoices/' + id).then((res: any) => res.data.data),
+    create: (payload: components['schemas']['SalesInvoiceCreateDto']): Promise<components['schemas']['SalesInvoiceCreateResponseDto']> =>
       axiosInstance.post('/api/v1/sales-invoices', payload).then((res: any) => res.data.data),
-    confirm: (id: string) =>
+    confirm: (id: string): Promise<components['schemas']['SalesInvoiceCreateResponseDto']> =>
       axiosInstance.post('/api/v1/sales-invoices/' + id + '/confirm').then((res: any) => res.data.data),
   },
   InboundReceipt: {
-    getAll: () => axiosInstance.get('/api/v1/inventory/inbound').then((res: any) => res.data.data),
-    getById: (id: string) => axiosInstance.get('/api/v1/inventory/inbound/' + id).then((res: any) => res.data.data),
-    create: (payload: any) =>
+    getAll: (): Promise<components['schemas']['InboundReceiptResponseDto'][]> => axiosInstance.get('/api/v1/inventory/inbound').then((res: any) => res.data.data),
+    getById: (id: string): Promise<components['schemas']['InboundReceiptResponseDto']> => axiosInstance.get('/api/v1/inventory/inbound/' + id).then((res: any) => res.data.data),
+    create: (payload: components['schemas']['InboundReceiptCreateDto']): Promise<components['schemas']['InboundReceiptCreateResponseDto']> =>
       axiosInstance.post('/api/v1/inventory/inbound', payload).then((res: any) => res.data.data),
     confirm: (id: string) =>
       axiosInstance.post('/api/v1/inventory/inbound/' + id + '/confirm').then((res: any) => res.data.data),
@@ -89,9 +90,11 @@ export const ApiService = {
     getStockMovements: (productId: string) => axiosInstance.get(`/api/v1/stock-movements?productId=${productId}`).then((res: any) => res.data.data),
   },
   Stock: {
-    getAll: () => axiosInstance.get('/api/v1/inventory/stock').then((res: any) => res.data.data),
+    getAll: (): Promise<components['schemas']['StockOnHandResponseDto'][]> => axiosInstance.get('/api/v1/inventory/stock').then((res: any) => res.data.data),
   },
   Debt: {
-    getAll: () => axiosInstance.get('/api/v1/receivable-debts').then((res: any) => res.data.data),
+    getAll: (): Promise<components['schemas']['ReceivableDebtResponseDto'][]> => axiosInstance.get('/api/v1/receivable-debts').then((res: any) => res.data.data),
+    getMovements: (customerId: string): Promise<components['schemas']['ReceivableDebtMovementResponseDto'][]> => axiosInstance.get('/api/v1/receivable-debts/' + customerId + '/movements').then((res: any) => res.data.data),
+    getBalance: (customerId: string): Promise<number> => axiosInstance.get('/api/v1/receivable-debts/' + customerId + '/balance').then((res: any) => res.data.data),
   }
 };

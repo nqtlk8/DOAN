@@ -40,11 +40,12 @@ public class InboundReceiptController {
     @PostMapping
     @PreAuthorize("hasAuthority('STAFF')")
     @ResponseStatus(HttpStatus.CREATED)
+    @com.storename.erp.common.aop.IdempotencyProtected
     @Operation(summary = "Tạo phiếu nhập kho (DRAFT)")
-    public ApiResponse<UUID> createDraft(@Valid @RequestBody InboundReceiptCreateDto dto) {
+    public ApiResponse<com.storename.erp.inventory.api.dto.InboundReceiptCreateResponseDto> createDraft(@Valid @RequestBody InboundReceiptCreateDto dto) {
         Long branchId = com.storename.erp.common.security.AuthUtils.getBranchIdOrNull();
         UUID receiptId = inboundService.createDraft(branchId, dto);
-        return new ApiResponse<>(true, receiptId, "Inbound receipt draft created successfully", null);
+        return new ApiResponse<>(true, new com.storename.erp.inventory.api.dto.InboundReceiptCreateResponseDto(receiptId), "Inbound receipt draft created successfully", null);
     }
 
     @PostMapping("/{id}/confirm")

@@ -53,7 +53,7 @@ export function useInboundReceipt(initialData: any = null, initialMode: 'VIEW' |
       try {
         if (mode === 'ADD') {
           const response = await ApiService.InboundReceipt.create(payload);
-          setReceiptId(response.id);
+          setReceiptId(response.id || null);
           onSuccess(response);
         } else {
           // Update logic (if implemented)

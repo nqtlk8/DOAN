@@ -119,7 +119,9 @@ public class GoodsReturnService {
         }
 
         if (goodsReturn.getCustomer() != null) {
-            debtService.decreaseDebt(goodsReturn.getCustomer().getId(), branchId, goodsReturn.getTotalAmount());
+            debtService.decreaseDebt(goodsReturn.getCustomer().getId(), branchId, goodsReturn.getTotalAmount(),
+                    com.storename.erp.crm.domain.ReceivableDebtMovementType.RETURN,
+                    "GOODS_RETURN", goodsReturn.getId().toString(), userId, "Khách trả hàng " + goodsReturn.getReturnCode());
             log.info("Decreased debt for customer {} by {} due to goods return", goodsReturn.getCustomer().getId(), goodsReturn.getTotalAmount());
         }
 

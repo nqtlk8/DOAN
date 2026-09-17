@@ -14,10 +14,14 @@ public final class AuthUtils {
             throw new AccessDeniedException("Branch information is missing in security context");
         }
         JwtAuthDetails details = (JwtAuthDetails) auth.getDetails();
-        if (details.getBranchId() == null || details.getBranchId().isBlank()) {
-            throw new AccessDeniedException("Branch ID is missing in security token");
+        if (details.getBranchId() == null || details.getBranchId().isBlank() || "HQ".equalsIgnoreCase(details.getBranchId())) {
+            throw new AccessDeniedException("Branch ID is missing or invalid in security token");
         }
-        return Long.parseLong(details.getBranchId());
+        try {
+            return Long.parseLong(details.getBranchId());
+        } catch (NumberFormatException e) {
+            throw new AccessDeniedException("Invalid branch ID format");
+        }
     }
 
     public static Long getBranchIdOrNull() {
@@ -26,6 +30,13 @@ public final class AuthUtils {
             return null;
         }
         JwtAuthDetails details = (JwtAuthDetails) auth.getDetails();
-        return details.getBranchId() != null && !details.getBranchId().isBlank() ? Long.parseLong(details.getBranchId()) : null;
+        if (details.getBranchId() == null || details.getBranchId().isBlank() || "HQ".equalsIgnoreCase(details.getBranchId())) {
+            return null;
+        }
+        try {
+            return Long.parseLong(details.getBranchId());
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 }

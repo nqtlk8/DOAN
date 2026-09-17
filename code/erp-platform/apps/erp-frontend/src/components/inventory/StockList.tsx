@@ -3,16 +3,17 @@ import { Search } from 'lucide-react';
 import { ApiService } from '../../api/ApiService';
 import { useQuery } from '@tanstack/react-query';
 import { DataState } from '../../shared/components/DataState/DataState';
+import type { components } from '@erp/api-contract';
 
 export const StockList: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
 
-  const { data: response, isLoading: loading, isError, error, refetch } = useQuery({
+  const { data: response, isLoading: loading, isError, error, refetch } = useQuery<components['schemas']['StockOnHandResponseDto'][]>({
     queryKey: ['stocks'],
     queryFn: () => ApiService.Stock.getAll(),
   });
 
-  const items: any[] = response || [];
+  const items = response || [];
   const filtered = items.filter((c) => c.productName?.toLowerCase().includes(searchTerm.toLowerCase()));
 
   return (
@@ -71,7 +72,7 @@ export const StockList: React.FC = () => {
                   <td className="px-4 py-1.5 text-sm text-slate-900">{c.productCode || '-'}</td>
                   <td className="px-4 py-1.5 text-sm text-slate-900 font-medium">{c.productName}</td>
                   <td className="px-4 py-1.5 text-sm text-slate-900">{c.quantity || 0}</td>
-                  <td className="px-4 py-1.5 text-sm text-slate-900">{c.warehouse || '-'}</td>
+                  <td className="px-4 py-1.5 text-sm text-slate-900">{c.branchName || '-'}</td>
                 </tr>
               ))
             )}
