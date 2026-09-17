@@ -33,6 +33,8 @@ public class SalesInvoiceServiceTest {
     private ReceivableDebtService debtService;
     @Mock
     private InventoryFacade inventoryFacade;
+    @Mock
+    private com.storename.erp.crm.api.CrmFacade crmFacade;
 
     @InjectMocks
     private SalesInvoiceService salesInvoiceService;
@@ -132,7 +134,7 @@ public class SalesInvoiceServiceTest {
         when(invoiceRepository.findById(invoiceId)).thenReturn(Optional.of(invoice));
         
         InventoryFacade.SaleCostResult mockResult = new InventoryFacade.SaleCostResult(new BigDecimal("80.0"), "FIFO");
-        when(inventoryFacade.recordSaleAndGetCost(eq(1L), eq(branchId), eq(new BigDecimal("2.0")), eq(invoiceId.toString()), eq(line.getId()), isNull()))
+        when(inventoryFacade.recordSaleAndGetCost(eq(1L), eq(branchId), eq(new BigDecimal("2.0")), eq(invoiceId.toString()), eq(line.getId()), eq(userId)))
                 .thenReturn(mockResult);
                 
         when(debtService.getCurrentDebt(customerId, branchId)).thenReturn(new BigDecimal("500.0"));
@@ -181,8 +183,9 @@ public class SalesInvoiceServiceTest {
         });
 
         InventoryFacade.SaleCostResult mockResult = new InventoryFacade.SaleCostResult(new BigDecimal("80.0"), "FIFO");
-        when(inventoryFacade.recordSaleAndGetCost(eq(1L), eq(branchId), eq(new BigDecimal("2.0")), anyString(), any(), isNull()))
+        when(inventoryFacade.recordSaleAndGetCost(eq(1L), eq(branchId), eq(new BigDecimal("2.0")), anyString(), any(), eq(userId)))
                 .thenReturn(mockResult);
+        when(crmFacade.customerExists(customerId)).thenReturn(true);
         when(debtService.getCurrentDebt(customerId, branchId)).thenReturn(new BigDecimal("500.0"));
 
         SalesInvoice result = salesInvoiceService.createAndConfirm(dto, branchId, userId);
@@ -193,10 +196,23 @@ public class SalesInvoiceServiceTest {
         assertEquals(0, new BigDecimal("500.0").compareTo(result.getPreviousDebt()));
         assertEquals(0, new BigDecimal("700.0").compareTo(result.getRemainingDebt()));
 
-        verify(debtService).increaseDebt(eq(customerId), eq(branchId), eq(new BigDecimal("200.0")), any(), anyString(), anyString(), any(), anyString());
+        verify(debtService).increaseDebt(eq(customerId), eq(branchId), eq(new BigDecimal("200.00")), any(), anyString(), anyString(), any(), anyString());
         // Persisted exactly twice: once to obtain ids, once with the confirmed state.
         // No intermediate DRAFT row is ever visible outside this transaction.
         verify(invoiceRepository, org.mockito.Mockito.times(2)).save(any(SalesInvoice.class));
+    }
+
+    @Test
+    void createAndConfirm_ShouldThrowResourceNotFoundException_WhenCustomerDoesNotExist() {
+        UUID userId = UUID.randomUUID();
+        SalesInvoiceCreateDto dto = new SalesInvoiceCreateDto();
+        dto.setCustomerId(customerId);
+        when(crmFacade.customerExists(customerId)).thenReturn(false);
+
+        assertThrows(com.storename.erp.common.exception.ResourceNotFoundException.class, 
+            () -> salesInvoiceService.createAndConfirm(dto, branchId, userId));
+            
+        verify(inventoryFacade, never()).recordSaleAndGetCost(any(), any(), any(), any(), any(), any());
     }
 
     @Test

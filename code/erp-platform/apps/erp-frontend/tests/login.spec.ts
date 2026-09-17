@@ -12,26 +12,27 @@ const mockAdminResponse = {
       fullName: "Admin User",
       email: "admin@erp.com"
     },
-    accessToken: "mock-access-token",
+    accessToken: "header.eyJzdWIiOiAiMTIzZTQ1NjctZTg5Yi0xMmQzLWE0NTYtNDI2NjE0MTc0MDAwIiwgInJvbGUiOiAiQURNSU4ifQ.signature",
     refreshToken: "mock-refresh-token"
   }
 };
 
-const mockStaffResponse = {
+const mockStaffResponse = (origin: string) => ({
   success: true,
   data: {
     role: "STAFF",
     user: {
       id: "staff-123",
       username: "staff_tp1",
-      role: "STAFF", // frontend uses 'sales'
+      role: "STAFF",
       fullName: "Staff User",
       email: "staff@erp.com"
     },
-    accessToken: "mock-access-token",
-    refreshToken: "mock-refresh-token"
+    accessToken: "header.eyJzdWIiOiAiMTIzZTQ1NjctZTg5Yi0xMmQzLWE0NTYtNDI2NjE0MTc0MDAwIiwgInJvbGUiOiAiQURNSU4ifQ.signature",
+    refreshToken: "mock-refresh-token",
+    branchUrl: origin
   }
-};
+});
 
 test.describe('Login flow', () => {
 
@@ -61,7 +62,7 @@ test.describe('Login flow', () => {
       const user = await page.evaluate(() => localStorage.getItem('user'));
       expect(user).toBeTruthy();
       const parsedUser = JSON.parse(user as string);
-      expect(parsedUser.role).toBe('admin');
+      expect(parsedUser.role).toBe('ADMIN');
     }).toPass();
 
     await expect(page.getByTestId('login-form')).not.toBeVisible();
@@ -69,10 +70,11 @@ test.describe('Login flow', () => {
 
   test('TC-LOGIN-02: Đăng nhập STAFF thành công', async ({ page }) => {
     await page.route('**/api/v1/auth/login', async route => {
+      const url = new URL(page.url());
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify(mockStaffResponse)
+        body: JSON.stringify(mockStaffResponse(url.origin))
       });
     });
 
@@ -85,7 +87,7 @@ test.describe('Login flow', () => {
       const user = await page.evaluate(() => localStorage.getItem('user'));
       expect(user).toBeTruthy();
       const parsedUser = JSON.parse(user as string);
-      expect(parsedUser.role).toBe('sales');
+      expect(parsedUser.role).toBe('STAFF');
     }).toPass();
 
     await expect(page.getByTestId('login-form')).not.toBeVisible();

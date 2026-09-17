@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Trash2, Save, X, Printer, Edit2, FilePlus, LogOut } from 'lucide-react';
+import { Trash2, Save, X, Printer, Edit2, FilePlus, LogOut, Check } from 'lucide-react';
 
 export type SubViewType = 'FORM' | 'LIST';
 export type FormMode = 'VIEW' | 'ADD' | 'EDIT';
@@ -14,6 +14,7 @@ export interface MdiModuleLayoutProps {
   onSave?: () => void;
   onCancel?: () => void;
   onDelete?: () => void;
+  onConfirm?: () => void;
   onPrint?: () => void;
   onExit?: () => void;
   isLoading?: boolean;
@@ -29,6 +30,7 @@ export const MdiModuleLayout: React.FC<MdiModuleLayoutProps> = ({
   onSave,
   onCancel,
   onDelete,
+  onConfirm,
   onPrint,
   onExit,
   isLoading = false,
@@ -61,6 +63,10 @@ export const MdiModuleLayout: React.FC<MdiModuleLayoutProps> = ({
           e.preventDefault();
           if (isView && onDelete) onDelete();
           break;
+        case 'F9':
+          e.preventDefault();
+          if (isView && onConfirm) onConfirm();
+          break;
         case 'F7':
           e.preventDefault();
           if (isView && onPrint) onPrint();
@@ -74,7 +80,7 @@ export const MdiModuleLayout: React.FC<MdiModuleLayoutProps> = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [activeSubView, isView, onAdd, onEdit, onSave, onCancel, onDelete, onPrint, onExit]);
+  }, [activeSubView, isView, onAdd, onEdit, onSave, onCancel, onDelete, onConfirm, onPrint, onExit]);
 
   return (
     <div className="flex h-full bg-erp-bg-content min-h-0">
@@ -148,6 +154,17 @@ export const MdiModuleLayout: React.FC<MdiModuleLayoutProps> = ({
                     <span>Xóa</span>
                     <span className="text-slate-500 ml-1 text-erp-label">(F8)</span>
                   </button>
+                  {onConfirm && (
+                    <button
+                      onClick={onConfirm}
+                      data-testid="btn-confirm"
+                      className="h-[24px] inline-flex items-center gap-1 px-2 bg-erp-btn-bg border border-erp-btn-border hover:bg-erp-btn-hover-bg rounded-erp text-erp-base transition-none shrink-0"
+                    >
+                      <Check size={14} className="text-green-600" />
+                      <span>Xác nhận</span>
+                      <span className="text-slate-500 ml-1 text-erp-label">(F9)</span>
+                    </button>
+                  )}
                 </>
               )}
               {!isView && (

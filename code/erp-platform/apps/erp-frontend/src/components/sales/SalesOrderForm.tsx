@@ -1,4 +1,4 @@
-import { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
+import { useState, useEffect, useMemo, forwardRef, useImperativeHandle } from 'react';
 import { Plus, Trash2, X, Printer } from 'lucide-react';
 import { ApiService } from '../../api/ApiService';
 import { PrintInvoice } from '../common/PrintInvoice';
@@ -32,8 +32,33 @@ export interface SalesOrderFormRef {
   handleExit: () => void;
 }
 
+/**
+ * Chuẩn hoá dữ liệu đầu vào của form.
+ * Khi xem lại đơn, SalesModule truyền SalesInvoiceResponseDto (invoiceCode, lines, previousDebt...)
+ * trong khi form đọc dạng cũ (orderCode, products[{id,name,qty,price}]) -> map về dạng cũ (BUG-7).
+ */
+const normalizeInitialData = (data: any) => {
+  if (!data || !Array.isArray(data.lines)) return data;
+  return {
+    ...data,
+    orderCode: data.invoiceCode,
+    customer: data.customerName,
+    createdDate: data.createdAt ? String(data.createdAt).slice(0, 10) : undefined,
+    oldDebt: Number(data.previousDebt ?? 0),
+    advancePayment: Number(data.advancePayment ?? 0),
+    products: data.lines.map((l: any) => ({
+      id: l.productId,
+      name: l.productName,
+      qty: Number(l.quantity),
+      price: Number(l.unitPrice),
+      unitOfMeasure: l.unitOfMeasure,
+    })),
+  };
+};
+
 export const SalesOrderForm = forwardRef<SalesOrderFormRef, SalesOrderFormProps>(
-  ({ mode: initialMode = 'VIEW', initialData, onStateChange }, ref) => {
+  ({ mode: initialMode = 'VIEW', initialData: rawInitialData, onStateChange }, ref) => {
+    const initialData = useMemo(() => normalizeInitialData(rawInitialData), [rawInitialData]);
     const { user } = useAuth();
     const { closeTab, activeTabId } = useTabs();
 
@@ -63,14 +88,15 @@ export const SalesOrderForm = forwardRef<SalesOrderFormRef, SalesOrderFormProps>
     const [items, setItems] = useState<OrderItem[]>(
       initialData?.products?.map((p: any) => ({
         id: Date.now().toString() + Math.random(),
-        productId: p.id,
+        productId: p.id != null ? String(p.id) : '',
         productName: p.name,
         quantity: p.qty,
         unitPrice: p.price,
+        unitOfMeasure: p.unitOfMeasure,
       })) || [],
     );
 
-    const [advancePayment, setAdvancePayment] = useState<number>(0);
+    const [advancePayment, setAdvancePayment] = useState<number>(initialData?.advancePayment || 0);
     const [oldDebt, setOldDebt] = useState<number>(initialData?.oldDebt || 0);
     const [discount, setDiscount] = useState<number>(0);
     const [tax, setTax] = useState<number>(0);
@@ -101,6 +127,13 @@ export const SalesOrderForm = forwardRef<SalesOrderFormRef, SalesOrderFormProps>
     const handleAdd = () => {
       // Reset state for new order
       setMode('ADD');
+      // Bỏ liên kết với đơn đang xem trước đó
+      setCurrentInvoiceId(null);
+      setInvoiceStatus('DRAFT');
+      setNote('');
+      setAdvancePayment(0);
+      setOldDebt(0);
+      setFieldErrors({});
       setOrderCode('AUTO-GENERATE');
       setCustomerCode('');
       setCustomerId('');
@@ -200,8 +233,8 @@ export const SalesOrderForm = forwardRef<SalesOrderFormRef, SalesOrderFormProps>
             productId: Number(i.productId),
             productName: i.productName,
             quantity: i.quantity,
-            unitPrice: i.unitPrice,
-            unitOfMeasure: 'CAI',
+            unitPrice: Number(i.unitPrice) || 0,
+            unitOfMeasure: i.unitOfMeasure || 'CAI',
           })),
         };
 
@@ -349,7 +382,8 @@ export const SalesOrderForm = forwardRef<SalesOrderFormRef, SalesOrderFormProps>
               onSelect={(product) => {
                 updateItem(itemId, 'productId', String(product.id));
                 updateItem(itemId, 'productName', product.name);
-                updateItem(itemId, 'unitPrice', product.price);
+                updateItem(itemId, 'unitPrice', Number(product.price ?? 0));
+                updateItem(itemId, 'unitOfMeasure', product.baseUnit || 'CAI');
               }}
             />
           )}

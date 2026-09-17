@@ -1,5 +1,8 @@
 instance:
-  role: ALL
+  # HQ chi quan ly master data + cap JWT. Controller giao dich (sales-invoices,
+  # goods-returns, inventory/inbound) chi bat o BRANCH -> HQ tra 404 neu bi goi nham.
+  # (Profile 'local' van dung ALL cho dev 1 process.)
+  role: HQ
 
 spring:
   datasource:

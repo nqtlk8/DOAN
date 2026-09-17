@@ -27,7 +27,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Value("${instance.role:HQ}")
     private String instanceRole;
 
-    @Value("${branch-id:}")
+    // Id SO cua branch (khop claim branchId trong JWT = branch.id), lay tu env BRANCH_ID
+    // (relaxed binding cua key "branch-id") hoac instance.branch-id.
+    @Value("${branch-id:${instance.branch-id:}}")
     private String configuredBranchId;
 
     public JwtAuthenticationFilter(JwtTokenProvider tokenProvider, ObjectMapper objectMapper) {

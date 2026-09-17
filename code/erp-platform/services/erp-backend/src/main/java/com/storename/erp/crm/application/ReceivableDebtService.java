@@ -122,7 +122,7 @@ public class ReceivableDebtService {
 
     private ReceivableDebt createDebtRecord(UUID customerId, Long branchId) {
         Customer customer = customerRepository.findById(customerId)
-                .orElseThrow(() -> new RuntimeException("Customer not found"));
+                .orElseThrow(() -> new com.storename.erp.common.exception.ResourceNotFoundException("Khách hàng chưa có tại chi nhánh (chưa đồng bộ từ HQ): " + customerId));
         ReceivableDebt debt = new ReceivableDebt();
         debt.setCustomer(customer);
         debt.setBranchId(branchId);

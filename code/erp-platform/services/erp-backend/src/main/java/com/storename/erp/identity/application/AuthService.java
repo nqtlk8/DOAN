@@ -78,8 +78,10 @@ public class AuthService {
         String accessTokenId = UUID.randomUUID().toString();
         String refreshTokenId = UUID.randomUUID().toString();
 
-        String accessToken = tokenProvider.generateToken(user.getId().toString(), roleCode, branchIdStr, accessTokenId);
-        String refreshToken = tokenProvider.generateRefreshToken(user.getId().toString(), roleCode, branchIdStr, refreshTokenId);
+        // JWT subject = publicId (UUID), khong dung id BIGINT (xem BUG-1).
+        String subject = user.getPublicId().toString();
+        String accessToken = tokenProvider.generateToken(subject, roleCode, branchIdStr, accessTokenId);
+        String refreshToken = tokenProvider.generateRefreshToken(subject, roleCode, branchIdStr, refreshTokenId);
 
         log.info("Login successful for user: {}", username);
         return new AuthResponse(accessToken, refreshToken, roleCode, branchUrl);
@@ -103,6 +105,14 @@ public class AuthService {
         }
 
         String username = claims.getSubject();
+        // Refresh token phat hanh truoc V19 co subject la id so -> tu choi (401) de buoc
+        // dang nhap lai va nhan subject UUID moi (BUG-1).
+        try {
+            UUID.fromString(username);
+        } catch (IllegalArgumentException | NullPointerException e) {
+            log.warn("Rejecting legacy refresh token with non-UUID subject");
+            throw new io.jsonwebtoken.JwtException("Legacy token format. Please log in again.");
+        }
         String role = claims.get("role", String.class);
         String branchId = claims.get("branchId", String.class);
         

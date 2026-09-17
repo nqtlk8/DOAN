@@ -28,7 +28,8 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ApiResponse<Void>> handleIllegalArgumentException(IllegalArgumentException ex) {
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+        // Loi du lieu dau vao -> 400. Truoc day tra 401 khien frontend tuong het phien (BUG-6).
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ApiResponse.error(ex.getMessage(), java.util.List.of("INVALID_ARGUMENT")));
     }
 
@@ -48,6 +49,12 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleNoResourceFoundException(org.springframework.web.servlet.resource.NoResourceFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(ApiResponse.error("Resource not found", java.util.List.of("NOT_FOUND")));
+    }
+
+    @ExceptionHandler(com.storename.erp.common.exception.ResourceNotFoundException.class)
+    public ResponseEntity<ApiResponse<Void>> handleResourceNotFoundException(com.storename.erp.common.exception.ResourceNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ApiResponse.error(ex.getMessage(), java.util.List.of("NOT_FOUND")));
     }
 
     @ExceptionHandler(SecurityException.class)

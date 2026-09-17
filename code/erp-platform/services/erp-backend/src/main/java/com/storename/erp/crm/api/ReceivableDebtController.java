@@ -57,15 +57,7 @@ public class ReceivableDebtController {
             throw new SecurityException("Branch ID is required to set opening balance");
         }
         
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        java.util.UUID userId = null;
-        if (authentication != null && authentication.getName() != null) {
-            try {
-                userId = java.util.UUID.fromString(authentication.getName());
-            } catch (Exception e) {
-                log.warn("Could not parse userId from auth name", e);
-            }
-        }
+        java.util.UUID userId = com.storename.erp.common.security.AuthUtils.getUserId();
         
         ReceivableDebt debt = debtService.setOpeningBalance(
                 request.getCustomerId(), branchId, request.getAmount(), userId, request.getNote());

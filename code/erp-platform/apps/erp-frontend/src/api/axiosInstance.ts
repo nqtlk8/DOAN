@@ -133,6 +133,23 @@ axiosInstance.interceptors.response.use(
     // GET requests should be handled by ErrorState in the component (Phase 3)
     const method = originalRequest?.method?.toLowerCase();
     const skipToast = (originalRequest as any)?.skipGlobalErrorToast === true;
+
+    if (error.response?.status === 403 && normalizedError.message.startsWith('User identity is missing')) {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        localStorage.removeItem('user');
+        localStorage.removeItem('branch_url');
+        
+        notify.error('Phiên đăng nhập cũ không còn hợp lệ, vui lòng đăng nhập lại');
+        
+        setTimeout(() => {
+          window.location.href = '/';
+        }, 1500);
+      }
+      return Promise.reject(new ApiError(normalizedError));
+    }
+
     if (method && method !== 'get' && !skipToast) {
       notify.error(normalizedError.message);
     }

@@ -3,6 +3,7 @@ package com.storename.erp.identity.domain;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.OffsetDateTime;
+import java.util.UUID;
 
 @Entity
 @Table(name = "user_account")
@@ -15,6 +16,14 @@ public class UserAccount {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    /**
+     * Dinh danh cong khai (UUID) cua user, dung lam JWT subject va gia tri cho cac cot
+     * audit kieu UUID (created_by, confirmed_by...). Khong dung id BIGINT noi bo ra ngoai.
+     */
+    @Builder.Default
+    @Column(name = "public_id", nullable = false, unique = true, updatable = false)
+    private UUID publicId = UUID.randomUUID();
 
     @Column(nullable = false, unique = true, length = 100)
     private String username;
@@ -43,6 +52,9 @@ public class UserAccount {
 
     @PrePersist
     protected void onCreate() {
+        if (publicId == null) {
+            publicId = UUID.randomUUID();
+        }
         createdAt = OffsetDateTime.now();
         updatedAt = OffsetDateTime.now();
     }

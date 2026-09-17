@@ -41,7 +41,7 @@ export const ApiService = {
       axiosInstance.put('/api/v1/catalog/products/' + id, payload).then((res: any) => res.data.data),
     deleteProduct: (id: string) => axiosInstance.delete('/api/v1/catalog/products/' + id).then((res: any) => res.data.data),
     searchProducts: (query: string): Promise<components['schemas']['ProductResponseDto'][]> =>
-      axiosInstance.get('/api/v1/catalog/products?search=' + encodeURIComponent(query)).then((res: any) => res.data.data),
+      axiosInstance.get('/api/v1/catalog/products?withBranchPrice=true&search=' + encodeURIComponent(query)).then((res: any) => res.data.data),
 
     getCustomers: (): Promise<components['schemas']['CustomerResponseDto'][]> => 
       axiosInstance.get('/api/v1/customers').then((res: any) => res.data.data),

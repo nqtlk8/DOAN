@@ -84,7 +84,7 @@ public class SalesInvoiceService {
     private void applyConfirmationEffects(SalesInvoice invoice, Long branchId, UUID userId) {
         for (SalesInvoiceLine line : invoice.getLines()) {
             InventoryFacade.SaleCostResult result = inventoryFacade.recordSaleAndGetCost(
-                    line.getProductId(), branchId, line.getQuantity(), invoice.getId().toString(), line.getId(), null);
+                    line.getProductId(), branchId, line.getQuantity(), invoice.getId().toString(), line.getId(), userId);
 
             line.setUnitCost(result.unitCostSnapshot());
             line.setCostBasis(result.costBasis());
@@ -133,6 +133,9 @@ public class SalesInvoiceService {
     )
     @Transactional
     public SalesInvoice createAndConfirm(SalesInvoiceCreateDto dto, Long branchId, UUID userId) {
+        if (!crmFacade.customerExists(dto.getCustomerId())) {
+            throw new com.storename.erp.common.exception.ResourceNotFoundException("Khách hàng chưa có tại chi nhánh (chưa đồng bộ từ HQ): " + dto.getCustomerId());
+        }
         SalesInvoice invoice = invoiceRepository.save(buildInvoice(dto, branchId));
 
         applyConfirmationEffects(invoice, branchId, userId);

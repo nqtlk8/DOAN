@@ -29,8 +29,7 @@ public class SalesInvoiceController {
 
 
     private UUID getUserId() {
-        org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
-        return UUID.fromString(auth.getName());
+        return com.storename.erp.common.security.AuthUtils.getUserId();
     }
 
     @PostMapping

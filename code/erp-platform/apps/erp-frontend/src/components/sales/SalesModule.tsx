@@ -53,11 +53,19 @@ export const SalesModule: React.FC<SalesModuleProps> = ({
       onSave={() => formRef.current?.handleSubmit()}
       onCancel={() => formRef.current?.handleCancel()}
       onDelete={() => formRef.current?.handleDelete()}
+      onConfirm={() => formRef.current?.handleConfirm()}
       onPrint={() => formRef.current?.handlePrint()}
       onExit={() => formRef.current?.handleExit()}
     >
       {activeSubView === 'FORM' ? (
-        <SalesOrderForm ref={formRef} mode={currentMode} initialData={formData} onStateChange={handleStateChange} />
+        <SalesOrderForm
+          // key: remount khi mở đơn khác để form đọc lại initialData (useState chỉ đọc lần đầu)
+          key={formData?.id ?? 'new'}
+          ref={formRef}
+          mode={currentMode}
+          initialData={formData}
+          onStateChange={handleStateChange}
+        />
       ) : (
         <div className="p-4 h-full">
           <SalesList setActiveTab={() => {}} onRowDoubleClick={handleRowDoubleClick} />

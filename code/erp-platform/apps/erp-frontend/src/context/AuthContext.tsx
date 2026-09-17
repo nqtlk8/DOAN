@@ -28,19 +28,55 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
-    if (storedUser) {
+    const accessToken = localStorage.getItem('access_token');
+    if (storedUser && accessToken) {
       try {
         const parsed = JSON.parse(storedUser);
-        if (parsed && (parsed.role === 'ADMIN' || parsed.role === 'STAFF')) {
+        let validSession = false;
+
+        // Check valid UUID in token (Bug F)
+        const base64Url = accessToken.split('.')[1];
+        if (base64Url) {
+          const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+          const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+              return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+          }).join(''));
+          const payload = JSON.parse(jsonPayload);
+          const isValidUuid = payload?.sub?.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+          if (isValidUuid && (parsed.role === 'ADMIN' || parsed.role === 'STAFF')) {
+             validSession = true;
+          }
+        }
+        
+        // Check branch_url for STAFF
+        const enforceBranchUrl = import.meta.env.VITE_ENFORCE_BRANCH_URL !== 'false';
+        const branchUrl = localStorage.getItem('branch_url');
+        if (parsed.role === 'STAFF' && enforceBranchUrl && branchUrl) {
+           const expected = new URL(branchUrl).origin;
+           if (expected !== window.location.origin) {
+             validSession = false;
+           }
+        }
+
+        if (validSession) {
           setUser(parsed);
         } else {
           localStorage.removeItem('user');
           localStorage.removeItem('access_token');
           localStorage.removeItem('refresh_token');
+          localStorage.removeItem('branch_url');
         }
       } catch(e) {
         localStorage.removeItem('user');
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        localStorage.removeItem('branch_url');
       }
+    } else {
+       localStorage.removeItem('user');
+       localStorage.removeItem('access_token');
+       localStorage.removeItem('refresh_token');
+       localStorage.removeItem('branch_url');
     }
   }, []);
 
@@ -55,19 +91,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
 
         if (parsedRole === 'STAFF') {
+          const enforceBranchUrl = import.meta.env.VITE_ENFORCE_BRANCH_URL !== 'false';
           const branchUrl = authData.branchUrl;
-          // DISABLED FOR LOCAL TESTING
-          // if (branchUrl && !window.location.href.startsWith(branchUrl)) {
-          //   console.warn(`[AuthContext] Branch URL mismatch. Expected: ${branchUrl}, Current: ${window.location.href}`);
-          //   return { success: false, message: 'Sai địa chỉ chi nhánh. Vui lòng đăng nhập đúng đường dẫn của chi nhánh bạn.' };
-          // }
+          if (enforceBranchUrl && branchUrl) {
+            const expected = new URL(branchUrl).origin;
+            if (expected !== window.location.origin) {
+              return { success: false, message: `Tài khoản nhân viên chi nhánh phải đăng nhập tại ${expected}` };
+            }
+          }
         }
 
         const newUser = { username, role: parsedRole };
         setUser(newUser);
         localStorage.setItem('user', JSON.stringify(newUser));
         localStorage.setItem('access_token', authData.accessToken);
-        localStorage.setItem('refresh_token', authData.refreshToken); // Add refresh token
+        localStorage.setItem('refresh_token', authData.refreshToken);
+        if (authData.branchUrl) {
+          localStorage.setItem('branch_url', authData.branchUrl);
+        }
 
         return { success: true };
       } else {
@@ -86,6 +127,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem('user');
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
+    localStorage.removeItem('branch_url');
     try {
       if (refreshToken) {
         await ApiService.Auth.revoke(refreshToken);

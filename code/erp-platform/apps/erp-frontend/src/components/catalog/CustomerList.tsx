@@ -13,8 +13,15 @@ export const CustomerList: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [confirmState, setConfirmState] = useState({ isOpen: false, id: '' });
 
-  const [formData, setFormData] = useState<Partial<Customer>>({});
+  const [formData, setFormData] = useState<Partial<Customer & { branchId?: number }>>({});
   const [isEditing, setIsEditing] = useState(false);
+  const [branches, setBranches] = useState<any[]>([]);
+
+  React.useEffect(() => {
+    import('../../api/ApiService').then(({ ApiService }) => {
+      ApiService.Branch.getAll().then(setBranches).catch(console.error);
+    });
+  }, []);
 
   const {
     customers,
@@ -53,7 +60,8 @@ export const CustomerList: React.FC = () => {
       phone: formData.phone,
       email: formData.email,
       address: formData.address,
-      taxCode: formData.taxCode
+      taxCode: formData.taxCode,
+      branchId: formData.branchId ? Number(formData.branchId) : undefined
     };
 
     if (isEditing && formData.id) {
@@ -233,6 +241,21 @@ export const CustomerList: React.FC = () => {
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-slate-900 disabled:bg-slate-100 disabled:text-slate-500"
                 />
               </div>
+              {isAdmin && (
+                <div>
+                  <label className="block text-xs font-medium text-slate-500 mb-1">Chi nhánh</label>
+                  <select
+                    value={formData.branchId || ''}
+                    onChange={(e) => setFormData({ ...formData, branchId: e.target.value ? Number(e.target.value) : undefined })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-slate-900"
+                  >
+                    <option value="">Dùng chung (Tất cả chi nhánh)</option>
+                    {branches.map((b) => (
+                      <option key={b.id} value={b.id}>{b.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
             <div className="flex justify-end gap-3 p-4 border-t border-slate-100 bg-slate-50 rounded-b-xl">
               <button

@@ -7,6 +7,8 @@ export interface OrderItem {
   productName: string;
   quantity: number;
   unitPrice: number;
+  /** Đơn vị tính (lấy từ baseUnit của sản phẩm). */
+  unitOfMeasure?: string;
 }
 
 export type FormMode = 'VIEW' | 'ADD' | 'EDIT';

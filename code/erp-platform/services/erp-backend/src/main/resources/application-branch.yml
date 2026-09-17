@@ -1,5 +1,6 @@
 instance:
   role: BRANCH
+  # Phai la id SO cua bang branch (khop claim branchId trong JWT), vd. 1, 2.
   branch-id: ${BRANCH_ID:HCM01}
 
 spring:

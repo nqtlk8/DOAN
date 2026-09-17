@@ -33,8 +33,7 @@ public class InboundReceiptController {
 
 
     private UUID getUserId() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        return UUID.fromString(auth.getName());
+        return com.storename.erp.common.security.AuthUtils.getUserId();
     }
 
     @PostMapping

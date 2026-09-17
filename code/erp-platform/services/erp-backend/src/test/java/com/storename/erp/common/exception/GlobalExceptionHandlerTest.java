@@ -67,8 +67,22 @@ class GlobalExceptionHandlerTest {
                 .andExpect(jsonPath("$.message").value("Malformed JSON request"));
     }
 
+    @Test
+    void shouldReturn400_ForIllegalArgumentException() throws Exception {
+        // BUG-6: truoc day tra 401 khien frontend tuong het phien dang nhap
+        mockMvc.perform(get("/test/illegal-argument"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.message").value("Bad input"));
+    }
+
     @RestController
     static class TestController {
+        @GetMapping("/test/illegal-argument")
+        public void throwIllegalArgument() {
+            throw new IllegalArgumentException("Bad input");
+        }
+
         @GetMapping("/test/exception")
         public void throwException() {
             throw new RuntimeException("Test exception");
