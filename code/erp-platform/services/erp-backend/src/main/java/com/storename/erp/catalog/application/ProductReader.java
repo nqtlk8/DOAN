@@ -49,8 +49,26 @@ public class ProductReader {
         log.info("Fetching all products with branch price");
         Long branchId = getCurrentBranchId();
         
-        return productRepository.findAll().stream()
-                .map(product -> mapToResponseWithPrice(product, branchId))
+        List<Product> products = productRepository.findAll();
+        
+        // Batch fetch prices to avoid N+1
+        java.util.Map<Long, java.math.BigDecimal> priceMap = new java.util.HashMap<>();
+        if (branchId != null && !products.isEmpty()) {
+            List<Long> productIds = products.stream().map(Product::getId).collect(Collectors.toList());
+            List<PriceList> prices = priceListRepository.findByBranchIdAndProductIdIn(branchId, productIds);
+            priceMap = prices.stream().collect(Collectors.toMap(p -> p.getProduct().getId(), PriceList::getPrice));
+        }
+        
+        final java.util.Map<Long, java.math.BigDecimal> finalPriceMap = priceMap;
+        
+        return products.stream()
+                .map(product -> {
+                    ProductResponseDto dto = mapToResponse(product);
+                    if (finalPriceMap.containsKey(product.getId())) {
+                        dto.setPrice(finalPriceMap.get(product.getId()));
+                    }
+                    return dto;
+                })
                 .collect(Collectors.toList());
     }
 

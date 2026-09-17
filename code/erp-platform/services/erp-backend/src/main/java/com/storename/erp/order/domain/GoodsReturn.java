@@ -21,9 +21,8 @@ public class GoodsReturn extends BaseEntity {
     @Column(name = "branch_id", nullable = false)
     private Long branchId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "customer_id", nullable = false)
-    private Customer customer;
+    @Column(name = "customer_id", nullable = false)
+    private UUID customerId;
 
     @Column(name = "return_code", nullable = false, unique = true)
     private String returnCode;

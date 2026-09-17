@@ -11,4 +11,7 @@ import java.util.Optional;
 public interface ProductRepository extends JpaRepository<Product, Long> {
     Optional<Product> findByCode(String code);
     long countByCategory(Category category);
+    
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"category"})
+    java.util.List<Product> findAll();
 }

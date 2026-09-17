@@ -60,16 +60,16 @@ public class GoodsReturnController {
 
     @GetMapping
     @PreAuthorize("hasAnyAuthority('STAFF', 'ADMIN')")
-    public ApiResponse<java.util.List<com.storename.erp.order.domain.GoodsReturn>> getReturns() {
+    public ApiResponse<java.util.List<com.storename.erp.order.api.dto.GoodsReturnResponseDto>> getReturns() {
         Long branchId = com.storename.erp.common.security.AuthUtils.getBranchIdOrNull();
         return ApiResponse.success(returnService.getReturnsByBranch(branchId));
     }
 
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('STAFF', 'ADMIN')")
-    public ApiResponse<com.storename.erp.order.domain.GoodsReturn> getReturn(@PathVariable UUID id) {
+    public ApiResponse<com.storename.erp.order.api.dto.GoodsReturnResponseDto> getReturn(@PathVariable UUID id) {
         Long branchId = com.storename.erp.common.security.AuthUtils.getBranchIdOrNull();
-        return ApiResponse.success(returnService.getReturn(id, branchId));
+        return ApiResponse.success(returnService.getReturnDto(id, branchId));
     }
 }
 

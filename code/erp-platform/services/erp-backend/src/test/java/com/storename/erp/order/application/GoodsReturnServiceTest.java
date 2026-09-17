@@ -36,7 +36,7 @@ public class GoodsReturnServiceTest {
     @Mock
     private GoodsReturnRepository returnRepository;
     @Mock
-    private CustomerRepository customerRepository;
+    private com.storename.erp.crm.api.CrmFacade crmFacade;
     @Mock
     private ReceivableDebtService debtService;
     @Mock
@@ -68,7 +68,7 @@ public class GoodsReturnServiceTest {
         line.setUnitOfMeasure("Cai");
         dto.setLines(List.of(line));
 
-        when(customerRepository.findById(customerId)).thenReturn(Optional.of(mockCustomer));
+        when(crmFacade.customerExists(customerId)).thenReturn(true);
         when(returnRepository.save(any(GoodsReturn.class))).thenAnswer(i -> {
             GoodsReturn gr = i.getArgument(0);
             org.springframework.test.util.ReflectionTestUtils.setField(gr, "id", UUID.randomUUID());
@@ -93,7 +93,7 @@ public class GoodsReturnServiceTest {
         GoodsReturn goodsReturn = new GoodsReturn();
         org.springframework.test.util.ReflectionTestUtils.setField(goodsReturn, "id", returnId);
         goodsReturn.setBranchId(branchId);
-        goodsReturn.setCustomer(mockCustomer);
+        goodsReturn.setCustomerId(customerId);
         goodsReturn.setInvoiceId(invoiceId);
         
         GoodsReturnLine line = new GoodsReturnLine();

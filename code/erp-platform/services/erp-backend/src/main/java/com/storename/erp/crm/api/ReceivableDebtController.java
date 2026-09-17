@@ -1,10 +1,13 @@
 package com.storename.erp.crm.api;
 
 import lombok.extern.slf4j.Slf4j;
+import com.storename.erp.branch.api.BranchFacade;
+import com.storename.erp.order.api.OrderFacade;
 import com.storename.erp.common.api.ApiResponse;
 import com.storename.erp.crm.domain.ReceivableDebt;
 import com.storename.erp.crm.domain.ReceivableDebtMovement;
 import com.storename.erp.crm.infrastructure.ReceivableDebtRepository;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -12,18 +15,19 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/receivable-debts")
 @RequiredArgsConstructor
+@Tag(name = "Receivable Debt", description = "Quản lý công nợ khách hàng")
 @Slf4j
 public class ReceivableDebtController {
 
     private final ReceivableDebtRepository debtRepository;
     private final com.storename.erp.crm.application.ReceivableDebtService debtService;
-    private final com.storename.erp.branch.infrastructure.BranchRepository branchRepository;
-    private final com.storename.erp.order.infrastructure.SalesInvoiceRepository invoiceRepository;
-    private final com.storename.erp.order.infrastructure.GoodsReturnRepository returnRepository;
+    private final BranchFacade branchFacade;
+    private final OrderFacade orderFacade;
 
     @GetMapping
     @PreAuthorize("hasAnyAuthority('STAFF', 'ADMIN')")
@@ -77,23 +81,55 @@ public class ReceivableDebtController {
         Long branchId = com.storename.erp.common.security.AuthUtils.getBranchIdOrNull();
 
         List<ReceivableDebtMovement> movements = debtService.getMovements(customerId, branchId);
+        
+        // --- N+1 Cleanup (Batch Fetching) ---
+        // 1. Collect all distinct IDs
+        java.util.Set<Long> branchIds = movements.stream()
+                .map(ReceivableDebtMovement::getBranchId)
+                .filter(java.util.Objects::nonNull)
+                .collect(java.util.stream.Collectors.toSet());
+                
+        java.util.Set<java.util.UUID> invoiceIds = new java.util.HashSet<>();
+        java.util.Set<java.util.UUID> returnIds = new java.util.HashSet<>();
+        
+        for (ReceivableDebtMovement m : movements) {
+            if (m.getRefId() != null && !m.getRefId().equals("INIT")) {
+                try {
+                    java.util.UUID refUuid = java.util.UUID.fromString(m.getRefId());
+                    if ("SALES_INVOICE".equals(m.getRefType()) || "SALES_INVOICE_ADVANCE".equals(m.getRefType())) {
+                        invoiceIds.add(refUuid);
+                    } else if ("GOODS_RETURN".equals(m.getRefType())) {
+                        returnIds.add(refUuid);
+                    }
+                } catch (Exception e) {
+                    // ignore invalid UUID
+                }
+            }
+        }
+        
+        // 2. Batch fetch and map
+        java.util.Map<Long, String> branchNameMap = branchFacade.getBranchNames(branchIds);
+                
+        java.util.Map<java.util.UUID, String> invoiceCodeMap = orderFacade.getInvoiceCodes(invoiceIds);
+                
+        java.util.Map<java.util.UUID, String> returnCodeMap = orderFacade.getReturnCodes(returnIds);
+        
+        // 3. Construct response
         List<com.storename.erp.crm.application.dto.ReceivableDebtMovementResponseDto> response = movements.stream()
                 .map(m -> {
                     var dto = com.storename.erp.crm.application.dto.ReceivableDebtMovementResponseDto.fromEntity(m);
                     if (m.getBranchId() != null) {
-                        branchRepository.findById(m.getBranchId()).ifPresent(b -> dto.setBranchName(b.getName()));
+                        dto.setBranchName(branchNameMap.get(m.getBranchId()));
                     }
                     if (m.getRefId() != null && !m.getRefId().equals("INIT")) {
                         try {
                             java.util.UUID refUuid = java.util.UUID.fromString(m.getRefId());
                             if ("SALES_INVOICE".equals(m.getRefType()) || "SALES_INVOICE_ADVANCE".equals(m.getRefType())) {
-                                invoiceRepository.findById(refUuid).ifPresent(inv -> dto.setReferenceCode(inv.getInvoiceCode()));
+                                dto.setReferenceCode(invoiceCodeMap.get(refUuid));
                             } else if ("GOODS_RETURN".equals(m.getRefType())) {
-                                returnRepository.findById(refUuid).ifPresent(ret -> dto.setReferenceCode(ret.getReturnCode()));
+                                dto.setReferenceCode(returnCodeMap.get(refUuid));
                             }
-                        } catch (Exception e) {
-                            // Invalid UUID string
-                        }
+                        } catch (Exception e) {}
                     }
                     return dto;
                 })

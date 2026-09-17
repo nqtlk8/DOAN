@@ -11,4 +11,5 @@ import java.util.Optional;
 public interface PriceListRepository extends JpaRepository<PriceList, Long> {
     List<PriceList> findByProductId(Long productId);
     Optional<PriceList> findByProductIdAndBranchId(Long productId, Long branchId);
+    List<PriceList> findByBranchIdAndProductIdIn(Long branchId, java.util.Collection<Long> productIds);
 }

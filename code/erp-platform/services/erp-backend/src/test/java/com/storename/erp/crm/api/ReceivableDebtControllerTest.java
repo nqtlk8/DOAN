@@ -40,13 +40,10 @@ public class ReceivableDebtControllerTest {
     private JwtAuthenticationFilter jwtAuthenticationFilter;
 
     @MockBean
-    private com.storename.erp.branch.infrastructure.BranchRepository branchRepository;
+    private com.storename.erp.branch.api.BranchFacade branchFacade;
 
     @MockBean
-    private com.storename.erp.order.infrastructure.SalesInvoiceRepository invoiceRepository;
-
-    @MockBean
-    private com.storename.erp.order.infrastructure.GoodsReturnRepository returnRepository;
+    private com.storename.erp.order.api.OrderFacade orderFacade;
 
     @BeforeEach
     void setUpFilter() throws Exception {

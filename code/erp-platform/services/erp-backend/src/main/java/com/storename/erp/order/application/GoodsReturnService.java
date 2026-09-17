@@ -1,8 +1,7 @@
 package com.storename.erp.order.application;
 
+import com.storename.erp.crm.api.CrmFacade;
 import com.storename.erp.crm.application.ReceivableDebtService;
-import com.storename.erp.crm.domain.Customer;
-import com.storename.erp.crm.infrastructure.CustomerRepository;
 import com.storename.erp.inventory.api.InventoryFacade;
 import com.storename.erp.order.application.dto.GoodsReturnCreateDto;
 import com.storename.erp.order.domain.GoodsReturn;
@@ -25,10 +24,10 @@ import java.util.UUID;
 public class GoodsReturnService {
 
     private final GoodsReturnRepository returnRepository;
-    private final CustomerRepository customerRepository;
     private final ReceivableDebtService debtService;
     private final SalesInvoiceRepository invoiceRepository;
     private final InventoryFacade inventoryFacade;
+    private final CrmFacade crmFacade;
 
     /**
      * Tạo phiếu trả hàng nhập.
@@ -36,18 +35,19 @@ public class GoodsReturnService {
     @Transactional
     public UUID createDraft(Long branchId, GoodsReturnCreateDto dto) {
         String code = dto.getReturnCode(); 
-        if (code == null || code.trim().isEmpty()) { 
+        if (dto.getReturnCode() == null || dto.getReturnCode().trim().isEmpty()) { 
             code = "TH" + UUID.randomUUID().toString().substring(0, 8).toUpperCase(); 
         } else if (returnRepository.existsByReturnCode(code)) {
             throw new IllegalArgumentException("Return code already exists");
         }
 
-        Customer customer = customerRepository.findById(dto.getCustomerId())
-                .orElseThrow(() -> new IllegalArgumentException("Customer not found"));
+        if (!crmFacade.customerExists(dto.getCustomerId())) {
+            throw new IllegalArgumentException("Customer not found");
+        }
 
         GoodsReturn goodsReturn = new GoodsReturn();
         goodsReturn.setBranchId(branchId);
-        goodsReturn.setCustomer(customer);
+        goodsReturn.setCustomerId(dto.getCustomerId());
         goodsReturn.setReturnCode(code);
         goodsReturn.setInvoiceId(dto.getInvoiceId());
         goodsReturn.setReason(dto.getReason());
@@ -95,7 +95,7 @@ public class GoodsReturnService {
             com.storename.erp.order.domain.SalesInvoice invoice = invoiceRepository.findById(goodsReturn.getInvoiceId())
                     .orElseThrow(() -> new IllegalArgumentException("Original invoice not found"));
             
-            if (!invoice.getBranchId().equals(branchId) || !invoice.getCustomerId().equals(goodsReturn.getCustomer().getId())) {
+            if (!invoice.getBranchId().equals(branchId) || !invoice.getCustomerId().equals(goodsReturn.getCustomerId())) {
                 throw new IllegalArgumentException("Invoice does not belong to this branch or customer");
             }
             if (invoice.getStatus() != com.storename.erp.order.domain.SalesInvoiceStatus.CONFIRMED) {
@@ -118,11 +118,11 @@ public class GoodsReturnService {
             }
         }
 
-        if (goodsReturn.getCustomer() != null) {
-            debtService.decreaseDebt(goodsReturn.getCustomer().getId(), branchId, goodsReturn.getTotalAmount(),
+        if (goodsReturn.getCustomerId() != null) {
+            debtService.decreaseDebt(goodsReturn.getCustomerId(), branchId, goodsReturn.getTotalAmount(),
                     com.storename.erp.crm.domain.ReceivableDebtMovementType.RETURN,
                     "GOODS_RETURN", goodsReturn.getId().toString(), userId, "Khách trả hàng " + goodsReturn.getReturnCode());
-            log.info("Decreased debt for customer {} by {} due to goods return", goodsReturn.getCustomer().getId(), goodsReturn.getTotalAmount());
+            log.info("Decreased debt for customer {} by {} due to goods return", goodsReturn.getCustomerId(), goodsReturn.getTotalAmount());
         }
 
         returnRepository.save(goodsReturn);
@@ -130,17 +130,36 @@ public class GoodsReturnService {
     }
 
     @Transactional(readOnly = true)
-    public java.util.List<com.storename.erp.order.domain.GoodsReturn> getReturnsByBranch(Long branchId) {
-        return returnRepository.findByBranchId(branchId);
+    public java.util.List<com.storename.erp.order.api.dto.GoodsReturnResponseDto> getReturnsByBranch(Long branchId) {
+        java.util.List<com.storename.erp.order.domain.GoodsReturn> returns = returnRepository.findByBranchId(branchId);
+        
+        // Optimize N+1 for Customer
+        java.util.List<java.util.UUID> customerIds = returns.stream()
+                .map(com.storename.erp.order.domain.GoodsReturn::getCustomerId)
+                .filter(java.util.Objects::nonNull)
+                .distinct()
+                .collect(java.util.stream.Collectors.toList());
+                
+        java.util.Map<java.util.UUID, String> customerNameMap = crmFacade.getCustomerNames(customerIds);
+
+        return returns.stream()
+                .map(r -> com.storename.erp.order.api.dto.GoodsReturnResponseDto.fromEntity(r, customerNameMap.get(r.getCustomerId())))
+                .collect(java.util.stream.Collectors.toList());
     }
 
     @Transactional(readOnly = true)
-    public com.storename.erp.order.domain.GoodsReturn getReturn(java.util.UUID id, Long branchId) {
+    public com.storename.erp.order.api.dto.GoodsReturnResponseDto getReturnDto(java.util.UUID id, Long branchId) {
         com.storename.erp.order.domain.GoodsReturn goodsReturn = returnRepository.findById(id).orElseThrow(() -> new RuntimeException("Return not found"));
-        if (!goodsReturn.getBranchId().equals(branchId)) {
+        if (branchId != null && !goodsReturn.getBranchId().equals(branchId)) {
             throw new RuntimeException("Unauthorized");
         }
-        return goodsReturn;
+        String customerName = null;
+        if (goodsReturn.getCustomerId() != null) {
+            customerName = crmFacade.getCustomerNames(java.util.List.of(goodsReturn.getCustomerId()))
+                    .get(goodsReturn.getCustomerId());
+        }
+                
+        return com.storename.erp.order.api.dto.GoodsReturnResponseDto.fromEntity(goodsReturn, customerName);
     }
 }
 

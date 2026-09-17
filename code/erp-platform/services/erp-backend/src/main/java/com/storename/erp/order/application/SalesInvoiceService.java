@@ -1,21 +1,24 @@
 package com.storename.erp.order.application;
 
+import com.storename.erp.crm.api.CrmFacade;
 import com.storename.erp.crm.application.ReceivableDebtService;
+import com.storename.erp.inventory.api.InventoryFacade;
 import com.storename.erp.order.application.dto.SalesInvoiceCreateDto;
+import com.storename.erp.order.application.dto.SalesInvoiceLineDto;
 import com.storename.erp.order.domain.SalesInvoice;
 import com.storename.erp.order.domain.SalesInvoiceLine;
 import com.storename.erp.order.domain.SalesInvoiceStatus;
 import com.storename.erp.order.infrastructure.SalesInvoiceRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.UUID;
 import java.util.List;
-
-import com.storename.erp.inventory.api.InventoryFacade;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -24,7 +27,7 @@ public class SalesInvoiceService {
     private final SalesInvoiceRepository invoiceRepository;
     private final ReceivableDebtService debtService;
     private final InventoryFacade inventoryFacade;
-    private final com.storename.erp.crm.infrastructure.CustomerRepository customerRepository;
+    private final CrmFacade crmFacade;
 
     @Transactional
     public SalesInvoice createDraft(SalesInvoiceCreateDto dto, Long branchId) {
@@ -138,14 +141,18 @@ public class SalesInvoiceService {
     @Transactional(readOnly = true)
     public List<com.storename.erp.order.api.dto.SalesInvoiceResponseDto> getInvoicesDtoByBranch(Long branchId) {
         List<SalesInvoice> invoices = getInvoicesByBranch(branchId);
-        List<UUID> customerIds = invoices.stream().map(SalesInvoice::getCustomerId).distinct().toList();
-        // Since we are in order module, we shouldn't ideally use CustomerRepository directly.
-        // But for simplicity in this project (as seen in GoodsReturnService), we can inject it.
-        // Wait, GoodsReturnService has it? Let me check. I'll just query it.
-        // I will use a private method to get customer names for now.
-        return invoices.stream()
-                .map(inv -> com.storename.erp.order.api.dto.SalesInvoiceResponseDto.fromEntity(inv, getCustomerName(inv.getCustomerId())))
+        // Optimize N+1 for customer fetching
+        java.util.List<UUID> customerIds = invoices.stream()
+                .map(SalesInvoice::getCustomerId)
+                .filter(java.util.Objects::nonNull)
+                .distinct()
                 .toList();
+
+        java.util.Map<UUID, String> customerNameMap = crmFacade.getCustomerNames(customerIds);
+
+        return invoices.stream()
+                .map(inv -> com.storename.erp.order.api.dto.SalesInvoiceResponseDto.fromEntity(inv, customerNameMap.get(inv.getCustomerId())))
+                .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
@@ -155,8 +162,8 @@ public class SalesInvoiceService {
     }
 
     private String getCustomerName(UUID customerId) {
-        if (customerRepository == null) return null;
-        return customerRepository.findById(customerId).map(com.storename.erp.crm.domain.Customer::getName).orElse(null);
+        if (customerId == null) return null;
+        return crmFacade.getCustomerNames(java.util.List.of(customerId)).get(customerId);
     }
 }
 

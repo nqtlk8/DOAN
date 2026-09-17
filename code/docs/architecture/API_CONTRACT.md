@@ -1,115 +1,75 @@
-# API Contract — v5
+# API Contract - v5 (Post-Refactoring)
 
-## 1. Chuẩn response
-
-Backend dùng `ApiResponse<T>` cho phần lớn REST API:
+## 1. Chuẩn response chung
+Tất cả các REST API đều được bọc trong `ApiResponse<T>`:
 
 ```json
 {
   "success": true,
-  "data": {},
+  "data": { ... },
   "message": "...",
   "errors": null
 }
 ```
 
-Một số endpoint đặc biệt trả binary hoặc response trực tiếp theo implementation.
+**Đặc biệt lưu ý**: Controller tuyệt đối không trả về JPA Domain Entity (`SalesInvoice`, `GoodsReturn`, `Product`, ...). Mọi payload trong `data` đều đã được mapping sang class `*ResponseDto` tương ứng (ví dụ: `SalesInvoiceResponseDto`, `ReceivableDebtResponseDto`).
 
-## 2. Health và Public
+## 2. Header yêu cầu
+- `Authorization`: `Bearer <token>` (cho các endpoint bị protect).
+- `Idempotency-Key`: Chuỗi UUID định danh request. **Bắt buộc** đối với tất cả các API thay đổi dữ liệu (POST, PUT, DELETE) như `confirmInvoice`, `confirmReceipt`, `decreaseDebt`.
 
-| Method | Path | Controller | Quyền |
-|---|---|---|---|
-| GET | `/api/health` | `HealthController` | Public |
-| GET | `/api/v1/public/catalog/products` | `PublicCatalogController` | Public |
-| GET | `/api/v1/public/catalog/products/{id}` | `PublicCatalogController` | Public |
+## 3. Quản lý Quyền & Xác thực
+- **Xác thực**: JWT được tạo từ HQ (RS256 Private Key) và được verify tại các Branch (RS256 Public Key).
+- **Phân quyền Role**: Dùng `@PreAuthorize("hasAnyAuthority('ADMIN', 'STAFF')")`. Không có tiền tố `ROLE_`.
+- **Phân quyền Branch**: Backend không còn dùng `@BranchScoped`. Thay vào đó, lấy thông tin nhánh tự động từ Token bằng hàm `AuthUtils.getBranchIdOrNull()`. Nhân viên chi nhánh chỉ xem/thêm/sửa dữ liệu của chi nhánh mình.
 
-## 3. Authentication — HQ only
+## 4. Danh sách các API chính
 
+### 4.1. Authentication (HQ Only)
 | Method | Path | Controller | Instance |
 |---|---|---|---|
 | POST | `/api/v1/auth/login` | `AuthController` | HQ |
 | POST | `/api/v1/auth/refresh` | `AuthController` | HQ |
 | POST | `/api/v1/auth/revoke` | `AuthController` | HQ |
 
-`AuthController` được giới hạn bằng `@ConditionalOnProperty(instance.role=HQ)`.
-
-## 4. Branch
-
+### 4.2. Master Data (Catalog, CRM, Branch) - Tự động đồng bộ HQ -> Branch
 | Method | Path | Ghi chú |
 |---|---|---|
-| POST | `/api/v1/branches` | ADMIN; HQ-only controller |
-| GET | `/api/v1/branches` | HQ-only controller; hiện không có `@PreAuthorize` trên method |
-| GET | `/api/v1/branches/{id}` | HQ-only controller; hiện không có `@PreAuthorize` trên method |
-| PUT | `/api/v1/branches/{id}` | ADMIN |
-| DELETE | `/api/v1/branches/{id}` | ADMIN |
+| GET | `/api/v1/branches` | HQ-only controller |
+| GET/POST/PUT | `/api/v1/catalog/products` | POST/PUT bị giới hạn `HQ + ADMIN` |
+| GET/POST | `/api/v1/suppliers` | Response bọc `ApiResponse<SupplierResponseDto>` |
+| GET/POST/PUT | `/api/v1/customers` | HQ-only, ADMIN cho thao tác POST/PUT |
 
-## 5. Catalog
-
+### 4.3. Inventory (Tồn Kho & Phiếu Nhập)
 | Method | Path | Ghi chú |
 |---|---|---|
-| GET | `/api/v1/catalog/products` | ADMIN/STAFF theo annotation hiện tại |
-| GET | `/api/v1/catalog/products/{id}` | ADMIN/STAFF |
-| POST | `/api/v1/catalog/products` | HQ + ADMIN |
-| PUT | `/api/v1/catalog/products/{id}` | HQ + ADMIN |
-| DELETE | `/api/v1/catalog/products/{id}` | HQ + ADMIN (Soft-delete) |
-| GET | `/api/v1/suppliers` | ADMIN/STAFF (Response wrapped in ApiResponse) |
-| GET | `/api/v1/suppliers/{id}` | ADMIN/STAFF (Response wrapped in ApiResponse) |
-| POST | `/api/v1/suppliers` | ADMIN/STAFF (Response wrapped in ApiResponse) |
+| GET | `/api/v1/inventory/stock` | Trả về `StockOnHand` theo chi nhánh |
+| GET | `/api/v1/stock-movements` | Lịch sử sổ kho |
+| POST | `/api/v1/inventory/inbound` | Draft phiếu nhập |
+| POST | `/api/v1/inventory/inbound/{id}/confirm` | Cập nhật kho, tính CostLayer. Yêu cầu `Idempotency-Key` |
 
-## 6. CRM
-
+### 4.4. Sales (Bán Hàng) & Goods Return (Trả Hàng)
 | Method | Path | Ghi chú |
 |---|---|---|
-| POST | `/api/v1/customers` | `CustomerWriteController`; HQ-only, ADMIN |
-| PUT | `/api/v1/customers/{id}` | `CustomerWriteController`; HQ-only, ADMIN |
-| DELETE | `/api/v1/customers/{id}` | `CustomerWriteController`; HQ-only, ADMIN (Soft-delete) |
-| GET | `/api/v1/customers` | `CustomerReadController`; `hasAnyAuthority('CUSTOMER_READ', 'ADMIN', 'STAFF')` |
-| GET | `/api/v1/receivable-debts` | `@BranchScoped`; STAFF/ADMIN theo annotation |
+| POST | `/api/v1/sales-invoices` | Draft Invoice |
+| POST | `/api/v1/sales-invoices/{id}/confirm` | Xác nhận bán, xuất kho FIFO, tăng Nợ (`ReceivableDebtMovementType.SALE`). Yêu cầu `Idempotency-Key` |
+| POST | `/api/v1/goods-returns` | Draft Return |
+| POST | `/api/v1/goods-returns/{id}/confirm` | Xác nhận khách trả, nhập lại kho, giảm Nợ (`ReceivableDebtMovementType.RETURN`). Yêu cầu `Idempotency-Key` |
 
-## 7. Customer product price
-
+### 4.5. Receivable Debt (Công Nợ Khách Hàng)
 | Method | Path | Ghi chú |
 |---|---|---|
-| GET | `/api/v1/customer-prices/{customerId}/product/{productId}` | `@BranchScoped`; `STAFF`/`ADMIN` theo annotation |
+| GET | `/api/v1/receivable-debts` | DTO bao gồm `customerId`, tổng nợ. |
+| POST | `/api/v1/receivable-debts/payments` | API Khách trả tiền. Gọi Service giảm nợ (`ReceivableDebtMovementType.PAYMENT`). Yêu cầu `Idempotency-Key` |
 
-## 8. Sales Invoice
-
-| Method | Path | Ghi chú |
-|---|---|---|
-| POST | `/api/v1/sales-invoices` | Draft; `@BranchScoped`; STAFF/ADMIN theo annotation |
-| POST | `/api/v1/sales-invoices/{id}/confirm` | `@BranchScoped` + `@IdempotencyProtected` |
-| GET | `/api/v1/sales-invoices` | `@BranchScoped` |
-| GET | `/api/v1/sales-invoices/{id}` | `@BranchScoped` |
-
-## 9. Goods Return
-
-| Method | Path | Ghi chú |
-|---|---|---|
-| POST | `/api/v1/goods-returns` | Draft; `@BranchScoped` |
-| POST | `/api/v1/goods-returns/{id}/confirm` | `@BranchScoped` + `@IdempotencyProtected` |
-| GET | `/api/v1/goods-returns` | STAFF/ADMIN theo annotation |
-| GET | `/api/v1/goods-returns/{id}` | STAFF/ADMIN theo annotation |
-
-## 10. Inventory
-
-| Method | Path | Ghi chú |
-|---|---|---|
-| GET | `/api/v1/inventory/stock` | `@BranchScoped`; STAFF/ADMIN |
-| POST | `/api/v1/inventory/inbound` | Draft; `@BranchScoped` |
-| POST | `/api/v1/inventory/inbound/{id}/confirm` | `@BranchScoped` + `@IdempotencyProtected` |
-| GET | `/api/v1/inventory/inbound` | STAFF/ADMIN |
-| GET | `/api/v1/inventory/inbound/{id}` | STAFF/ADMIN |
-| GET | `/api/v1/stock-movements` | `@BranchScoped`; STAFF/ADMIN; Trả về lịch sử biến động kho |
-
-## 11. Analytics / System
-
-| Method | Path | Ghi chú |
-|---|---|---|
-| GET | `/api/v1/analytics/dashboard` | HQ-only controller; `hasRole('ADMIN')` |
-| GET | `/api/v1/analytics/export/excel` | HQ-only controller; `hasRole('ADMIN')` |
-| GET | `/api/v1/admin/system/replication-status` | `hasRole('ADMIN')`; kiểm tra PostgreSQL replication views |
-
-## 12. Lưu ý về authority hiện tại
-
-JWT filter hiện tạo authority khớp hoàn toàn với chuỗi định danh quyền (không có prefix `ROLE_`). Do đó các annotaton như `hasAuthority('ADMIN')` hoặc `hasAnyAuthority('STAFF', 'ADMIN')` sẽ hoạt động chính xác theo đúng quyền được cấp phát.
-Đồng thời `SecurityConfig` cũng đã khai báo `@EnableMethodSecurity` nên các annotation `@PreAuthorize` đều có hiệu lực.
+## 5. Xử lý lỗi (Exception Handling)
+Tất cả các exception được `GlobalExceptionHandler` chặn lại và trả về:
+```json
+{
+  "success": false,
+  "data": null,
+  "message": "Nội dung lỗi chi tiết",
+  "errors": ["Error 1", "Error 2"] 
+}
+```
+Mã HTTP tuỳ thuộc vào loại exception (ví dụ: `400 Bad Request` cho Validation, `409 Conflict` cho Idempotency, `404 Not Found` cho sai ID).
