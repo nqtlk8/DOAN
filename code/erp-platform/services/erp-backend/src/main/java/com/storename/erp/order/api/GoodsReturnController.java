@@ -22,8 +22,8 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/v1/goods-returns")
 @RequiredArgsConstructor
-@Tag(name = "Goods Return", description = "Quản lý khách trả hàng")
-@org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(name = "instance.role", havingValue = "BRANCH")
+@Tag(name = "Goods Return", description = "Quáº£n lÃ½ khÃ¡ch tráº£ hÃ ng")
+@org.springframework.boot.autoconfigure.condition.ConditionalOnExpression("'${instance.role:ALL}' == 'BRANCH' or '${instance.role:ALL}' == 'ALL'")
 @Slf4j
 public class GoodsReturnController {
 
@@ -39,7 +39,7 @@ public class GoodsReturnController {
     @PostMapping
     @PreAuthorize("hasAuthority('STAFF')")
     @IdempotencyProtected
-    @Operation(summary = "Tạo phiếu trả hàng (DRAFT)")
+    @Operation(summary = "Táº¡o phiáº¿u tráº£ hÃ ng (DRAFT)")
     public ResponseEntity<ApiResponse<UUID>> createDraft(@Valid @RequestBody GoodsReturnCreateDto dto) {
         Long branchId = com.storename.erp.common.security.AuthUtils.getBranchIdOrNull();
         UUID returnId = returnService.createDraft(branchId, dto);
@@ -50,7 +50,7 @@ public class GoodsReturnController {
     @PostMapping("/{id}/confirm")
     @IdempotencyProtected
     @PreAuthorize("hasAuthority('STAFF')")
-    @Operation(summary = "Xác nhận trả hàng (CONFIRM) và hoàn kho")
+    @Operation(summary = "XÃ¡c nháº­n tráº£ hÃ ng (CONFIRM) vÃ  hoÃ n kho")
     public ResponseEntity<ApiResponse<Void>> confirmReturn(@PathVariable("id") UUID returnId) {
         Long branchId = com.storename.erp.common.security.AuthUtils.getBranchIdOrNull();
         UUID userId = getUserId();

@@ -54,6 +54,16 @@ public class SalesInvoiceService {
         }
         
         invoice.calculateTotal();
+
+        if (invoice.getAdvancePayment() != null) {
+            if (invoice.getAdvancePayment().compareTo(BigDecimal.ZERO) < 0) {
+                throw new IllegalArgumentException("Advance payment cannot be negative");
+            }
+            if (invoice.getAdvancePayment().compareTo(invoice.getTotalAmount()) > 0) {
+                throw new IllegalArgumentException("Advance payment cannot exceed the total invoice amount");
+            }
+        }
+
         return invoiceRepository.save(invoice);
     }
 

@@ -55,13 +55,15 @@ export const DebtList: React.FC = () => {
             <tr className="bg-slate-50 border-b border-slate-100">
               <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-slate-500">MÃ Đối Tác</th>
               <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-slate-500">Tên Đối Tác</th>
+              <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-slate-500">Số Điện Thoại</th>
+              <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-slate-500">Địa Chỉ</th>
               <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-slate-500">Dư Nợ</th>
               <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-slate-500 text-right">Thao Tác</th>
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td colSpan={4} className="p-0">
+              <td colSpan={6} className="p-0">
                 <DataState
                   isLoading={loading}
                   isError={isError}
@@ -89,6 +91,8 @@ export const DebtList: React.FC = () => {
                 >
                   <td className="px-4 py-2 text-sm text-slate-900">{c.customerCode || '-'}</td>
                   <td className="px-4 py-2 text-sm text-slate-900 font-medium">{c.customerName}</td>
+                  <td className="px-4 py-2 text-sm text-slate-900">{c.phone || '-'}</td>
+                  <td className="px-4 py-2 text-sm text-slate-900">{c.address || '-'}</td>
                   <td className="px-4 py-2 text-sm text-slate-900">
                     {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(c.totalDebt || 0)}
                   </td>

@@ -27,5 +27,6 @@ public class SalesInvoiceCreateDto {
     @Valid
     private List<SalesInvoiceLineDto> lines;
 
+    @jakarta.validation.constraints.DecimalMin(value = "0.0", inclusive = true, message = "Advance payment must be positive or zero")
     private BigDecimal advancePayment;
 }

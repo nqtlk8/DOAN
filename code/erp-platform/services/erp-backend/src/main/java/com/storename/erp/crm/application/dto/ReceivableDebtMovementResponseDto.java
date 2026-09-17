@@ -22,6 +22,9 @@ public class ReceivableDebtMovementResponseDto {
     private ZonedDateTime createdAt;
     private UUID createdBy;
     private String note;
+    
+    private String referenceCode;
+    private String branchName;
 
     public static ReceivableDebtMovementResponseDto fromEntity(ReceivableDebtMovement movement) {
         if (movement == null) {

@@ -13,23 +13,22 @@ import java.nio.file.Paths;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import org.springframework.test.context.TestPropertySource;
-
-@SpringBootTest
+@SpringBootTest(properties = { "instance.role=ALL" })
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
-@TestPropertySource(properties = {"instance.role=BRANCH"})
 public class OpenApiGeneratorTest {
 
     @Autowired
     private MockMvc mockMvc;
 
     @Test
-    public void generateOpenApi() throws Exception {
-        String content = mockMvc.perform(get("/v3/api-docs"))
+    public void generateOpenApiJson() throws Exception {
+        String json = mockMvc.perform(get("/v3/api-docs"))
                 .andExpect(status().isOk())
-                .andReturn().getResponse().getContentAsString();
-
-        Files.writeString(Paths.get("../../packages/api-contract/openapi.json"), content);
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+                
+        Files.write(Paths.get("../../packages/api-contract/openapi.json"), json.getBytes());
     }
 }

@@ -16,7 +16,7 @@ import java.util.UUID;
 
 @Slf4j
 @Service
-@ConditionalOnProperty(name = "instance.role", havingValue = "HQ")
+@org.springframework.boot.autoconfigure.condition.ConditionalOnExpression("'${instance.role:ALL}' == 'HQ' or '${instance.role:ALL}' == 'ALL'")
 @RequiredArgsConstructor
 public class SupplierWriteService {
 

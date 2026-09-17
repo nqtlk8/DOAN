@@ -14,4 +14,5 @@ public interface ReceivableDebtRepository extends JpaRepository<ReceivableDebt, 
     @org.springframework.data.jpa.repository.Query("SELECT SUM(r.totalDebt) FROM ReceivableDebt r WHERE (:branchId IS NULL OR r.branchId = :branchId)")
     java.math.BigDecimal getTotalDebt(@org.springframework.data.repository.query.Param("branchId") Long branchId);
     java.util.List<ReceivableDebt> findByBranchId(Long branchId);
+    java.util.List<ReceivableDebt> findByCustomerId(UUID customerId);
 }

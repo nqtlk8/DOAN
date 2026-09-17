@@ -153,6 +153,7 @@ export const SalesOrderForm = forwardRef<SalesOrderFormRef, SalesOrderFormProps>
 
     const totalAmount = items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
     const finalAmount = totalAmount - discount + tax;
+    const invoiceRemaining = Math.max(0, finalAmount - advancePayment);
     const remainingBalance = oldDebt + finalAmount - advancePayment;
 
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -258,6 +259,7 @@ export const SalesOrderForm = forwardRef<SalesOrderFormRef, SalesOrderFormProps>
           setTax={setTax}
           advancePayment={advancePayment}
           setAdvancePayment={setAdvancePayment}
+          invoiceRemaining={invoiceRemaining}
           remainingBalance={remainingBalance}
           items={items}
           onAddItem={addItem}
@@ -271,16 +273,16 @@ export const SalesOrderForm = forwardRef<SalesOrderFormRef, SalesOrderFormProps>
               disabled={mode === 'VIEW'}
               fetchData={ApiService.Catalog.searchCustomers}
               columns={[
-                { header: 'Mã', field: 'customerCode', width: '20%' },
+                { header: 'Mã KH', field: 'customerCode', width: '20%' },
                 { header: 'Tên KH', field: 'name', width: '50%' },
-                { header: 'Điện thoại', field: 'phoneNumber', width: '30%' }
+                { header: 'Điện thoại', field: 'phone', width: '30%' }
               ]}
               onSelect={async (customer) => {
                 setCustomerCode(customer.customerCode || customer.customerId || '');
                 setCustomerId(customer.id);
                 setCustomerName(customer.name);
                 setAddress(customer.address || '');
-                setPhone(customer.phoneNumber || '');
+                setPhone(customer.phone || '');
                 setContactPerson(customer.contactPerson || '');
                 try {
                   const debt = await ApiService.Debt.getBalance(customer.id);
@@ -341,6 +343,7 @@ export const SalesOrderForm = forwardRef<SalesOrderFormRef, SalesOrderFormProps>
                     items={items}
                     totalAmount={totalAmount}
                     advancePayment={advancePayment}
+                    invoiceRemaining={invoiceRemaining}
                     remainingBalance={remainingBalance}
                     oldDebt={oldDebt}
                     mode="sales"
@@ -357,6 +360,7 @@ export const SalesOrderForm = forwardRef<SalesOrderFormRef, SalesOrderFormProps>
           items={items}
           totalAmount={totalAmount}
           advancePayment={advancePayment}
+          invoiceRemaining={invoiceRemaining}
           remainingBalance={remainingBalance}
           oldDebt={oldDebt}
           mode="sales"

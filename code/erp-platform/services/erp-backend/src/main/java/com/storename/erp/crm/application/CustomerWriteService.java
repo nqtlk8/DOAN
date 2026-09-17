@@ -16,7 +16,7 @@ import com.storename.erp.common.exception.ResourceNotFoundException;
 
 @Slf4j
 @Service
-@ConditionalOnProperty(name = "instance.role", havingValue = "HQ")
+@org.springframework.boot.autoconfigure.condition.ConditionalOnExpression("'${instance.role:ALL}' == 'HQ' or '${instance.role:ALL}' == 'ALL'")
 @RequiredArgsConstructor
 public class CustomerWriteService {
 

@@ -42,6 +42,7 @@ export interface GenericDocumentFormProps {
   setTax: (val: number) => void;
   advancePayment: number;
   setAdvancePayment: (val: number) => void;
+  invoiceRemaining: number;
   remainingBalance: number;
   items: OrderItem[];
   onAddItem: () => void;
@@ -83,6 +84,7 @@ export const GenericDocumentForm: React.FC<GenericDocumentFormProps> = ({
   setTax,
   advancePayment,
   setAdvancePayment,
+  invoiceRemaining,
   remainingBalance,
   items,
   onAddItem,
@@ -274,13 +276,21 @@ export const GenericDocumentForm: React.FC<GenericDocumentFormProps> = ({
               className="h-erp-input-height w-full px-1 text-erp-base bg-erp-bg-input border border-erp-border-input focus:border-erp-border-input-focus outline-none disabled:bg-erp-bg-disabled disabled:text-erp-text-disabled disabled:border-erp-border-disabled rounded-none text-right"
             />
 
-            <div className="text-right text-erp-label pr-2">Còn lại</div>
-            <input
-              type="text"
-              disabled
-              value={remainingBalance.toLocaleString()}
-              className="h-erp-input-height w-full px-1 text-erp-base bg-erp-bg-disabled border border-erp-border-disabled outline-none rounded-none text-right font-bold text-erp-text-accent-red"
-            />
+              <div className="text-right text-erp-label pr-2">Còn của đơn</div>
+              <input
+                type="text"
+                disabled
+                value={invoiceRemaining.toLocaleString()}
+                className="h-erp-input-height w-full px-1 text-erp-base bg-erp-bg-disabled border border-erp-border-disabled outline-none rounded-none text-right font-bold text-erp-text-accent-red"
+              />
+
+              <div className="text-right text-erp-label pr-2">Nợ tổng mới</div>
+              <input
+                type="text"
+                disabled
+                value={remainingBalance.toLocaleString()}
+                className="h-erp-input-height w-full px-1 text-erp-base bg-erp-bg-disabled border border-erp-border-disabled outline-none rounded-none text-right font-bold text-erp-text-accent-red"
+              />
           </div>
         </div>
       </div>

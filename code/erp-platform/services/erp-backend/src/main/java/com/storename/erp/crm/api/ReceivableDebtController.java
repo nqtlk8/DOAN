@@ -21,6 +21,9 @@ public class ReceivableDebtController {
 
     private final ReceivableDebtRepository debtRepository;
     private final com.storename.erp.crm.application.ReceivableDebtService debtService;
+    private final com.storename.erp.branch.infrastructure.BranchRepository branchRepository;
+    private final com.storename.erp.order.infrastructure.SalesInvoiceRepository invoiceRepository;
+    private final com.storename.erp.order.infrastructure.GoodsReturnRepository returnRepository;
 
     @GetMapping
     @PreAuthorize("hasAnyAuthority('STAFF', 'ADMIN')")
@@ -72,13 +75,28 @@ public class ReceivableDebtController {
             @PathVariable java.util.UUID customerId) {
         
         Long branchId = com.storename.erp.common.security.AuthUtils.getBranchIdOrNull();
-        if (branchId == null) {
-            throw new SecurityException("Branch ID is required to fetch movements");
-        }
 
         List<ReceivableDebtMovement> movements = debtService.getMovements(customerId, branchId);
         List<com.storename.erp.crm.application.dto.ReceivableDebtMovementResponseDto> response = movements.stream()
-                .map(com.storename.erp.crm.application.dto.ReceivableDebtMovementResponseDto::fromEntity)
+                .map(m -> {
+                    var dto = com.storename.erp.crm.application.dto.ReceivableDebtMovementResponseDto.fromEntity(m);
+                    if (m.getBranchId() != null) {
+                        branchRepository.findById(m.getBranchId()).ifPresent(b -> dto.setBranchName(b.getName()));
+                    }
+                    if (m.getRefId() != null && !m.getRefId().equals("INIT")) {
+                        try {
+                            java.util.UUID refUuid = java.util.UUID.fromString(m.getRefId());
+                            if ("SALES_INVOICE".equals(m.getRefType()) || "SALES_INVOICE_ADVANCE".equals(m.getRefType())) {
+                                invoiceRepository.findById(refUuid).ifPresent(inv -> dto.setReferenceCode(inv.getInvoiceCode()));
+                            } else if ("GOODS_RETURN".equals(m.getRefType())) {
+                                returnRepository.findById(refUuid).ifPresent(ret -> dto.setReferenceCode(ret.getReturnCode()));
+                            }
+                        } catch (Exception e) {
+                            // Invalid UUID string
+                        }
+                    }
+                    return dto;
+                })
                 .toList();
 
         return ApiResponse.success(response);
@@ -88,9 +106,6 @@ public class ReceivableDebtController {
     @PreAuthorize("hasAnyAuthority('STAFF', 'ADMIN')")
     public ApiResponse<java.math.BigDecimal> getBalance(@PathVariable java.util.UUID customerId) {
         Long branchId = com.storename.erp.common.security.AuthUtils.getBranchIdOrNull();
-        if (branchId == null) {
-            throw new SecurityException("Branch ID is required to fetch balance");
-        }
         java.math.BigDecimal balance = debtService.getCurrentDebt(customerId, branchId);
         return ApiResponse.success(balance);
     }

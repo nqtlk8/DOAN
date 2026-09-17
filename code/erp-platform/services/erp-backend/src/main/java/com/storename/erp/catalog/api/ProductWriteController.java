@@ -18,7 +18,7 @@ import jakarta.validation.Valid;
 @Slf4j
 @RestController
 @RequestMapping("/api/v1/catalog/products")
-@ConditionalOnProperty(name = "instance.role", havingValue = "HQ")
+@org.springframework.boot.autoconfigure.condition.ConditionalOnExpression("'${instance.role:ALL}' == 'HQ' or '${instance.role:ALL}' == 'ALL'")
 @RequiredArgsConstructor
 public class ProductWriteController {
 

@@ -39,6 +39,15 @@ public class ReceivableDebtControllerTest {
     @MockBean
     private JwtAuthenticationFilter jwtAuthenticationFilter;
 
+    @MockBean
+    private com.storename.erp.branch.infrastructure.BranchRepository branchRepository;
+
+    @MockBean
+    private com.storename.erp.order.infrastructure.SalesInvoiceRepository invoiceRepository;
+
+    @MockBean
+    private com.storename.erp.order.infrastructure.GoodsReturnRepository returnRepository;
+
     @BeforeEach
     void setUpFilter() throws Exception {
         org.mockito.Mockito.doAnswer(invocation -> {

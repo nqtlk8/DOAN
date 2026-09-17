@@ -71,6 +71,8 @@ public class ReceivableDebtServiceTest {
         when(debtRepository.findByCustomerIdAndBranchId(customerId, branchId)).thenReturn(Optional.of(existingDebt));
         when(debtRepository.save(any(ReceivableDebt.class))).thenAnswer(i -> i.getArgument(0));
 
+        org.mockito.ArgumentCaptor<com.storename.erp.crm.domain.ReceivableDebtMovement> captor = org.mockito.ArgumentCaptor.forClass(com.storename.erp.crm.domain.ReceivableDebtMovement.class);
+
         ReceivableDebt result = receivableDebtService.increaseDebt(customerId, branchId, amount,
                 com.storename.erp.crm.domain.ReceivableDebtMovementType.INVOICE, "TEST", "TEST", UUID.randomUUID(), "test");
 
@@ -78,7 +80,12 @@ public class ReceivableDebtServiceTest {
         assertEquals(0, new BigDecimal("1500.0").compareTo(result.getTotalDebt()));
         verify(customerRepository, never()).findById(any());
         verify(debtRepository).save(existingDebt);
-        verify(movementRepository).save(any());
+        verify(movementRepository).save(captor.capture());
+        
+        var movement = captor.getValue();
+        assertEquals(0, new BigDecimal("1000.0").compareTo(movement.getBalanceBefore()));
+        assertEquals(0, new BigDecimal("500.0").compareTo(movement.getAmount()));
+        assertEquals(0, new BigDecimal("1500.0").compareTo(movement.getBalanceAfter()));
     }
 
     @Test
@@ -91,12 +98,32 @@ public class ReceivableDebtServiceTest {
         when(debtRepository.findByCustomerIdAndBranchId(customerId, branchId)).thenReturn(Optional.of(existingDebt));
         when(debtRepository.save(any(ReceivableDebt.class))).thenAnswer(i -> i.getArgument(0));
 
+        org.mockito.ArgumentCaptor<com.storename.erp.crm.domain.ReceivableDebtMovement> captor = org.mockito.ArgumentCaptor.forClass(com.storename.erp.crm.domain.ReceivableDebtMovement.class);
+
         ReceivableDebt result = receivableDebtService.decreaseDebt(customerId, branchId, amount,
                 com.storename.erp.crm.domain.ReceivableDebtMovementType.PAYMENT, "TEST", "TEST", UUID.randomUUID(), "test");
 
         assertNotNull(result);
         assertEquals(0, new BigDecimal("800.0").compareTo(result.getTotalDebt()));
-        verify(movementRepository).save(any());
+        verify(movementRepository).save(captor.capture());
+
+        var movement = captor.getValue();
+        assertEquals(0, new BigDecimal("1000.0").compareTo(movement.getBalanceBefore()));
+        assertEquals(0, new BigDecimal("-200.0").compareTo(movement.getAmount()));
+        assertEquals(0, new BigDecimal("800.0").compareTo(movement.getBalanceAfter()));
+    }
+
+    @Test
+    void decreaseDebt_ShouldThrowException_WhenDebtBecomesNegative() {
+        BigDecimal amount = new BigDecimal("1200.0");
+        ReceivableDebt existingDebt = new ReceivableDebt();
+        existingDebt.setCustomer(mockCustomer);
+        existingDebt.setTotalDebt(new BigDecimal("1000.0"));
+        
+        when(debtRepository.findByCustomerIdAndBranchId(customerId, branchId)).thenReturn(Optional.of(existingDebt));
+
+        assertThrows(IllegalStateException.class, () -> receivableDebtService.decreaseDebt(customerId, branchId, amount,
+                com.storename.erp.crm.domain.ReceivableDebtMovementType.PAYMENT, "TEST", "TEST", UUID.randomUUID(), "test"));
     }
 
     @Test

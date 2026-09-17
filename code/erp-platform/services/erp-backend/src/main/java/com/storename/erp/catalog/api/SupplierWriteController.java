@@ -18,7 +18,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/v1/suppliers")
 @RequiredArgsConstructor
-@ConditionalOnProperty(name = "instance.role", havingValue = "HQ")
+@org.springframework.boot.autoconfigure.condition.ConditionalOnExpression("'${instance.role:ALL}' == 'HQ' or '${instance.role:ALL}' == 'ALL'")
 public class SupplierWriteController {
     
     private final SupplierWriteService supplierWriteService;

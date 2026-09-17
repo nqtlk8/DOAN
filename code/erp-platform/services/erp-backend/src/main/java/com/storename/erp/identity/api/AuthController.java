@@ -13,7 +13,7 @@ import java.util.Collections;
 
 @RestController
 @RequestMapping("/api/v1/auth")
-@ConditionalOnProperty(name = "instance.role", havingValue = "HQ")
+@org.springframework.boot.autoconfigure.condition.ConditionalOnExpression("'${instance.role:ALL}' == 'HQ' or '${instance.role:ALL}' == 'ALL'")
 @Slf4j
 public class AuthController {
     private final AuthService authService;

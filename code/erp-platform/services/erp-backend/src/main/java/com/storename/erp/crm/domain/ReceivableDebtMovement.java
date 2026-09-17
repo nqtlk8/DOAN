@@ -1,7 +1,9 @@
 package com.storename.erp.crm.domain;
 
 import jakarta.persistence.*;
+import lombok.AccessLevel;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.math.BigDecimal;
@@ -11,7 +13,7 @@ import java.util.UUID;
 @Entity
 @Table(name = "receivable_debt_movement")
 @Getter
-@Setter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class ReceivableDebtMovement {
 
     @Id
@@ -31,6 +33,9 @@ public class ReceivableDebtMovement {
     @Column(nullable = false, precision = 19, scale = 4)
     private BigDecimal amount;
 
+    @Column(name = "balance_before", nullable = false, precision = 19, scale = 4)
+    private BigDecimal balanceBefore;
+
     @Column(name = "balance_after", nullable = false, precision = 19, scale = 4)
     private BigDecimal balanceAfter;
 
@@ -48,4 +53,39 @@ public class ReceivableDebtMovement {
 
     @Column(columnDefinition = "TEXT")
     private String note;
+
+    @Column(name = "idempotency_key", unique = true)
+    private String idempotencyKey;
+
+    public static ReceivableDebtMovement create(
+            Long branchId,
+            Customer customer,
+            ReceivableDebtMovementType movementType,
+            BigDecimal amount,
+            BigDecimal balanceBefore,
+            BigDecimal balanceAfter,
+            String refType,
+            String refId,
+            UUID createdBy,
+            String note,
+            String idempotencyKey) {
+        
+        if (balanceBefore.add(amount).compareTo(balanceAfter) != 0) {
+            throw new IllegalArgumentException("Invariant violation: balanceBefore + amount != balanceAfter");
+        }
+
+        ReceivableDebtMovement m = new ReceivableDebtMovement();
+        m.branchId = branchId;
+        m.customer = customer;
+        m.movementType = movementType;
+        m.amount = amount;
+        m.balanceBefore = balanceBefore;
+        m.balanceAfter = balanceAfter;
+        m.refType = refType;
+        m.refId = refId;
+        m.createdBy = createdBy;
+        m.note = note;
+        m.idempotencyKey = idempotencyKey;
+        return m;
+    }
 }

@@ -23,8 +23,8 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/inventory/inbound")
 @RequiredArgsConstructor
-@Tag(name = "Inbound Receipt", description = "Quản lý phiếu nhập kho")
-@org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(name = "instance.role", havingValue = "BRANCH")
+@Tag(name = "Inbound Receipt", description = "Quáº£n lÃ½ phiáº¿u nháº­p kho")
+@org.springframework.boot.autoconfigure.condition.ConditionalOnExpression("'${instance.role:ALL}' == 'BRANCH' or '${instance.role:ALL}' == 'ALL'")
 @Slf4j
 public class InboundReceiptController {
 
@@ -41,7 +41,7 @@ public class InboundReceiptController {
     @PreAuthorize("hasAuthority('STAFF')")
     @ResponseStatus(HttpStatus.CREATED)
     @com.storename.erp.common.aop.IdempotencyProtected
-    @Operation(summary = "Tạo phiếu nhập kho (DRAFT)")
+    @Operation(summary = "Táº¡o phiáº¿u nháº­p kho (DRAFT)")
     public ApiResponse<com.storename.erp.inventory.api.dto.InboundReceiptCreateResponseDto> createDraft(@Valid @RequestBody InboundReceiptCreateDto dto) {
         Long branchId = com.storename.erp.common.security.AuthUtils.getBranchIdOrNull();
         UUID receiptId = inboundService.createDraft(branchId, dto);
@@ -51,7 +51,7 @@ public class InboundReceiptController {
     @PostMapping("/{id}/confirm")
     @com.storename.erp.common.aop.IdempotencyProtected
     @PreAuthorize("hasAuthority('STAFF')")
-    @Operation(summary = "Xác nhận phiếu nhập kho (CONFIRM) và tăng tồn kho")
+    @Operation(summary = "XÃ¡c nháº­n phiáº¿u nháº­p kho (CONFIRM) vÃ  tÄƒng tá»“n kho")
     public ApiResponse<Void> confirmReceipt(@PathVariable("id") UUID receiptId) {
         Long branchId = com.storename.erp.common.security.AuthUtils.getBranchIdOrNull();
         UUID userId = getUserId();

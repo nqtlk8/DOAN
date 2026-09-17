@@ -27,17 +27,4 @@ public class ReceivableDebt extends BaseEntity {
     @Column(name = "total_debt", nullable = false, precision = 19, scale = 4)
     private BigDecimal totalDebt = BigDecimal.ZERO;
 
-    public void increaseDebt(BigDecimal amount) {
-        if (amount.compareTo(BigDecimal.ZERO) < 0) {
-            throw new IllegalArgumentException("Amount must be positive");
-        }
-        this.totalDebt = this.totalDebt.add(amount);
-    }
-
-    public void decreaseDebt(BigDecimal amount) {
-        if (amount.compareTo(BigDecimal.ZERO) < 0) {
-            throw new IllegalArgumentException("Amount must be positive");
-        }
-        this.totalDebt = this.totalDebt.subtract(amount);
-    }
 }

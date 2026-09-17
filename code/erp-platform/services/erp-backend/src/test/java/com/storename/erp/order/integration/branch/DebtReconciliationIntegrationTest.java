@@ -57,9 +57,12 @@ public class DebtReconciliationIntegrationTest {
     @Autowired
     private com.storename.erp.crm.infrastructure.ReceivableDebtMovementRepository movementRepo;
 
+    @Autowired
+    private org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
+
     @BeforeEach
     void setUp() {
-        movementRepo.deleteAll();
+        jdbcTemplate.execute("DELETE FROM receivable_debt_movement");
         debtRepo.deleteAll();
         customerRepo.deleteAll();
         stockRepo.deleteAll();

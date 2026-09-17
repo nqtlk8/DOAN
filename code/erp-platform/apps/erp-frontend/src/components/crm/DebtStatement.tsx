@@ -24,9 +24,10 @@ export const DebtStatement: React.FC<DebtStatementProps> = ({ customerId, custom
   const getMovementLabel = (type: string | undefined) => {
     switch (type) {
       case 'OPENING_BALANCE': return 'Số dư đầu kỳ';
-      case 'SALES_INVOICE': return 'Bán hàng';
-      case 'SALES_PAYMENT': return 'Thanh toán/Trả trước';
-      case 'GOODS_RETURN': return 'Khách trả hàng';
+      case 'INVOICE': return 'Bán hàng';
+      case 'PAYMENT': return 'Thanh toán/Trả trước';
+      case 'RETURN': return 'Khách trả hàng';
+      case 'ADJUSTMENT': return 'Điều chỉnh';
       default: return type || '-';
     }
   };
@@ -34,9 +35,10 @@ export const DebtStatement: React.FC<DebtStatementProps> = ({ customerId, custom
   const getMovementColor = (type: string | undefined) => {
     switch (type) {
       case 'OPENING_BALANCE': return 'text-slate-600 bg-slate-100';
-      case 'SALES_INVOICE': return 'text-red-600 bg-red-50'; // Tăng nợ
-      case 'SALES_PAYMENT': return 'text-green-600 bg-green-50'; // Giảm nợ
-      case 'GOODS_RETURN': return 'text-amber-600 bg-amber-50'; // Giảm nợ
+      case 'INVOICE': return 'text-red-600 bg-red-50'; // Tăng nợ
+      case 'PAYMENT': return 'text-green-600 bg-green-50'; // Giảm nợ
+      case 'RETURN': return 'text-amber-600 bg-amber-50'; // Giảm nợ
+      case 'ADJUSTMENT': return 'text-blue-600 bg-blue-50';
       default: return 'text-slate-600 bg-slate-50';
     }
   };
@@ -78,7 +80,8 @@ export const DebtStatement: React.FC<DebtStatementProps> = ({ customerId, custom
             </tr>
             {!isLoading && !isError && movements.length > 0 && (
               movements.map((m) => {
-                const isIncrease = m.movementType === 'OPENING_BALANCE' || m.movementType === 'SALES_INVOICE';
+                const isIncrease = (m.amount || 0) > 0;
+                const displayAmount = Math.abs(m.amount || 0);
                 return (
                   <tr key={m.id} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
                     <td className="px-4 py-3 text-sm text-slate-900 whitespace-nowrap">
@@ -89,9 +92,9 @@ export const DebtStatement: React.FC<DebtStatementProps> = ({ customerId, custom
                         {getMovementLabel(m.movementType)}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-sm text-slate-900">{m.refId || '-'}</td>
+                    <td className="px-4 py-3 text-sm text-slate-900">{m.referenceCode || m.refId || '-'}</td>
                     <td className={`px-4 py-3 text-sm font-medium text-right ${isIncrease ? 'text-red-600' : 'text-green-600'}`}>
-                      {isIncrease ? '+' : '-'}{formatCurrency(m.amount)}
+                      {isIncrease ? '+' : '-'}{formatCurrency(displayAmount)}
                     </td>
                     <td className="px-4 py-3 text-sm text-slate-900 font-medium text-right">
                       {formatCurrency(m.balanceAfter)}

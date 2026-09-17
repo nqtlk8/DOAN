@@ -5,6 +5,29 @@
 
 
 export interface paths {
+  "/api/v1/suppliers/{id}": {
+    get: operations["getSupplier"];
+    put: operations["updateSupplier"];
+    delete: operations["deleteSupplier"];
+  };
+  "/api/v1/customers/{id}": {
+    put: operations["updateCustomer"];
+    delete: operations["deleteCustomer"];
+  };
+  "/api/v1/catalog/products/{id}": {
+    get: operations["getProductById"];
+    put: operations["updateProduct"];
+    delete: operations["deleteProduct"];
+  };
+  "/api/v1/branches/{id}": {
+    get: operations["getBranchById"];
+    put: operations["updateBranch"];
+    delete: operations["deleteBranch"];
+  };
+  "/api/v1/suppliers": {
+    get: operations["getSuppliers"];
+    post: operations["createSupplier"];
+  };
   "/api/v1/sales-invoices": {
     get: operations["getInvoices"];
     post: operations["createDraft"];
@@ -17,27 +40,42 @@ export interface paths {
   };
   "/api/v1/inventory/inbound": {
     get: operations["getReceipts"];
-    /** Tạo phiếu nhập kho (DRAFT) */
+    /** Táº¡o phiáº¿u nháº­p kho (DRAFT) */
     post: operations["createDraft_1"];
   };
   "/api/v1/inventory/inbound/{id}/confirm": {
-    /** Xác nhận phiếu nhập kho (CONFIRM) và tăng tồn kho */
+    /** XÃ¡c nháº­n phiáº¿u nháº­p kho (CONFIRM) vÃ  tÄƒng tá»“n kho */
     post: operations["confirmReceipt"];
   };
   "/api/v1/goods-returns": {
     get: operations["getReturns"];
-    /** Tạo phiếu trả hàng (DRAFT) */
+    /** Táº¡o phiáº¿u tráº£ hÃ ng (DRAFT) */
     post: operations["createDraft_2"];
   };
   "/api/v1/goods-returns/{id}/confirm": {
-    /** Xác nhận trả hàng (CONFIRM) và hoàn kho */
+    /** XÃ¡c nháº­n tráº£ hÃ ng (CONFIRM) vÃ  hoÃ n kho */
     post: operations["confirmReturn"];
   };
-  "/api/v1/suppliers": {
-    get: operations["getSuppliers"];
+  "/api/v1/customers": {
+    get: operations["getCustomers"];
+    post: operations["createCustomer"];
   };
-  "/api/v1/suppliers/{id}": {
-    get: operations["getSupplier"];
+  "/api/v1/catalog/products": {
+    get: operations["getAllProducts"];
+    post: operations["createProduct"];
+  };
+  "/api/v1/branches": {
+    get: operations["getAllBranches"];
+    post: operations["createBranch"];
+  };
+  "/api/v1/auth/revoke": {
+    post: operations["revoke"];
+  };
+  "/api/v1/auth/refresh": {
+    post: operations["refresh"];
+  };
+  "/api/v1/auth/login": {
+    post: operations["login"];
   };
   "/api/v1/stock-movements": {
     get: operations["getMovements"];
@@ -55,10 +93,10 @@ export interface paths {
     get: operations["getBalance"];
   };
   "/api/v1/public/catalog/products": {
-    get: operations["getAllProducts"];
+    get: operations["getAllProducts_1"];
   };
   "/api/v1/public/catalog/products/{id}": {
-    get: operations["getProductById"];
+    get: operations["getProductById_1"];
   };
   "/api/v1/inventory/stock": {
     get: operations["getStock"];
@@ -69,17 +107,14 @@ export interface paths {
   "/api/v1/goods-returns/{id}": {
     get: operations["getReturn"];
   };
-  "/api/v1/customers": {
-    get: operations["getCustomers"];
-  };
   "/api/v1/customer-prices/{customerId}/product/{productId}": {
     get: operations["getPrice"];
   };
-  "/api/v1/catalog/products": {
-    get: operations["getAllProducts_1"];
+  "/api/v1/analytics/export/excel": {
+    get: operations["exportDashboardExcel"];
   };
-  "/api/v1/catalog/products/{id}": {
-    get: operations["getProductById_1"];
+  "/api/v1/analytics/dashboard": {
+    get: operations["getDashboardMetrics"];
   };
   "/api/v1/admin/system/replication-status": {
     get: operations["getReplicationStatus"];
@@ -93,6 +128,122 @@ export type webhooks = Record<string, never>;
 
 export interface components {
   schemas: {
+    SupplierUpdateDto: {
+      code?: string;
+      name?: string;
+      phone?: string;
+      email?: string;
+      address?: string;
+      taxCode?: string;
+      isActive?: boolean;
+    };
+    ApiResponseSupplierResponseDto: {
+      success?: boolean;
+      data?: components["schemas"]["SupplierResponseDto"];
+      message?: string;
+      errors?: string[];
+    };
+    SupplierResponseDto: {
+      /** Format: uuid */
+      id?: string;
+      code?: string;
+      name?: string;
+      phone?: string;
+      email?: string;
+      address?: string;
+      taxCode?: string;
+      /** Format: int64 */
+      branchId?: number;
+      active?: boolean;
+    };
+    CustomerUpdateDto: {
+      name?: string;
+      phone?: string;
+      email?: string;
+      address?: string;
+      taxCode?: string;
+      /** Format: int64 */
+      branchId?: number;
+    };
+    ApiResponseCustomerResponseDto: {
+      success?: boolean;
+      data?: components["schemas"]["CustomerResponseDto"];
+      message?: string;
+      errors?: string[];
+    };
+    CustomerResponseDto: {
+      /** Format: uuid */
+      id?: string;
+      customerCode?: string;
+      name?: string;
+      phone?: string;
+      email?: string;
+      address?: string;
+      taxCode?: string;
+      /** Format: int64 */
+      branchId?: number;
+      /** Format: date-time */
+      createdAt?: string;
+      deleted?: boolean;
+    };
+    ProductUpdateDto: {
+      name?: string;
+      /** Format: int64 */
+      categoryId?: number;
+      baseUnit?: string;
+      isActive?: boolean;
+      attributes?: {
+        [key: string]: Record<string, never>;
+      };
+    };
+    ApiResponseProductResponseDto: {
+      success?: boolean;
+      data?: components["schemas"]["ProductResponseDto"];
+      message?: string;
+      errors?: string[];
+    };
+    ProductResponseDto: {
+      /** Format: int64 */
+      id?: number;
+      code?: string;
+      name?: string;
+      /** Format: int64 */
+      categoryId?: number;
+      categoryName?: string;
+      baseUnit?: string;
+      attributes?: {
+        [key: string]: Record<string, never>;
+      };
+      price?: number;
+      active?: boolean;
+    };
+    BranchDTO: {
+      /** Format: int64 */
+      id?: number;
+      code?: string;
+      name?: string;
+      address?: string;
+      phone?: string;
+      openingHours?: string;
+      internalUrl?: string;
+      active?: boolean;
+    };
+    ApiResponseBranchDTO: {
+      success?: boolean;
+      data?: components["schemas"]["BranchDTO"];
+      message?: string;
+      errors?: string[];
+    };
+    SupplierCreateDto: {
+      code: string;
+      name: string;
+      phone?: string;
+      email?: string;
+      address?: string;
+      taxCode?: string;
+      /** Format: int64 */
+      branchId?: number;
+    };
     SalesInvoiceCreateDto: {
       invoiceCode?: string;
       /** Format: uuid */
@@ -194,28 +345,49 @@ export interface components {
       message?: string;
       errors?: string[];
     };
-    ApiResponseListSupplierResponseDto: {
-      success?: boolean;
-      data?: components["schemas"]["SupplierResponseDto"][];
-      message?: string;
-      errors?: string[];
-    };
-    SupplierResponseDto: {
-      /** Format: uuid */
-      id?: string;
-      code?: string;
-      name?: string;
+    CustomerCreateDto: {
+      customerCode?: string;
+      name: string;
       phone?: string;
       email?: string;
       address?: string;
       taxCode?: string;
       /** Format: int64 */
       branchId?: number;
-      active?: boolean;
     };
-    ApiResponseSupplierResponseDto: {
+    ProductCreateDto: {
+      code: string;
+      name: string;
+      /** Format: int64 */
+      categoryId: number;
+      baseUnit: string;
+      isActive?: boolean;
+      attributes?: {
+        [key: string]: Record<string, never>;
+      };
+    };
+    TokenRefreshRequest: {
+      refreshToken?: string;
+    };
+    ApiResponseAuthResponse: {
       success?: boolean;
-      data?: components["schemas"]["SupplierResponseDto"];
+      data?: components["schemas"]["AuthResponse"];
+      message?: string;
+      errors?: string[];
+    };
+    AuthResponse: {
+      accessToken?: string;
+      refreshToken?: string;
+      role?: string;
+      branchUrl?: string;
+    };
+    AuthRequest: {
+      username?: string;
+      password?: string;
+    };
+    ApiResponseListSupplierResponseDto: {
+      success?: boolean;
+      data?: components["schemas"]["SupplierResponseDto"][];
       message?: string;
       errors?: string[];
     };
@@ -305,6 +477,8 @@ export interface components {
       /** Format: uuid */
       createdBy?: string;
       note?: string;
+      referenceCode?: string;
+      branchName?: string;
     };
     ApiResponseBigDecimal: {
       success?: boolean;
@@ -315,27 +489,6 @@ export interface components {
     ApiResponseListProductResponseDto: {
       success?: boolean;
       data?: components["schemas"]["ProductResponseDto"][];
-      message?: string;
-      errors?: string[];
-    };
-    ProductResponseDto: {
-      /** Format: int64 */
-      id?: number;
-      code?: string;
-      name?: string;
-      /** Format: int64 */
-      categoryId?: number;
-      categoryName?: string;
-      baseUnit?: string;
-      attributes?: {
-        [key: string]: Record<string, never>;
-      };
-      price?: number;
-      active?: boolean;
-    };
-    ApiResponseProductResponseDto: {
-      success?: boolean;
-      data?: components["schemas"]["ProductResponseDto"];
       message?: string;
       errors?: string[];
     };
@@ -484,20 +637,32 @@ export interface components {
       message?: string;
       errors?: string[];
     };
-    CustomerResponseDto: {
-      /** Format: uuid */
-      id?: string;
-      customerCode?: string;
-      name?: string;
-      phone?: string;
-      email?: string;
-      address?: string;
-      taxCode?: string;
+    ApiResponseListBranchDTO: {
+      success?: boolean;
+      data?: components["schemas"]["BranchDTO"][];
+      message?: string;
+      errors?: string[];
+    };
+    ApiResponseDashboardMetricsDto: {
+      success?: boolean;
+      data?: components["schemas"]["DashboardMetricsDto"];
+      message?: string;
+      errors?: string[];
+    };
+    DashboardMetricsDto: {
+      totalRevenue?: number;
+      grossProfit?: number;
+      inventoryTurnoverRatio?: number;
+      totalOverdueDebt?: number;
+      topSellingProducts?: components["schemas"]["ProductPerformanceDto"][];
+      slowMovingProducts?: components["schemas"]["ProductPerformanceDto"][];
+    };
+    ProductPerformanceDto: {
       /** Format: int64 */
-      branchId?: number;
-      /** Format: date-time */
-      createdAt?: string;
-      deleted?: boolean;
+      productId?: number;
+      productName?: string;
+      quantitySold?: number;
+      revenue?: number;
     };
     ApiResponseListMapStringObject: {
       success?: boolean;
@@ -521,6 +686,219 @@ export type external = Record<string, never>;
 
 export interface operations {
 
+  getSupplier: {
+    parameters: {
+      path: {
+        id: string;
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ApiResponseSupplierResponseDto"];
+        };
+      };
+    };
+  };
+  updateSupplier: {
+    parameters: {
+      path: {
+        id: string;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["SupplierUpdateDto"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ApiResponseSupplierResponseDto"];
+        };
+      };
+    };
+  };
+  deleteSupplier: {
+    parameters: {
+      path: {
+        id: string;
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ApiResponseVoid"];
+        };
+      };
+    };
+  };
+  updateCustomer: {
+    parameters: {
+      path: {
+        id: string;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CustomerUpdateDto"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ApiResponseCustomerResponseDto"];
+        };
+      };
+    };
+  };
+  deleteCustomer: {
+    parameters: {
+      path: {
+        id: string;
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ApiResponseVoid"];
+        };
+      };
+    };
+  };
+  getProductById: {
+    parameters: {
+      query?: {
+        withBranchPrice?: boolean;
+      };
+      path: {
+        id: number;
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ApiResponseProductResponseDto"];
+        };
+      };
+    };
+  };
+  updateProduct: {
+    parameters: {
+      path: {
+        id: number;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ProductUpdateDto"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ApiResponseProductResponseDto"];
+        };
+      };
+    };
+  };
+  deleteProduct: {
+    parameters: {
+      path: {
+        id: number;
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ApiResponseVoid"];
+        };
+      };
+    };
+  };
+  getBranchById: {
+    parameters: {
+      path: {
+        id: number;
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ApiResponseBranchDTO"];
+        };
+      };
+    };
+  };
+  updateBranch: {
+    parameters: {
+      path: {
+        id: number;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["BranchDTO"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ApiResponseBranchDTO"];
+        };
+      };
+    };
+  };
+  deleteBranch: {
+    parameters: {
+      path: {
+        id: number;
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ApiResponseVoid"];
+        };
+      };
+    };
+  };
+  getSuppliers: {
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ApiResponseListSupplierResponseDto"];
+        };
+      };
+    };
+  };
+  createSupplier: {
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["SupplierCreateDto"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ApiResponseSupplierResponseDto"];
+        };
+      };
+    };
+  };
   getInvoices: {
     responses: {
       /** @description OK */
@@ -586,7 +964,7 @@ export interface operations {
       };
     };
   };
-  /** Tạo phiếu nhập kho (DRAFT) */
+  /** Táº¡o phiáº¿u nháº­p kho (DRAFT) */
   createDraft_1: {
     requestBody: {
       content: {
@@ -602,7 +980,7 @@ export interface operations {
       };
     };
   };
-  /** Xác nhận phiếu nhập kho (CONFIRM) và tăng tồn kho */
+  /** XÃ¡c nháº­n phiáº¿u nháº­p kho (CONFIRM) vÃ  tÄƒng tá»“n kho */
   confirmReceipt: {
     parameters: {
       path: {
@@ -628,7 +1006,7 @@ export interface operations {
       };
     };
   };
-  /** Tạo phiếu trả hàng (DRAFT) */
+  /** Táº¡o phiáº¿u tráº£ hÃ ng (DRAFT) */
   createDraft_2: {
     requestBody: {
       content: {
@@ -644,7 +1022,7 @@ export interface operations {
       };
     };
   };
-  /** Xác nhận trả hàng (CONFIRM) và hoàn kho */
+  /** XÃ¡c nháº­n tráº£ hÃ ng (CONFIRM) vÃ  hoÃ n kho */
   confirmReturn: {
     parameters: {
       path: {
@@ -660,27 +1038,133 @@ export interface operations {
       };
     };
   };
-  getSuppliers: {
+  getCustomers: {
+    parameters: {
+      query?: {
+        search?: string;
+      };
+    };
     responses: {
       /** @description OK */
       200: {
         content: {
-          "*/*": components["schemas"]["ApiResponseListSupplierResponseDto"];
+          "*/*": components["schemas"]["ApiResponseListCustomerResponseDto"];
         };
       };
     };
   };
-  getSupplier: {
+  createCustomer: {
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CustomerCreateDto"];
+      };
+    };
+    responses: {
+      /** @description Created */
+      201: {
+        content: {
+          "*/*": components["schemas"]["ApiResponseCustomerResponseDto"];
+        };
+      };
+    };
+  };
+  getAllProducts: {
     parameters: {
-      path: {
-        id: string;
+      query?: {
+        withBranchPrice?: boolean;
+        search?: string;
       };
     };
     responses: {
       /** @description OK */
       200: {
         content: {
-          "*/*": components["schemas"]["ApiResponseSupplierResponseDto"];
+          "*/*": components["schemas"]["ApiResponseListProductResponseDto"];
+        };
+      };
+    };
+  };
+  createProduct: {
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ProductCreateDto"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ApiResponseProductResponseDto"];
+        };
+      };
+    };
+  };
+  getAllBranches: {
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ApiResponseListBranchDTO"];
+        };
+      };
+    };
+  };
+  createBranch: {
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["BranchDTO"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ApiResponseBranchDTO"];
+        };
+      };
+    };
+  };
+  revoke: {
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["TokenRefreshRequest"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ApiResponseVoid"];
+        };
+      };
+    };
+  };
+  refresh: {
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["TokenRefreshRequest"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ApiResponseAuthResponse"];
+        };
+      };
+    };
+  };
+  login: {
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["AuthRequest"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ApiResponseAuthResponse"];
         };
       };
     };
@@ -755,7 +1239,7 @@ export interface operations {
       };
     };
   };
-  getAllProducts: {
+  getAllProducts_1: {
     parameters: {
       query?: {
         search?: string;
@@ -773,7 +1257,7 @@ export interface operations {
       };
     };
   };
-  getProductById: {
+  getProductById_1: {
     parameters: {
       path: {
         id: number;
@@ -828,21 +1312,6 @@ export interface operations {
       };
     };
   };
-  getCustomers: {
-    parameters: {
-      query?: {
-        search?: string;
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ApiResponseListCustomerResponseDto"];
-        };
-      };
-    };
-  };
   getPrice: {
     parameters: {
       path: {
@@ -859,36 +1328,36 @@ export interface operations {
       };
     };
   };
-  getAllProducts_1: {
+  exportDashboardExcel: {
     parameters: {
       query?: {
-        withBranchPrice?: boolean;
-        search?: string;
+        branchId?: number;
+        startDateKey?: number;
+        endDateKey?: number;
       };
     };
     responses: {
       /** @description OK */
       200: {
         content: {
-          "*/*": components["schemas"]["ApiResponseListProductResponseDto"];
+          "*/*": string;
         };
       };
     };
   };
-  getProductById_1: {
+  getDashboardMetrics: {
     parameters: {
       query?: {
-        withBranchPrice?: boolean;
-      };
-      path: {
-        id: number;
+        branchId?: number;
+        startDateKey?: number;
+        endDateKey?: number;
       };
     };
     responses: {
       /** @description OK */
       200: {
         content: {
-          "*/*": components["schemas"]["ApiResponseProductResponseDto"];
+          "*/*": components["schemas"]["ApiResponseDashboardMetricsDto"];
         };
       };
     };

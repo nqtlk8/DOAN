@@ -33,34 +33,44 @@ public class ReceivableDebtService {
     public ReceivableDebt increaseDebt(UUID customerId, Long branchId, BigDecimal amount, 
                                        ReceivableDebtMovementType type, String refType, String refId, 
                                        UUID userId, String note) {
-        ReceivableDebt debt = debtRepository.findByCustomerIdAndBranchId(customerId, branchId)
-                .orElseGet(() -> createDebtRecord(customerId, branchId));
-        debt.increaseDebt(amount);
-        ReceivableDebt saved = debtRepository.save(debt);
-        
-        recordMovement(saved.getCustomer(), branchId, type, amount, saved.getTotalDebt(), refType, refId, userId, note);
-        return saved;
+        if (amount.compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("increaseDebt requires a positive amount");
+        }
+        return processDebtChange(customerId, branchId, amount, type, refType, refId, userId, note);
     }
 
     @Transactional
     public ReceivableDebt decreaseDebt(UUID customerId, Long branchId, BigDecimal amount,
                                        ReceivableDebtMovementType type, String refType, String refId, 
                                        UUID userId, String note) {
-        ReceivableDebt debt = debtRepository.findByCustomerIdAndBranchId(customerId, branchId)
-                .orElseThrow(() -> new RuntimeException("Debt record not found"));
-        debt.decreaseDebt(amount);
-        ReceivableDebt saved = debtRepository.save(debt);
-        
-        // Use negative amount for decrease in movement to signify it was a decrease? 
-        // Or positive amount but the movementType implies it?
-        // Let's use positive amount, and movementType INVOICE increases, PAYMENT/RETURN decreases.
-        // Wait, it might be better to just store positive amount for now and rely on movementType, 
-        // or just use negative. Let's use negative for decrease for simpler sum calculations later if needed.
-        // Actually, the amount is absolute. Balance After shows the direction. Let's keep it positive.
-        recordMovement(debt.getCustomer(), branchId, type, amount, saved.getTotalDebt(), refType, refId, userId, note);
-        return saved;
+        if (amount.compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("decreaseDebt requires a positive amount");
+        }
+        // Negate amount for decrease
+        BigDecimal signedAmount = amount.negate();
+        return processDebtChange(customerId, branchId, signedAmount, type, refType, refId, userId, note);
     }
     
+    private ReceivableDebt processDebtChange(UUID customerId, Long branchId, BigDecimal signedAmount,
+                                             ReceivableDebtMovementType type, String refType, String refId, 
+                                             UUID userId, String note) {
+        ReceivableDebt debt = debtRepository.findByCustomerIdAndBranchId(customerId, branchId)
+                .orElseGet(() -> createDebtRecord(customerId, branchId));
+                
+        BigDecimal balanceBefore = debt.getTotalDebt();
+        BigDecimal balanceAfter = balanceBefore.add(signedAmount);
+        
+        if (balanceAfter.compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalStateException("Receivable debt cannot become negative");
+        }
+        
+        debt.setTotalDebt(balanceAfter);
+        ReceivableDebt saved = debtRepository.save(debt);
+        
+        recordMovement(saved.getCustomer(), branchId, type, signedAmount, balanceBefore, balanceAfter, refType, refId, userId, note);
+        return saved;
+    }
+
     @Transactional
     public ReceivableDebt setOpeningBalance(UUID customerId, Long branchId, BigDecimal amount, UUID userId, String note) {
         if (movementRepository.existsByCustomerIdAndBranchId(customerId, branchId)) {
@@ -70,31 +80,41 @@ public class ReceivableDebtService {
         ReceivableDebt debt = debtRepository.findByCustomerIdAndBranchId(customerId, branchId)
                 .orElseGet(() -> createDebtRecord(customerId, branchId));
         
-        debt.setTotalDebt(amount);
+        BigDecimal balanceBefore = BigDecimal.ZERO;
+        BigDecimal balanceAfter = amount;
+        
+        if (balanceAfter.compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalStateException("Receivable debt cannot become negative");
+        }
+
+        debt.setTotalDebt(balanceAfter);
         ReceivableDebt saved = debtRepository.save(debt);
         
-        recordMovement(saved.getCustomer(), branchId, ReceivableDebtMovementType.OPENING_BALANCE, amount, amount, 
+        recordMovement(saved.getCustomer(), branchId, ReceivableDebtMovementType.OPENING_BALANCE, amount, balanceBefore, balanceAfter, 
                        "OPENING_BALANCE", "INIT", userId, note);
         return saved;
     }
 
     private void recordMovement(Customer customer, Long branchId, ReceivableDebtMovementType type, BigDecimal amount, 
-                                BigDecimal balanceAfter, String refType, String refId, UUID userId, String note) {
-        ReceivableDebtMovement movement = new ReceivableDebtMovement();
-        movement.setBranchId(branchId);
-        movement.setCustomer(customer);
-        movement.setMovementType(type);
-        movement.setAmount(amount);
-        movement.setBalanceAfter(balanceAfter);
-        movement.setRefType(refType);
-        movement.setRefId(refId);
-        movement.setCreatedBy(userId);
-        movement.setNote(note);
+                                BigDecimal balanceBefore, BigDecimal balanceAfter, String refType, String refId, UUID userId, String note) {
+        String idempotencyKey = type.name() + ":" + refType + ":" + refId;
+        if (type == ReceivableDebtMovementType.OPENING_BALANCE) {
+            idempotencyKey += ":" + customer.getId() + ":" + branchId;
+        }
+
+        ReceivableDebtMovement movement = ReceivableDebtMovement.create(
+                branchId, customer, type, amount, balanceBefore, balanceAfter, refType, refId, userId, note, idempotencyKey
+        );
         movementRepository.save(movement);
     }
 
     @Transactional(readOnly = true)
     public BigDecimal getCurrentDebt(UUID customerId, Long branchId) {
+        if (branchId == null) {
+            return debtRepository.findByCustomerId(customerId).stream()
+                    .map(ReceivableDebt::getTotalDebt)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+        }
         return debtRepository.findByCustomerIdAndBranchId(customerId, branchId)
                 .map(ReceivableDebt::getTotalDebt)
                 .orElse(BigDecimal.ZERO);
@@ -112,6 +132,9 @@ public class ReceivableDebtService {
 
     @Transactional(readOnly = true)
     public java.util.List<ReceivableDebtMovement> getMovements(UUID customerId, Long branchId) {
+        if (branchId == null) {
+            return movementRepository.findByCustomerIdOrderByCreatedAtDesc(customerId);
+        }
         return movementRepository.findByCustomerIdAndBranchIdOrderByCreatedAtDesc(customerId, branchId);
     }
 }

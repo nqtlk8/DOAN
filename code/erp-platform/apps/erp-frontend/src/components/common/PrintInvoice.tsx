@@ -14,6 +14,7 @@ interface PrintInvoiceProps {
   }>;
   totalAmount: number;
   advancePayment: number;
+  invoiceRemaining: number;
   remainingBalance: number;
   oldDebt?: number;
   mode?: 'STAFF' | 'quote' | 'return' | 'edit' | 'purchase' | 'sales';
@@ -32,6 +33,7 @@ export const PrintInvoice: React.FC<PrintInvoiceProps> = ({
   items,
   totalAmount,
   advancePayment,
+  invoiceRemaining,
   remainingBalance,
   oldDebt = 0,
   mode = 'STAFF',
@@ -161,8 +163,12 @@ export const PrintInvoice: React.FC<PrintInvoiceProps> = ({
                       <td className="py-1 border-b border-slate-300 text-right">{formatMoney(advancePayment)}</td>
                     </tr>
                     <tr>
-                      <td className="py-1 pt-2">Còn lại:</td>
-                      <td className="py-1 pt-2 text-right">{formatMoney(remainingBalance)}</td>
+                      <td className="py-1 pt-2">Còn của đơn:</td>
+                      <td className="py-1 pt-2 text-right">{formatMoney(invoiceRemaining)}</td>
+                    </tr>
+                    <tr>
+                      <td className="py-1 pt-2 font-bold">Nợ tổng mới:</td>
+                      <td className="py-1 pt-2 text-right font-bold">{formatMoney(remainingBalance)}</td>
                     </tr>
                   </>
                 )}

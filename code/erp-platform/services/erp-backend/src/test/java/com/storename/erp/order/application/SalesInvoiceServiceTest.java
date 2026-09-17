@@ -74,6 +74,42 @@ public class SalesInvoiceServiceTest {
     }
 
     @Test
+    void createDraft_ShouldThrowException_WhenAdvancePaymentNegative() {
+        SalesInvoiceCreateDto dto = new SalesInvoiceCreateDto();
+        dto.setCustomerId(customerId);
+        dto.setInvoiceCode("HD-TEST");
+        dto.setPaymentMethod(com.storename.erp.order.domain.PaymentMethod.CASH);
+        dto.setAdvancePayment(new BigDecimal("-10.0"));
+        
+        com.storename.erp.order.application.dto.SalesInvoiceLineDto lineDto = new com.storename.erp.order.application.dto.SalesInvoiceLineDto();
+        lineDto.setProductId(1L);
+        lineDto.setQuantity(new BigDecimal("2.0"));
+        lineDto.setUnitPrice(new BigDecimal("100.0"));
+        lineDto.setUnitOfMeasure("Cai");
+        dto.setLines(List.of(lineDto));
+
+        assertThrows(IllegalArgumentException.class, () -> salesInvoiceService.createDraft(dto, branchId));
+    }
+
+    @Test
+    void createDraft_ShouldThrowException_WhenAdvancePaymentExceedsTotal() {
+        SalesInvoiceCreateDto dto = new SalesInvoiceCreateDto();
+        dto.setCustomerId(customerId);
+        dto.setInvoiceCode("HD-TEST");
+        dto.setPaymentMethod(com.storename.erp.order.domain.PaymentMethod.CASH);
+        dto.setAdvancePayment(new BigDecimal("250.0"));
+        
+        com.storename.erp.order.application.dto.SalesInvoiceLineDto lineDto = new com.storename.erp.order.application.dto.SalesInvoiceLineDto();
+        lineDto.setProductId(1L);
+        lineDto.setQuantity(new BigDecimal("2.0"));
+        lineDto.setUnitPrice(new BigDecimal("100.0"));
+        lineDto.setUnitOfMeasure("Cai");
+        dto.setLines(List.of(lineDto));
+
+        assertThrows(IllegalArgumentException.class, () -> salesInvoiceService.createDraft(dto, branchId));
+    }
+
+    @Test
     void confirmInvoice_ShouldDeductInventoryAndIncreaseDebt() {
         UUID invoiceId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
