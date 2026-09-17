@@ -1,5 +1,5 @@
 instance:
-  role: HQ
+  role: ALL
 
 spring:
   datasource:

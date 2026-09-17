@@ -8,7 +8,7 @@ spring:
     hibernate:
       ddl-auto: create-drop
 instance:
-  role: HQ
+  role: ALL
 
 jwt:
   private-key: classpath:keys/private.pem
