@@ -1,4 +1,7 @@
-# Tiến độ UI/UX Revamp - erp-frontend
+﻿# -*- coding: utf-8 -*-
+import os
+
+content = '''# Tiến độ UI/UX Revamp - erp-frontend
 
 ## Sprint 0: Chuẩn bị, đo baseline, dọn dẹp
 
@@ -55,3 +58,7 @@ pm run build: Pass
 - [x] Login đẹp ở 1366 và ở 800px (chỉ còn form).
 - [x] Dashboard: 4 KPI thẳng hàng, biểu đồ đọc được tên sản phẩm, bộ lọc hoạt động.
 - [x] Tất cả danh mục cùng một kiểu bảng.
+'''
+
+with open('docs/UI_UX_PROGRESS.md', 'w', encoding='utf-8') as f:
+    f.write(content)

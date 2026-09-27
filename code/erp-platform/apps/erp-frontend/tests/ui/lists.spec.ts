@@ -1,4 +1,4 @@
-﻿import { test, expect } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 
 test.describe('Sprint 8 - Lists UI and Behaviors', () => {
   test.beforeEach(async ({ page }) => {
@@ -49,10 +49,10 @@ test.describe('Sprint 8 - Lists UI and Behaviors', () => {
     await page.goto('/');
     await page.getByTestId('login-username').fill('admin');
     await page.getByTestId('login-password').fill('password');
-    await page.keyboard.press('Enter');
-
-    await page.waitForURL('**/dashboard');
-    await page.waitForLoadState('networkidle');
+    await page.getByTestId('login-submit').click();
+    
+    // Admin goes to dashboard by default
+    await expect(page.getByTestId('dashboard-page')).toBeVisible({ timeout: 10000 });
   });
 
   test('E-LIST-01 & E-LIST-02: Product List Search', async ({ page }) => {
@@ -75,10 +75,10 @@ test.describe('Sprint 8 - Lists UI and Behaviors', () => {
   });
 
   test('E-LIST-03: Stock List negative quantity', async ({ page }) => {
-    await page.click('[data-testid="ribbon-tab-KhoHang"]');
-    await page.click('text=Tồn Kho');
+    await page.click('[data-testid="ribbon-tab-TonKho"]');
+    await page.locator('span:text-is("Tồn Kho")').click();
     
-    await expect(page.getByText('Danh Sách Tồn Kho')).toBeVisible();
+    await expect(page.getByText('Danh Mục Tồn Kho')).toBeVisible();
     
     // Find the cell with -3
     const cell = page.getByText('-3');

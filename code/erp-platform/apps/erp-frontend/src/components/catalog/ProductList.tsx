@@ -68,7 +68,11 @@ export const ProductList: React.FC = () => {
 
   const submitting = createMutation.isPending;
 
-  const filtered = products.filter((p) => p.isActive !== false && p.name?.toLowerCase().includes(searchTerm.toLowerCase()));
+  const filtered = products.filter((p) => 
+    p.isActive !== false && 
+    (p.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+     p.code?.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
 
   return (
     <PageContainer>
