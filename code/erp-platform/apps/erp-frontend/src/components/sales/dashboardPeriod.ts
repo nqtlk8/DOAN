@@ -62,9 +62,10 @@ export function getPeriodRange(
         end: Number(custom.end.replace(/-/g, '')),
       };
     }
-    default:
+    default: {
       // Default is month
       const start = new Date(now.getFullYear(), now.getMonth(), 1);
       return { start: toDateKey(start), end: todayKey };
+    }
   }
 }
