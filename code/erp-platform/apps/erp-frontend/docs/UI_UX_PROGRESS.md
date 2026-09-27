@@ -32,3 +32,10 @@
 - Chuy?n layout sang PageContainer và PageHeader.
 - Hoàn thi?n Top Products và các ch? s? Metrics Dashboard.
 - Pass t?t c? Unit Test và E2E Test cho Dashboard.
+
+## SPRINT 8: Ð?ng b? các màn hình danh sách & hoàn thi?n (G5-G8)
+- C?p nh?t toàn b? các trang danh m?c s? d?ng c?u trúc chu?n PageContainer > PageHeader > card > DataState > erp-table.
+- Vi?t l?i DataState, ErrorBoundary, ConfirmDialog.
+- Xóa toàn b? các màu cu (teal-, red-, bg-white, v.v...) và thay th? b?ng Design Tokens m?i.
+- Vi?t tài li?u DESIGN_SYSTEM.md chu?n xác.
+- E2E Tests lists.spec.ts passed.
