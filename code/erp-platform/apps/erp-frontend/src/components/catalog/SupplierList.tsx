@@ -1,3 +1,4 @@
+import { PageHeader } from '../../shared/components/Page/PageHeader';
 import { PageContainer } from '../../shared/components/Page/PageContainer';
 import React, { useState } from 'react';
 import { Search, Plus, X, Edit2, Trash2 } from 'lucide-react';
@@ -66,43 +67,49 @@ export const SupplierList: React.FC = () => {
 
   return (
     <PageContainer>
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-slate-900">Danh Mục Nhà Phân Phối</h2>
-        {isAdmin && (
-          <button
-            onClick={() => handleOpenModal()}
-            className="flex items-center gap-2 bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700 transition-colors"
-          >
-            <Plus size={20} />
-            <span>Thêm mới</span>
-          </button>
-        )}
-      </div>
-
-      <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
-        <div className="p-4 border-b border-slate-100">
-          <div className="relative w-72">
-            <input
-              type="text"
-              placeholder="Tìm kiếm NPP..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-slate-900"
-            />
-            <Search className="absolute left-3 top-2.5 text-slate-900" size={20} />
+      <PageHeader 
+        title="Danh Mục Nhà Phân Phối"
+        actions={
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <Search size={16} className="absolute left-2.5 top-2 text-ink-subtle" />
+              <input
+                type="text"
+                placeholder="Tìm theo mã, tên..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="erp-input h-8 pl-8 w-[280px]"
+              />
+            </div>
+            {isAdmin && (
+              <button onClick={() => handleOpenModal()} className="btn-primary h-8 px-3 flex items-center">
+                <Plus size={16} className="mr-1" />
+                Thêm mới
+              </button>
+            )}
           </div>
-        </div>
+        }
+      />
 
-        <table className="w-full text-left border-collapse">
+      <div className="card overflow-hidden">
+        <DataState
+          isLoading={loading}
+          isError={isError}
+          error={error}
+          isEmpty={filtered.length === 0} 
+          onRetry={refetch}
+          loadingType="table"
+        >
+          <table className="erp-table">
           <thead>
-            <tr className="bg-slate-50 border-b border-slate-100">
-              <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-slate-500">ID</th>
-              <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-slate-500">Mã NPP</th>
-              <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-slate-500">
+            <tr className="bg-app border-b border-line">
+              <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-ink-subtle">ID</th>
+              <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-ink-subtle">Mã NPP</th>
+              <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-ink-subtle">
                 Tên Nhà Phân Phối
               </th>
-              <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-slate-500">Số Điện Thoại</th>
-              <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-slate-500 text-right">
+              <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-ink-subtle">Số Điện Thoại</th>
+              <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-ink-subtle text-right">
                 Thao tác
               </th>
             </tr>
@@ -123,7 +130,7 @@ export const SupplierList: React.FC = () => {
                     isAdmin && (
                       <button
                         onClick={() => handleOpenModal()}
-                        className="flex items-center gap-2 bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700 transition-colors mt-2"
+                        className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-dark transition-colors mt-2"
                       >
                         <Plus size={20} />
                         <span>Thêm mới</span>
@@ -132,7 +139,7 @@ export const SupplierList: React.FC = () => {
                   }
                 >
                   {suppliers.length > 0 && filtered.length === 0 ? (
-                    <div className="p-8 text-center text-slate-500 bg-white">
+                    <div className="p-8 text-center text-ink-subtle bg-surface">
                       Không tìm thấy kết quả nào phù hợp với "{searchTerm}"
                     </div>
                   ) : null}
@@ -141,15 +148,15 @@ export const SupplierList: React.FC = () => {
             </tr>
             {!loading && !isError && filtered.length > 0 && (
               filtered.map((d) => (
-                <tr key={d.id} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
-                  <td className="px-4 py-1.5 text-sm text-slate-900">{d.id}</td>
-                  <td className="px-4 py-1.5 text-sm text-slate-900">{d.code || '-'}</td>
-                  <td className="px-4 py-1.5 text-sm text-slate-900 font-medium">{d.name}</td>
-                  <td className="px-4 py-1.5 text-sm text-slate-900">{d.phone || '-'}</td>
-                  <td className="px-4 py-1.5 text-sm text-slate-500 text-right space-x-2">
+                <tr key={d.id} className="border-b border-slate-50 hover:bg-app transition-colors">
+                  <td className="px-4 py-1.5 text-sm text-ink">{d.id}</td>
+                  <td className="px-4 py-1.5 text-sm text-ink">{d.code || '-'}</td>
+                  <td className="px-4 py-1.5 text-sm text-ink font-medium">{d.name}</td>
+                  <td className="px-4 py-1.5 text-sm text-ink">{d.phone || '-'}</td>
+                  <td className="px-4 py-1.5 text-sm text-ink-subtle text-right space-x-2">
                     <button
                       onClick={() => handleOpenModal(d)}
-                      className="text-slate-400 hover:text-blue-600 transition-colors"
+                      className="text-ink-lighter hover:text-primary transition-colors"
                       title={isAdmin ? "Sửa" : "Xem chi tiết"}
                     >
                       <Edit2 size={16} />
@@ -157,7 +164,7 @@ export const SupplierList: React.FC = () => {
                     {isAdmin && (
                       <button
                         onClick={() => handleDelete(String(d.id))}
-                        className="text-slate-400 hover:text-red-600 transition-colors"
+                        className="text-ink-lighter hover:text-danger transition-colors"
                         title="Xóa"
                       >
                         <Trash2 size={16} />
@@ -169,84 +176,85 @@ export const SupplierList: React.FC = () => {
             )}
           </tbody>
         </table>
+        </DataState>
       </div>
 
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
-            <div className="flex justify-between items-center p-4 border-b border-slate-100">
-              <h3 className="text-lg font-bold text-slate-900">{isEditing ? 'Cập nhật' : 'Thêm mới'} Nhà Phân Phối</h3>
-              <button onClick={handleCloseModal} className="text-slate-900 hover:text-slate-600">
+          <div className="bg-surface rounded-xl shadow-xl w-full max-w-md">
+            <div className="flex justify-between items-center p-4 border-b border-line">
+              <h3 className="text-lg font-bold text-ink">{isEditing ? 'Cập nhật' : 'Thêm mới'} Nhà Phân Phối</h3>
+              <button onClick={handleCloseModal} className="text-ink hover:text-ink-muted">
                 <X size={24} />
               </button>
             </div>
             <div className="p-4 space-y-4 max-h-[70vh] overflow-y-auto">
               {isEditing && (
                 <div>
-                  <label className="block text-xs font-medium text-slate-500 mb-1">Mã nhà phân phối</label>
+                  <label className="block text-xs font-medium text-ink-subtle mb-1">Mã nhà phân phối</label>
                   <input
                     type="text"
                     value={formData.code || ''}
                     disabled={true}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-slate-100 text-slate-500 cursor-not-allowed"
+                    className="w-full px-3 py-2 border border-line-strong rounded-lg bg-slate-100 text-ink-subtle cursor-not-allowed"
                   />
                 </div>
               )}
               <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Tên Nhà Phân Phối *</label>
+                <label className="block text-xs font-medium text-ink-subtle mb-1">Tên Nhà Phân Phối *</label>
                 <input
                   type="text"
                   value={formData.name || ''}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   disabled={!isAdmin}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-slate-900 disabled:bg-slate-100 disabled:text-slate-500"
+                  className="w-full px-3 py-2 border border-line-strong rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-ink disabled:bg-slate-100 disabled:text-ink-subtle"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Số điện thoại</label>
+                <label className="block text-xs font-medium text-ink-subtle mb-1">Số điện thoại</label>
                 <input
                   type="text"
                   value={formData.phone || ''}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                   disabled={!isAdmin}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-slate-900 disabled:bg-slate-100 disabled:text-slate-500"
+                  className="w-full px-3 py-2 border border-line-strong rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-ink disabled:bg-slate-100 disabled:text-ink-subtle"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Email</label>
+                <label className="block text-xs font-medium text-ink-subtle mb-1">Email</label>
                 <input
                   type="email"
                   value={formData.email || ''}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   disabled={!isAdmin}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-slate-900 disabled:bg-slate-100 disabled:text-slate-500"
+                  className="w-full px-3 py-2 border border-line-strong rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-ink disabled:bg-slate-100 disabled:text-ink-subtle"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Địa chỉ</label>
+                <label className="block text-xs font-medium text-ink-subtle mb-1">Địa chỉ</label>
                 <input
                   type="text"
                   value={formData.address || ''}
                   onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                   disabled={!isAdmin}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-slate-900 disabled:bg-slate-100 disabled:text-slate-500"
+                  className="w-full px-3 py-2 border border-line-strong rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-ink disabled:bg-slate-100 disabled:text-ink-subtle"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Mã số thuế</label>
+                <label className="block text-xs font-medium text-ink-subtle mb-1">Mã số thuế</label>
                 <input
                   type="text"
                   value={formData.taxCode || ''}
                   onChange={(e) => setFormData({ ...formData, taxCode: e.target.value })}
                   disabled={!isAdmin}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-slate-900 disabled:bg-slate-100 disabled:text-slate-500"
+                  className="w-full px-3 py-2 border border-line-strong rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-ink disabled:bg-slate-100 disabled:text-ink-subtle"
                 />
               </div>
             </div>
-            <div className="flex justify-end gap-3 p-4 border-t border-slate-100 bg-slate-50 rounded-b-xl">
+            <div className="flex justify-end gap-3 p-4 border-t border-line bg-app rounded-b-xl">
               <button
                 onClick={handleCloseModal}
-                className="px-4 py-2 text-slate-900 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+                className="px-4 py-2 text-ink bg-surface border border-line-strong rounded-lg hover:bg-app transition-colors"
               >
                 {isAdmin ? 'Hủy' : 'Đóng'}
               </button>
@@ -254,7 +262,7 @@ export const SupplierList: React.FC = () => {
                 <button
                   onClick={handleSave}
                   disabled={submitting || !formData.name}
-                  className="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors disabled:opacity-50"
+                  className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors disabled:opacity-50"
                 >
                   {submitting ? 'Đang lưu...' : 'Lưu lại'}
                 </button>

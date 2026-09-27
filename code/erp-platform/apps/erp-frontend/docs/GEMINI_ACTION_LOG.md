@@ -183,3 +183,16 @@ pm run build
 - Xây d?ng l?i Dashboard.tsx theo thi?t k? m?i s? d?ng PageContainer và StatCard.
 - Pass t?t c? Unit Test và E2E Test cho Dashboard.
 - T?m th?i wrap các trang danh sách b?ng PageContainer.
+
+[#799] 2026-09-27 13:31 · Sprint 7 · CHECKPOINT
+- Ðã hoàn thành toàn b? Sprint 6 (Login) và Sprint 7 (Dashboard).
+- Pass 100% Unit Test và E2E Test cho Login và Dashboard.
+- S?n sàng chuy?n sang Sprint 8 (Ð?ng b? danh sách).
+
+[#801] 2026-09-27 13:45 · Sprint 8 · Bu?c G1-G8, R8 · IMPLEMENT
+- Refactor c?u trúc UI (PageContainer, PageHeader, DataState) cho toàn b? màn hình danh sách.
+- Rewrite DataState, ConfirmDialog, ErrorBoundary theo kích thu?c m?i.
+- Chu?n hóa text-right (.num) cho các c?t S? lu?ng / S? ti?n.
+- S? d?ng token h? th?ng, lo?i b? toàn b? các token màu m?c d?nh (teal-, indigo-, red-, bg-white) trong src/
+- Vi?t tài li?u chu?n m?c DESIGN_SYSTEM.md.
+- Pass t?t c? Unit Tests và dang ch?y E2E tests.

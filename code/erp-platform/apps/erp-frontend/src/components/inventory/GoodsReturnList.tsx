@@ -19,11 +19,11 @@ export const GoodsReturnList: React.FC<GoodsReturnListProps> = ({ onRowDoubleCli
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'CONFIRMED':
-        return 'bg-primary/10 text-blue-700 border-blue-200';
+        return 'bg-primary/10 text-primary-dark border-primary-soft';
       case 'DRAFT':
         return 'bg-amber-50 text-amber-700 border-amber-200';
       case 'CANCELLED':
-        return 'bg-red-50 text-red-700 border-red-200';
+        return 'bg-danger-soft text-danger border-line';
       default:
         return 'bg-slate-50 text-slate-700 border-slate-200';
     }
@@ -39,7 +39,7 @@ export const GoodsReturnList: React.FC<GoodsReturnListProps> = ({ onRowDoubleCli
   };
 
   return (
-    <div className="h-full bg-white flex flex-col">
+    <div className="h-full bg-surface flex flex-col">
       <DataState
         isLoading={isLoading}
         isError={isError}

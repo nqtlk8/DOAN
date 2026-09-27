@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { AlertTriangle, X } from 'lucide-react';
+import { AlertTriangle, X, Info } from 'lucide-react';
 
 interface ConfirmDialogProps {
   isOpen: boolean;
@@ -36,40 +36,40 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
-        <div className="flex justify-between items-start p-5 border-b border-slate-100">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/40 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="bg-surface rounded-lg shadow-lg w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200 border border-line">
+        <div className="flex justify-between items-start p-5 border-b border-line">
           <div className="flex gap-3">
-            <div className={`p-2 rounded-full flex-shrink-0 ${isDestructive ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`}>
-              <AlertTriangle size={24} />
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${isDestructive ? 'bg-danger-soft text-danger' : 'bg-primary-soft text-primary'}`}>
+              {isDestructive ? <AlertTriangle size={20} /> : <Info size={20} />}
             </div>
             <div>
-              <h3 className="text-lg font-bold text-slate-900">{title}</h3>
-              <p className="text-sm text-slate-500 mt-1 leading-relaxed">{message}</p>
+              <h3 className="text-[15px] font-semibold text-ink leading-tight mt-0.5">{title}</h3>
+              <p className="text-[13px] text-ink-muted mt-1 leading-relaxed">{message}</p>
             </div>
           </div>
           <button 
             onClick={onCancel}
             disabled={isSubmitting}
-            className="text-slate-400 hover:text-slate-500 hover:bg-slate-100 p-1 rounded-md transition-colors"
+            className="text-ink-subtle hover:text-ink hover:bg-slate-100 p-1.5 rounded-md transition-colors"
           >
-            <X size={20} />
+            <X size={18} />
           </button>
         </div>
         
-        <div className="p-4 bg-slate-50 flex justify-end gap-3">
+        <div className="p-4 bg-app flex justify-end gap-3 border-t border-line">
           <button
             onClick={onCancel}
             disabled={isSubmitting}
-            className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 transition-colors"
+            className="btn-secondary h-8 px-4"
           >
             {cancelLabel}
           </button>
           <button
             onClick={handleConfirm}
             disabled={isSubmitting}
-            className={`px-4 py-2 text-sm font-medium text-white rounded-lg disabled:opacity-50 transition-colors flex items-center gap-2 ${
-              isDestructive ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'
+            className={`h-8 px-4 flex items-center gap-2 ${
+              isDestructive ? 'btn-danger' : 'btn-primary'
             }`}
           >
             {isSubmitting && (

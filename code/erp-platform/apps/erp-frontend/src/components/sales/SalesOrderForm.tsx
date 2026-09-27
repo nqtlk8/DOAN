@@ -292,7 +292,7 @@ export const SalesOrderForm = forwardRef<SalesOrderFormRef, SalesOrderFormProps>
     };
 
     return (
-      <div className="flex flex-col h-full bg-white relative">
+      <div className="flex flex-col h-full bg-surface relative">
         {/* Scrollable Content */}
         <GenericDocumentForm
           mode={mode}
@@ -416,26 +416,26 @@ export const SalesOrderForm = forwardRef<SalesOrderFormRef, SalesOrderFormProps>
         {/* Print Preview Modal */}
         {showPrintModal && (
           <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="bg-surface rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
               <div className="p-4 border-b flex justify-between items-center bg-slate-50">
                 <h2 className="text-xl font-semibold text-slate-800">Preview In Phiếu</h2>
                 <div className="flex gap-2">
                   <button
                     onClick={() => setShowPrintModal(false)}
-                    className="px-4 py-2 border border-slate-300 bg-white text-slate-700 rounded-lg hover:bg-slate-100 flex items-center gap-2"
+                    className="px-4 py-2 border border-slate-300 bg-surface text-slate-700 rounded-lg hover:bg-slate-100 flex items-center gap-2"
                   >
                     <X size={18} /> Đóng
                   </button>
                   <button
                     onClick={handlePrint}
-                    className="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 flex items-center gap-2"
+                    className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark flex items-center gap-2"
                   >
                     <Printer size={18} /> In ngay
                   </button>
                 </div>
               </div>
               <div className="p-8 overflow-y-auto bg-slate-200 flex-1 flex justify-center">
-                <div className="bg-white shadow-sm" style={{ width: '148mm', minHeight: '210mm' }}>
+                <div className="bg-surface shadow-sm" style={{ width: '148mm', minHeight: '210mm' }}>
                   <PrintInvoice
                     customerName={customerName}
                     items={items}
@@ -453,7 +453,7 @@ export const SalesOrderForm = forwardRef<SalesOrderFormRef, SalesOrderFormProps>
         )}
 
         <PrintInvoice
-          className="hidden print:block fixed inset-0 z-[9999] bg-white w-full h-full"
+          className="hidden print:block fixed inset-0 z-[9999] bg-surface w-full h-full"
           customerName={customerName}
           items={items}
           totalAmount={totalAmount}
@@ -505,7 +505,7 @@ export const SalesOrderForm = forwardRef<SalesOrderFormRef, SalesOrderFormProps>
                   {p.name} {p.code ? `(${p.code})` : ''}
                 </div>
               </div>
-              <div className="text-sm font-semibold text-teal-600">
+              <div className="text-sm font-semibold text-primary">
                 {(p.price ?? 0).toLocaleString()} ₫
               </div>
             </div>

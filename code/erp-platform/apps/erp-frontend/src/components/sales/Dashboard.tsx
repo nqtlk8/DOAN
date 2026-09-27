@@ -10,11 +10,11 @@ import { PERIOD_OPTIONS, PeriodKey, getPeriodRange } from './dashboardPeriod';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
 
 const StatCard = ({ title, value, change, icon: Icon, trend, subtitle }: any) => (
-  <div className="relative overflow-hidden bg-white p-5 rounded-lg border border-line-strong shadow-sm hover:shadow-md transition-all duration-300">
+  <div className="relative overflow-hidden bg-surface p-5 rounded-lg border border-line-strong shadow-sm hover:shadow-md transition-all duration-300">
     <div className="flex items-center justify-between mb-3">
       <div className={`w-10 h-10 rounded-md flex items-center justify-center ${
-        trend === 'up' ? 'bg-green-50 text-green-600' : 
-        trend === 'down' ? 'bg-red-50 text-red-600' : 
+        trend === 'up' ? 'bg-success-soft text-success' : 
+        trend === 'down' ? 'bg-danger-soft text-danger' : 
         'bg-primary-soft text-primary'
       }`}>
         <Icon size={20} />
@@ -22,8 +22,8 @@ const StatCard = ({ title, value, change, icon: Icon, trend, subtitle }: any) =>
       {change && (
         <span
           className={`text-[12px] font-medium px-2 py-0.5 rounded flex items-center gap-1 ${
-            trend === 'up' ? 'text-green-700 bg-green-50' : 
-            'text-red-700 bg-red-50'
+            trend === 'up' ? 'text-success bg-success-soft' : 
+            'text-danger bg-danger-soft'
           }`}
         >
           {trend === 'down' && <AlertCircle size={12} />}
@@ -42,7 +42,7 @@ const StatCard = ({ title, value, change, icon: Icon, trend, subtitle }: any) =>
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-white border border-line p-3 rounded shadow-lg">
+      <div className="bg-surface border border-line p-3 rounded shadow-lg">
         <p className="font-semibold text-ink mb-2">{label}</p>
         {payload.map((p: any, i: number) => (
           <p key={i} className="text-[13px] text-ink" style={{ color: p.color }}>
@@ -108,7 +108,7 @@ export const Dashboard: React.FC = () => {
         data-testid="dashboard-branch"
         value={branchId || ''} 
         onChange={(e) => setBranchId(e.target.value ? Number(e.target.value) : undefined)}
-        className="h-8 w-[200px] bg-white border border-line-strong text-[13px] text-ink rounded-[4px] px-2 focus:outline-none focus:border-primary"
+        className="h-8 w-[200px] bg-surface border border-line-strong text-[13px] text-ink rounded-[4px] px-2 focus:outline-none focus:border-primary"
       >
         <option value="">Tất cả chi nhánh</option>
         {branches.map((b: any) => (<option key={b.id} value={b.id}>{b.name} ({b.branchCode})</option>))}
@@ -118,7 +118,7 @@ export const Dashboard: React.FC = () => {
         data-testid="dashboard-period"
         value={period}
         onChange={(e) => handlePeriodChange(e.target.value as PeriodKey)}
-        className="h-8 bg-white border border-line-strong text-[13px] text-ink rounded-[4px] px-2 focus:outline-none focus:border-primary"
+        className="h-8 bg-surface border border-line-strong text-[13px] text-ink rounded-[4px] px-2 focus:outline-none focus:border-primary"
       >
         {PERIOD_OPTIONS.map(o => (
           <option key={o.key} value={o.key}>{o.label}</option>
@@ -132,7 +132,7 @@ export const Dashboard: React.FC = () => {
             data-testid="dashboard-date-start"
             value={customStart}
             onChange={e => setCustomStart(e.target.value)}
-            className="h-8 bg-white border border-line-strong text-[13px] px-2 rounded-[4px] focus:outline-none focus:border-primary"
+            className="h-8 bg-surface border border-line-strong text-[13px] px-2 rounded-[4px] focus:outline-none focus:border-primary"
           />
           <span className="text-ink-muted">-</span>
           <input 
@@ -140,12 +140,12 @@ export const Dashboard: React.FC = () => {
             data-testid="dashboard-date-end"
             value={customEnd}
             onChange={e => setCustomEnd(e.target.value)}
-            className="h-8 bg-white border border-line-strong text-[13px] px-2 rounded-[4px] focus:outline-none focus:border-primary"
+            className="h-8 bg-surface border border-line-strong text-[13px] px-2 rounded-[4px] focus:outline-none focus:border-primary"
           />
           <button 
             data-testid="dashboard-filter-btn"
             onClick={handleApplyCustom}
-            className="h-8 px-3 bg-white border border-line-strong text-[13px] font-medium text-ink hover:bg-slate-50 rounded-[4px]"
+            className="h-8 px-3 bg-surface border border-line-strong text-[13px] font-medium text-ink hover:bg-slate-50 rounded-[4px]"
           >
             Áp dụng
           </button>
@@ -155,14 +155,14 @@ export const Dashboard: React.FC = () => {
       <button 
         data-testid="dashboard-export-btn"
         onClick={handleExport}
-        className="h-8 flex items-center gap-1 bg-white border border-line-strong text-[13px] font-medium text-ink px-3 rounded-[4px] hover:bg-slate-50"
+        className="h-8 flex items-center gap-1 bg-surface border border-line-strong text-[13px] font-medium text-ink px-3 rounded-[4px] hover:bg-slate-50"
       >
         <Download size={14} />
         Xuất Excel
       </button>
       <button 
         onClick={() => fetchMetrics()}
-        className="h-8 w-8 flex justify-center items-center bg-white border border-line-strong text-ink-subtle rounded-[4px] hover:bg-slate-50"
+        className="h-8 w-8 flex justify-center items-center bg-surface border border-line-strong text-ink-subtle rounded-[4px] hover:bg-slate-50"
         title="Làm mới dữ liệu"
       >
         <RefreshCw size={14} className={isFetching ? 'animate-spin' : ''} />
@@ -227,7 +227,7 @@ export const Dashboard: React.FC = () => {
 
           {/* Charts Section */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <div className="lg:col-span-2 bg-white rounded-lg border border-line shadow-sm p-5">
+            <div className="lg:col-span-2 bg-surface rounded-lg border border-line shadow-sm p-5">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-[15px] font-semibold text-ink">Top Sản Phẩm Bán Chạy Nhất</h3>
               </div>
@@ -273,7 +273,7 @@ export const Dashboard: React.FC = () => {
             </div>
 
             {/* Top Products List */}
-            <div className="bg-white rounded-lg border border-line shadow-sm p-5 flex flex-col h-[395px]">
+            <div className="bg-surface rounded-lg border border-line shadow-sm p-5 flex flex-col h-[395px]">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-[15px] font-semibold text-ink">Chi Tiết Sản Phẩm</h3>
                 <span className="text-[11px] font-medium bg-primary-soft text-primary px-2 py-0.5 rounded-full">

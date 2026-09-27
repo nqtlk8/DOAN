@@ -1,4 +1,5 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
+import { AlertTriangle, RefreshCw } from 'lucide-react';
 
 interface Props {
   children: ReactNode;
@@ -26,20 +27,26 @@ export class ErrorBoundary extends Component<Props, State> {
   public render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
-          <div className="bg-white p-8 rounded shadow-md max-w-lg w-full text-center">
-            <h1 className="text-2xl font-bold text-red-600 mb-4">Đã có lỗi hệ thống xảy ra</h1>
-            <p className="text-gray-600 mb-6">Xin lỗi, đã xảy ra lỗi trong quá trình tải trang. Vui lòng thử lại.</p>
+        <div className="min-h-screen flex items-center justify-center bg-app p-4">
+          <div className="card p-8 max-w-lg w-full text-center flex flex-col items-center">
+            <div className="w-16 h-16 bg-danger-soft text-danger rounded-full flex items-center justify-center mb-4">
+              <AlertTriangle size={32} />
+            </div>
+            <h1 className="text-[18px] font-semibold text-ink mb-2">Đã có lỗi hệ thống xảy ra</h1>
+            <p className="text-[14px] text-ink-muted mb-6">Xin lỗi, đã xảy ra lỗi trong quá trình tải trang. Vui lòng thử lại.</p>
             {this.state.error && (
-              <pre className="text-left text-xs bg-gray-100 p-4 rounded overflow-auto text-red-800 mb-6 max-h-48">
-                {this.state.error.toString()}
-              </pre>
+              <div className="w-full text-left bg-slate-50 border border-line p-3 rounded-md overflow-auto mb-6 max-h-48">
+                <pre className="text-[12px] text-danger/80 whitespace-pre-wrap font-mono">
+                  {this.state.error.toString()}
+                </pre>
+              </div>
             )}
             <button
               onClick={() => window.location.reload()}
-              className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+              className="btn-primary h-9 px-6 flex items-center gap-2"
             >
-              Tải lại trang
+              <RefreshCw size={16} />
+              <span>Tải lại trang</span>
             </button>
           </div>
         </div>

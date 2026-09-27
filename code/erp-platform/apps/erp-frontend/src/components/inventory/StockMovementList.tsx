@@ -1,4 +1,5 @@
 import { PageContainer } from '../../shared/components/Page/PageContainer';
+import { PageHeader } from '../../shared/components/Page/PageHeader';
 import React from 'react';
 import { DataState } from '../../shared/components/DataState/DataState';
 import { StockMovement } from '../../types/inventory';
@@ -12,18 +13,18 @@ export const StockMovementList: React.FC<StockMovementListProps> = ({ productId 
   const { data: movements, isLoading, isError, error, refetch } = useStockMovements(productId);
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden mt-4">
-      <div className="p-4 border-b border-slate-100 bg-slate-50">
-        <h3 className="font-semibold text-slate-900">Lịch Sử Movement</h3>
+    <div className="bg-surface rounded-xl shadow-sm border border-line overflow-hidden mt-4">
+      <div className="p-4 border-b border-line bg-app">
+        <h3 className="font-semibold text-ink">Lịch Sử Movement</h3>
       </div>
       <table className="w-full text-left border-collapse">
         <thead>
-          <tr className="bg-slate-50 border-b border-slate-100">
-            <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-slate-500">Thời gian</th>
-            <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-slate-500">Loại</th>
-            <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-slate-500">SL</th>
-            <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-slate-500">Loại tham chiếu</th>
-            <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-slate-500">ID tham chiếu</th>
+          <tr className="bg-app border-b border-line">
+            <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-ink-subtle">Thời gian</th>
+            <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-ink-subtle">Loại</th>
+            <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-ink-subtle">SL</th>
+            <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-ink-subtle">Loại tham chiếu</th>
+            <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-ink-subtle">ID tham chiếu</th>
           </tr>
         </thead>
         <tbody>
@@ -43,24 +44,24 @@ export const StockMovementList: React.FC<StockMovementListProps> = ({ productId 
           </tr>
           {!isLoading && !isError && movements && movements.length > 0 && (
             movements.map((m: StockMovement, i: number) => (
-              <tr key={m.id || i} className="border-b border-slate-50 hover:bg-slate-50">
-                <td className="px-4 py-2 text-sm text-slate-900">
+              <tr key={m.id || i} className="border-b border-slate-50 hover:bg-app">
+                <td className="px-4 py-2 text-sm text-ink">
                   {new Date(m.createdAt).toLocaleString('vi-VN')}
                 </td>
                 <td className="px-4 py-2 text-sm">
                   <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                    m.movementType === 'INBOUND' ? 'bg-emerald-50 text-emerald-700' :
-                    m.movementType === 'SALE' ? 'bg-rose-50 text-rose-700' :
-                    m.movementType === 'RETURN' ? 'bg-blue-50 text-blue-700' : 'bg-slate-100 text-slate-700'
+                    m.movementType === 'INBOUND' ? 'bg-success-soft text-success' :
+                    m.movementType === 'SALE' ? 'bg-danger-soft text-danger' :
+                    m.movementType === 'RETURN' ? 'bg-primary-soft text-primary' : 'bg-slate-100 text-ink'
                   }`}>
                     {m.movementType}
                   </span>
                 </td>
-                <td className={`px-4 py-2 text-sm font-medium ${m.quantity > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                <td className={`px-4 py-2 text-sm font-medium ${m.quantity > 0 ? 'text-success' : 'text-danger'}`}>
                   {m.quantity > 0 ? '+' : ''}{m.quantity}
                 </td>
-                <td className="px-4 py-2 text-sm text-slate-900">{m.refType || '-'}</td>
-                <td className="px-4 py-2 text-sm text-slate-500">{m.refId || '-'}</td>
+                <td className="px-4 py-2 text-sm text-ink">{m.refType || '-'}</td>
+                <td className="px-4 py-2 text-sm text-ink-subtle">{m.refId || '-'}</td>
               </tr>
             ))
           )}

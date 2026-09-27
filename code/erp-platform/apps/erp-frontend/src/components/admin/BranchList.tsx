@@ -1,8 +1,9 @@
-import { PageContainer } from '../../shared/components/Page/PageContainer';
 import React, { useState } from 'react';
 import { Search } from 'lucide-react';
 import { ApiService } from '../../api/ApiService';
 import { useQuery } from '@tanstack/react-query';
+import { PageContainer } from '../../shared/components/Page/PageContainer';
+import { PageHeader } from '../../shared/components/Page/PageHeader';
 import { DataState } from '../../shared/components/DataState/DataState';
 
 export const BranchList: React.FC = () => {
@@ -14,71 +15,59 @@ export const BranchList: React.FC = () => {
   });
 
   const items: any[] = response || [];
-  const filtered = items.filter((c) => c.branchName?.toLowerCase().includes(searchTerm.toLowerCase()));
+  const filtered = items.filter((c) => c.name?.toLowerCase().includes(searchTerm.toLowerCase()));
 
   return (
     <PageContainer>
-      <div className="">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-slate-900">Danh Sách Chi Nhánh</h2>
-      </div>
-
-      <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
-        <div className="p-4 border-b border-slate-100">
-          <div className="relative w-72">
-            <input
-              type="text"
-              placeholder="Tìm kiếm chi nhánh..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-slate-900"
-            />
-            <Search className="absolute left-3 top-2.5 text-slate-900" size={20} />
+      <PageHeader 
+        title="Danh Sách Chi Nhánh"
+        actions={
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <Search size={16} className="absolute left-2.5 top-2 text-ink-subtle" />
+              <input
+                type="text"
+                placeholder="Tìm theo mã, tên..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="erp-input h-8 pl-8 w-[280px]"
+              />
+            </div>
           </div>
-        </div>
+        }
+      />
 
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="bg-slate-50 border-b border-slate-100">
-              <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-slate-500">Mã CN</th>
-              <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-slate-500">Tên Chi Nhánh</th>
-              <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-slate-500">Địa Chỉ</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td colSpan={3} className="p-0">
-                <DataState
-                  isLoading={loading}
-                  isError={isError}
-                  error={error}
-                  isEmpty={items.length === 0}
-                  onRetry={refetch}
-                  loadingType="table"
-                  emptyTitle="Chưa có chi nhánh"
-                  emptyMessage="Hệ thống chưa có chi nhánh nào."
-                >
-                  {items.length > 0 && filtered.length === 0 ? (
-                    <div className="p-8 text-center text-slate-500 bg-white">
-                      Không tìm thấy kết quả nào phù hợp với "{searchTerm}"
-                    </div>
-                  ) : null}
-                </DataState>
-              </td>
-            </tr>
-            {!loading && !isError && filtered.length > 0 && (
-              filtered.map((c, i) => (
-                <tr key={i} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
-                  <td className="px-4 py-1.5 text-sm text-slate-900">{c.branchCode || '-'}</td>
-                  <td className="px-4 py-1.5 text-sm text-slate-900 font-medium">{c.branchName}</td>
-                  <td className="px-4 py-1.5 text-sm text-slate-900">{c.address || '-'}</td>
+      <div className="card overflow-hidden">
+        <DataState
+          isLoading={loading}
+          isError={isError}
+          error={error}
+          isEmpty={filtered.length === 0} 
+          onRetry={refetch}
+          loadingType="table"
+          emptyTitle="Chưa có chi nhánh"
+          emptyMessage="Hệ thống chưa có chi nhánh nào hoặc không tìm thấy."
+        >
+          <table className="erp-table">
+            <thead>
+              <tr>
+                <th>Mã CN</th>
+                <th>Tên Chi Nhánh</th>
+                <th>Địa Chỉ</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((c, i) => (
+                <tr key={i}>
+                  <td>{c.branchCode || '-'}</td>
+                  <td className="font-medium text-ink">{c.name}</td>
+                  <td>{c.address || '-'}</td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ))}
+            </tbody>
+          </table>
+        </DataState>
       </div>
-    </div>
     </PageContainer>
   );
 };

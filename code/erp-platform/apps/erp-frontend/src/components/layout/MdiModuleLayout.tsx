@@ -93,7 +93,7 @@ export const MdiModuleLayout: React.FC<MdiModuleLayoutProps> = ({
           onClick={() => onSubViewChange('FORM')}
           data-testid="subview-form"
           className={`w-full py-6 flex items-center justify-center border-b border-erp-bg-ribbon-border transition-none shrink-0 ${
-            activeSubView === 'FORM' ? 'bg-erp-bg-content font-bold text-erp-text-primary' : 'bg-transparent hover:bg-white/40 text-slate-700'
+            activeSubView === 'FORM' ? 'bg-erp-bg-content font-bold text-erp-text-primary' : 'bg-transparent hover:bg-surface/40 text-slate-700'
           }`}
         >
           <span
@@ -107,7 +107,7 @@ export const MdiModuleLayout: React.FC<MdiModuleLayoutProps> = ({
           onClick={() => onSubViewChange('LIST')}
           data-testid="subview-list"
           className={`w-full py-6 flex items-center justify-center border-b border-erp-bg-ribbon-border transition-none shrink-0 ${
-            activeSubView === 'LIST' ? 'bg-erp-bg-content font-bold text-erp-text-primary' : 'bg-transparent hover:bg-white/40 text-slate-700'
+            activeSubView === 'LIST' ? 'bg-erp-bg-content font-bold text-erp-text-primary' : 'bg-transparent hover:bg-surface/40 text-slate-700'
           }`}
         >
           <span
@@ -120,7 +120,7 @@ export const MdiModuleLayout: React.FC<MdiModuleLayoutProps> = ({
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col relative overflow-hidden bg-white min-w-0">
+      <div className="flex-1 flex flex-col relative overflow-hidden bg-surface min-w-0">
         <div className="flex-1 overflow-auto">{children}</div>
 
         {/* Bottom Toolbar (Sticky at bottom of main content) */}
@@ -135,7 +135,7 @@ export const MdiModuleLayout: React.FC<MdiModuleLayoutProps> = ({
                     data-testid="btn-add"
                     className="h-[24px] inline-flex items-center gap-1 px-2 bg-erp-btn-bg border border-erp-btn-border hover:bg-erp-btn-hover-bg rounded-erp text-erp-base transition-none shrink-0"
                   >
-                    <FilePlus size={14} className="text-blue-600" />
+                    <FilePlus size={14} className="text-primary" />
                     <span>Thêm</span>
                     <span className="text-slate-500 ml-1 text-erp-label">(F2)</span>
                   </button>
@@ -144,7 +144,7 @@ export const MdiModuleLayout: React.FC<MdiModuleLayoutProps> = ({
                     data-testid="btn-edit"
                     className="h-[24px] inline-flex items-center gap-1 px-2 bg-erp-btn-bg border border-erp-btn-border hover:bg-erp-btn-hover-bg rounded-erp text-erp-base transition-none shrink-0"
                   >
-                    <Edit2 size={14} className="text-blue-600" />
+                    <Edit2 size={14} className="text-primary" />
                     <span>Sửa</span>
                     <span className="text-slate-500 ml-1 text-erp-label">(F3)</span>
                   </button>
@@ -163,7 +163,7 @@ export const MdiModuleLayout: React.FC<MdiModuleLayoutProps> = ({
                       data-testid="btn-confirm"
                       className="h-[24px] inline-flex items-center gap-1 px-2 bg-erp-btn-bg border border-erp-btn-border hover:bg-erp-btn-hover-bg rounded-erp text-erp-base transition-none shrink-0"
                     >
-                      <Check size={14} className="text-green-600" />
+                      <Check size={14} className="text-success" />
                       <span>Xác nhận</span>
                       <span className="text-slate-500 ml-1 text-erp-label">(F9)</span>
                     </button>
@@ -178,7 +178,7 @@ export const MdiModuleLayout: React.FC<MdiModuleLayoutProps> = ({
                     disabled={isLoading}
                     className="h-[24px] inline-flex items-center gap-1 px-2 bg-erp-btn-bg border border-erp-btn-border hover:bg-erp-btn-hover-bg rounded-erp text-erp-base transition-none shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <Save size={14} className="text-blue-600" />
+                    <Save size={14} className="text-primary" />
                     <span>Lưu</span>
                     <span className="text-slate-500 ml-1 text-erp-label">(F4)</span>
                   </button>
@@ -188,7 +188,7 @@ export const MdiModuleLayout: React.FC<MdiModuleLayoutProps> = ({
                     disabled={isLoading}
                     className="h-[24px] inline-flex items-center gap-1 px-2 bg-erp-btn-bg border border-erp-btn-border hover:bg-erp-btn-hover-bg rounded-erp text-erp-base transition-none shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <X size={14} className="text-red-500" />
+                    <X size={14} className="text-danger" />
                     <span>Hủy</span>
                     <span className="text-slate-500 ml-1 text-erp-label">(Esc)</span>
                   </button>

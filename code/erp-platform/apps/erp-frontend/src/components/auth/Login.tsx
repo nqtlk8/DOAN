@@ -37,7 +37,7 @@ export const Login: React.FC = () => {
       <div className="hidden lg:flex flex-col justify-between p-12 text-white bg-primary bg-gradient-to-b from-primary to-[#1E3A8A]">
         <div>
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center">
+            <div className="w-10 h-10 bg-surface rounded-lg flex items-center justify-center">
               <span className="text-primary-dark font-bold text-xl">{BRAND.mark}</span>
             </div>
             <div>
@@ -49,7 +49,7 @@ export const Login: React.FC = () => {
           <div className="mt-16 space-y-5">
             {featureList.map((f, i) => (
               <div key={i} className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center shrink-0">
+                <div className="w-10 h-10 rounded-full bg-surface/10 flex items-center justify-center shrink-0">
                   {f.icon}
                 </div>
                 <span className="text-[14px] text-white/90 font-medium">{f.text}</span>
@@ -80,8 +80,8 @@ export const Login: React.FC = () => {
           </div>
 
           {error && (
-            <div data-testid="login-error" className="mb-5 p-3 bg-red-50 border border-red-200 rounded-md">
-              <p className="text-sm text-red-600 font-medium">{error}</p>
+            <div data-testid="login-error" className="mb-5 p-3 bg-danger-soft border border-line rounded-md">
+              <p className="text-sm text-danger font-medium">{error}</p>
             </div>
           )}
 
@@ -97,7 +97,7 @@ export const Login: React.FC = () => {
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  className="block w-full h-[40px] pl-9 pr-3 bg-white border border-line-strong rounded-[6px] text-[14px] text-ink placeholder:text-ink-lighter focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all"
+                  className="block w-full h-[40px] pl-9 pr-3 bg-surface border border-line-strong rounded-[6px] text-[14px] text-ink placeholder:text-ink-lighter focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all"
                   placeholder="admin"
                   required
                   autoFocus
@@ -116,7 +116,7 @@ export const Login: React.FC = () => {
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="block w-full h-[40px] pl-9 pr-10 bg-white border border-line-strong rounded-[6px] text-[14px] text-ink placeholder:text-ink-lighter focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all"
+                  className="block w-full h-[40px] pl-9 pr-10 bg-surface border border-line-strong rounded-[6px] text-[14px] text-ink placeholder:text-ink-lighter focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all"
                   placeholder="••••••••"
                   required
                 />

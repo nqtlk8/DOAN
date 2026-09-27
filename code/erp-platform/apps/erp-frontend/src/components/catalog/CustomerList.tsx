@@ -1,3 +1,4 @@
+import { PageHeader } from '../../shared/components/Page/PageHeader';
 import { PageContainer } from '../../shared/components/Page/PageContainer';
 import React, { useState } from 'react';
 import { Search, Plus, X, Edit, Trash2 } from 'lucide-react';
@@ -82,44 +83,48 @@ export const CustomerList: React.FC = () => {
 
   return (
     <PageContainer>
-      <div className="">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-slate-900">Danh Mục Khách Hàng</h2>
-        {isAdmin && (
-          <button
-            data-testid="customer-create-button"
-            onClick={() => handleOpenModal()}
-            className="flex items-center gap-2 bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700 transition-colors shadow-sm"
-          >
-            <Plus size={20} />
-            Thêm Khách Hàng
-          </button>
-        )}
-      </div>
-
-      <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
-        <div className="p-4 border-b border-slate-100">
-          <div className="relative w-72">
-            <input
-              type="text"
-              placeholder="Tìm kiếm khách hàng..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-slate-900"
-            />
-            <Search className="absolute left-3 top-2.5 text-slate-900" size={20} />
+      <PageHeader 
+        title="Danh Mục Khách Hàng"
+        actions={
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <Search size={16} className="absolute left-2.5 top-2 text-ink-subtle" />
+              <input
+                type="text"
+                placeholder="Tìm theo mã, tên..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="erp-input h-8 pl-8 w-[280px]"
+              />
+            </div>
+            {isAdmin && (
+              <button data-testid="customer-create-button" onClick={() => handleOpenModal()} className="btn-primary h-8 px-3 flex items-center">
+                <Plus size={16} className="mr-1" />
+                Thêm mới
+              </button>
+            )}
           </div>
-        </div>
+        }
+      />
 
-        <table className="w-full text-left border-collapse">
+      <div className="card overflow-hidden">
+        <DataState
+          isLoading={loading}
+          isError={isError}
+          error={error}
+          isEmpty={filtered.length === 0} 
+          onRetry={refetch}
+          loadingType="table"
+        >
+          <table className="erp-table">
           <thead>
-            <tr className="bg-slate-50 border-b border-slate-100">
-              <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-slate-500">Mã KH</th>
-              <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-slate-500">Tên KH</th>
-              <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-slate-500">Số Điện Thoại</th>
-              <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-slate-500">Địa Chỉ</th>
+            <tr className="bg-app border-b border-line">
+              <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-ink-subtle">Mã KH</th>
+              <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-ink-subtle">Tên KH</th>
+              <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-ink-subtle">Số Điện Thoại</th>
+              <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-ink-subtle">Địa Chỉ</th>
               {isAdmin && (
-                <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-slate-500 text-right">
+                <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-ink-subtle text-right">
                   Thao Tác
                 </th>
               )}
@@ -139,7 +144,7 @@ export const CustomerList: React.FC = () => {
                   emptyMessage="Hệ thống chưa ghi nhận khách hàng nào."
                 >
                   {customers.length > 0 && filtered.length === 0 ? (
-                    <div className="p-8 text-center text-slate-500 bg-white">
+                    <div className="p-8 text-center text-ink-subtle bg-surface">
                       Không tìm thấy kết quả nào phù hợp với "{searchTerm}"
                     </div>
                   ) : null}
@@ -148,108 +153,109 @@ export const CustomerList: React.FC = () => {
             </tr>
             {!loading && !isError && filtered.length > 0 && (
               filtered.map((c, i) => (
-                <tr data-testid="customer-row" key={c.id || i} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
-                  <td className="px-4 py-1.5 text-sm text-slate-900">{c.customerCode || c.code || '-'}</td>
-                  <td className="px-4 py-1.5 text-sm font-medium text-slate-900">{c.name}</td>
-                  <td className="px-4 py-1.5 text-sm text-slate-900">{c.phone || '-'}</td>
-                  <td className="px-4 py-1.5 text-sm text-slate-900 truncate max-w-xs">{c.address || '-'}</td>
+                <tr data-testid="customer-row" key={c.id || i} className="border-b border-slate-50 hover:bg-app transition-colors">
+                  <td className="px-4 py-1.5 text-sm text-ink">{c.customerCode || c.code || '-'}</td>
+                  <td className="px-4 py-1.5 text-sm font-medium text-ink">{c.name}</td>
+                  <td className="px-4 py-1.5 text-sm text-ink">{c.phone || '-'}</td>
+                  <td className="px-4 py-1.5 text-sm text-ink truncate max-w-xs">{c.address || '-'}</td>
                   
                 </tr>
               ))
             )}
           </tbody>
         </table>
+        </DataState>
       </div>
 
       {isModalOpen && (
         <div data-testid="customer-create-modal" className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="flex justify-between items-center p-5 border-b border-slate-100">
-              <h3 className="text-lg font-bold text-slate-900">
+          <div className="bg-surface rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center p-5 border-b border-line">
+              <h3 className="text-lg font-bold text-ink">
                 {isEditing ? 'Cập Nhật Khách Hàng' : 'Thêm Khách Hàng Mới'}
               </h3>
               <button
                 onClick={handleCloseModal}
-                className="text-slate-400 hover:text-slate-500 hover:bg-slate-100 p-1 rounded-md transition-colors"
+                className="text-ink-lighter hover:text-ink-subtle hover:bg-slate-100 p-1 rounded-md transition-colors"
               >
                 <X size={20} />
               </button>
             </div>
             <div className="p-5 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Mã KH</label>
+                <label className="block text-sm font-medium text-ink mb-1">Mã KH</label>
                 <input
                   data-testid="customer-code"
                   type="text"
                   value={formData.customerCode || formData.code || ''}
                   onChange={(e) => setFormData({ ...formData, customerCode: e.target.value, code: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  className="w-full px-3 py-2 bg-app border border-line rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                   placeholder="Tự động nếu để trống"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Tên KH <span className="text-rose-500">*</span></label>
+                <label className="block text-sm font-medium text-ink mb-1">Tên KH <span className="text-danger">*</span></label>
                 <input
                   data-testid="customer-name"
                   type="text"
                   value={formData.name || ''}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  className="w-full px-3 py-2 bg-app border border-line rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                   placeholder="VD: Nguyễn Văn A"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Số Điện Thoại</label>
+                <label className="block text-sm font-medium text-ink mb-1">Số Điện Thoại</label>
                 <input
                   data-testid="customer-phone"
                   type="text"
                   value={formData.phone || ''}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                   disabled={!isAdmin}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-slate-900 disabled:bg-slate-100 disabled:text-slate-500"
+                  className="w-full px-3 py-2 border border-line-strong rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-ink disabled:bg-slate-100 disabled:text-ink-subtle"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Email</label>
+                <label className="block text-xs font-medium text-ink-subtle mb-1">Email</label>
                 <input
                   data-testid="customer-email"
                   type="email"
                   value={formData.email || ''}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   disabled={!isAdmin}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-slate-900 disabled:bg-slate-100 disabled:text-slate-500"
+                  className="w-full px-3 py-2 border border-line-strong rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-ink disabled:bg-slate-100 disabled:text-ink-subtle"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Địa chỉ</label>
+                <label className="block text-xs font-medium text-ink-subtle mb-1">Địa chỉ</label>
                 <input
                   data-testid="customer-address"
                   type="text"
                   value={formData.address || ''}
                   onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                   disabled={!isAdmin}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-slate-900 disabled:bg-slate-100 disabled:text-slate-500"
+                  className="w-full px-3 py-2 border border-line-strong rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-ink disabled:bg-slate-100 disabled:text-ink-subtle"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Mã số thuế</label>
+                <label className="block text-xs font-medium text-ink-subtle mb-1">Mã số thuế</label>
                 <input
                   data-testid="customer-tax-code"
                   type="text"
                   value={formData.taxCode || ''}
                   onChange={(e) => setFormData({ ...formData, taxCode: e.target.value })}
                   disabled={!isAdmin}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-slate-900 disabled:bg-slate-100 disabled:text-slate-500"
+                  className="w-full px-3 py-2 border border-line-strong rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-ink disabled:bg-slate-100 disabled:text-ink-subtle"
                 />
               </div>
               {isAdmin && (
                 <div>
-                  <label className="block text-xs font-medium text-slate-500 mb-1">Chi nhánh</label>
+                  <label className="block text-xs font-medium text-ink-subtle mb-1">Chi nhánh</label>
                   <select
                     value={formData.branchId || ''}
                     onChange={(e) => setFormData({ ...formData, branchId: e.target.value ? Number(e.target.value) : undefined })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-slate-900"
+                    className="w-full px-3 py-2 border border-line-strong rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-ink"
                   >
                     <option value="">Dùng chung (Tất cả chi nhánh)</option>
                     {branches.map((b) => (
@@ -259,11 +265,11 @@ export const CustomerList: React.FC = () => {
                 </div>
               )}
             </div>
-            <div className="flex justify-end gap-3 p-4 border-t border-slate-100 bg-slate-50 rounded-b-xl">
+            <div className="flex justify-end gap-3 p-4 border-t border-line bg-app rounded-b-xl">
               <button
                 data-testid="customer-cancel"
                 onClick={handleCloseModal}
-                className="px-4 py-2 text-slate-900 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+                className="px-4 py-2 text-ink bg-surface border border-line-strong rounded-lg hover:bg-app transition-colors"
               >
                 {isAdmin ? 'Hủy' : 'Đóng'}
               </button>
@@ -272,7 +278,7 @@ export const CustomerList: React.FC = () => {
                   data-testid="customer-save"
                   onClick={handleSave}
                   disabled={submitting || !formData.name}
-                  className="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors disabled:opacity-50"
+                  className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors disabled:opacity-50"
                 >
                   {submitting ? 'Đang lưu...' : 'Lưu lại'}
                 </button>
@@ -281,7 +287,6 @@ export const CustomerList: React.FC = () => {
           </div>
         </div>
       )}
-    </div>
     </PageContainer>
   );
 };

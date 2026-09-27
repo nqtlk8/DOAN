@@ -1,3 +1,4 @@
+import { PageHeader } from '../../shared/components/Page/PageHeader';
 import { PageContainer } from '../../shared/components/Page/PageContainer';
 import React, { useState } from 'react';
 import { Search, Eye } from 'lucide-react';
@@ -33,34 +34,43 @@ export const DebtList: React.FC = () => {
 
   return (
     <PageContainer>
-      <div className="">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-slate-900">Danh Mục Công Nợ</h2>
-      </div>
-
-      <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
-        <div className="p-4 border-b border-slate-100">
-          <div className="relative w-72">
-            <input
-              type="text"
-              placeholder="Tìm kiếm đối tác..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-slate-900"
-            />
-            <Search className="absolute left-3 top-2.5 text-slate-900" size={20} />
+      <PageHeader 
+        title="Danh Mục Công Nợ"
+        actions={
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <Search size={16} className="absolute left-2.5 top-2 text-ink-subtle" />
+              <input
+                type="text"
+                placeholder="Tìm theo mã, tên..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="erp-input h-8 pl-8 w-[280px]"
+              />
+            </div>
+            
           </div>
-        </div>
+        }
+      />
 
-        <table className="w-full text-left border-collapse">
+      <div className="card overflow-hidden">
+        <DataState
+          isLoading={loading}
+          isError={isError}
+          error={error}
+          isEmpty={filtered.length === 0} 
+          onRetry={refetch}
+          loadingType="table"
+        >
+          <table className="erp-table">
           <thead>
-            <tr className="bg-slate-50 border-b border-slate-100">
-              <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-slate-500">MÃ Đối Tác</th>
-              <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-slate-500">Tên Đối Tác</th>
-              <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-slate-500">Số Điện Thoại</th>
-              <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-slate-500">Địa Chỉ</th>
-              <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-slate-500">Dư Nợ</th>
-              <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-slate-500 text-right">Thao Tác</th>
+            <tr className="bg-app border-b border-line">
+              <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-ink-subtle">MÃ Đối Tác</th>
+              <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-ink-subtle">Tên Đối Tác</th>
+              <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-ink-subtle">Số Điện Thoại</th>
+              <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-ink-subtle">Địa Chỉ</th>
+              <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-ink-subtle">Dư Nợ</th>
+              <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-ink-subtle text-right">Thao Tác</th>
             </tr>
           </thead>
           <tbody>
@@ -77,7 +87,7 @@ export const DebtList: React.FC = () => {
                   emptyMessage="Hệ thống chưa ghi nhận công nợ nào."
                 >
                   {items.length > 0 && filtered.length === 0 ? (
-                    <div className="p-8 text-center text-slate-500 bg-white">
+                    <div className="p-8 text-center text-ink-subtle bg-surface">
                       Không tìm thấy kết quả nào phù hợp với "{searchTerm}"
                     </div>
                   ) : null}
@@ -88,20 +98,20 @@ export const DebtList: React.FC = () => {
               filtered.map((c, i) => (
                 <tr 
                   key={i} 
-                  className="border-b border-slate-50 hover:bg-slate-50 transition-colors cursor-pointer group"
+                  className="border-b border-slate-50 hover:bg-app transition-colors cursor-pointer group"
                   onDoubleClick={() => handleViewStatement(c)}
                 >
-                  <td className="px-4 py-2 text-sm text-slate-900">{c.customerCode || '-'}</td>
-                  <td className="px-4 py-2 text-sm text-slate-900 font-medium">{c.customerName}</td>
-                  <td className="px-4 py-2 text-sm text-slate-900">{c.phone || '-'}</td>
-                  <td className="px-4 py-2 text-sm text-slate-900">{c.address || '-'}</td>
-                  <td className="px-4 py-2 text-sm text-slate-900">
+                  <td className="px-4 py-2 text-sm text-ink">{c.customerCode || '-'}</td>
+                  <td className="px-4 py-2 text-sm text-ink font-medium">{c.customerName}</td>
+                  <td className="px-4 py-2 text-sm text-ink">{c.phone || '-'}</td>
+                  <td className="px-4 py-2 text-sm text-ink">{c.address || '-'}</td>
+                  <td className="px-4 py-2 text-sm text-ink">
                     {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(c.totalDebt || 0)}
                   </td>
                   <td className="px-4 py-2 text-right">
                     <button
                       onClick={() => handleViewStatement(c)}
-                      className="inline-flex items-center gap-1 px-2 py-1 text-sm text-teal-600 hover:text-teal-700 hover:bg-teal-50 rounded transition-colors opacity-0 group-hover:opacity-100"
+                      className="inline-flex items-center gap-1 px-2 py-1 text-sm text-primary hover:text-primary-dark hover:bg-primary-soft rounded transition-colors opacity-0 group-hover:opacity-100"
                       title="Xem sao kê"
                     >
                       <Eye size={16} /> Sao kê
@@ -112,8 +122,8 @@ export const DebtList: React.FC = () => {
             )}
           </tbody>
         </table>
+        </DataState>
       </div>
-    </div>
     </PageContainer>
   );
 };
