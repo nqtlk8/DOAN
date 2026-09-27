@@ -23,3 +23,7 @@
 - Tái s? d?ng code t?o ti?p GoodsReturnForm thành công (Phi?u Nh?p L?i Hàng Bán).
 - Tích h?p 2 Module lên TopRibbon thành các tab.
 - Ðã s?a toàn b? l?i TS và ch?y build thành công.
+
+## SPRINT 6: Màn hình Ðang nh?p
+- Thi?t k? l?i trang Login theo layout 2 c?t.
+- Pass t?t c? Unit Test và E2E Test cho Login.

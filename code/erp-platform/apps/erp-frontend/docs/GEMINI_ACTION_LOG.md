@@ -171,3 +171,9 @@ pm run build
 - B? sung nút b?m Nh?p L?i Hàng Bán trong TopRibbon.
 - Chuy?n test E2E cu vào tests/_legacy.
 - S?a các l?i Typescript liên quan type string/number c?a ID.
+
+[#601] 2026-09-27 13:22 · Sprint 6 · Bu?c 1, 2, 3, 4, 5, 11, 12 · IMPLEMENT
+- Refactor Login.tsx (chia 2 panel lg:grid-cols-[55%_45%], gradient).
+- Thêm mock test ENV.isDev.
+- Vi?t 4 test case Unit Login.test.tsx thành công.
+- Vi?t 3 test case E2E login.spec.ts thành công.
