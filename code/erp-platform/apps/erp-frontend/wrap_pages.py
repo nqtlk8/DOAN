@@ -1,31 +1,43 @@
 import os
 import glob
-import re
 
-files = glob.glob('src/components/**/*List.tsx', recursive=True) + ['src/components/sales/Dashboard.tsx']
-for f in files:
-    with open(f, 'r', encoding='utf-8') as file:
-        content = file.read()
+def wrap_file(filepath):
+    with open(filepath, 'r', encoding='utf-8') as f:
+        content = f.read()
     
-    if 'PageContainer' in content:
-        continue
+    if "PageContainer" in content:
+        return
         
-    # Add import
-    import_stmt = "import { PageContainer } from '../../shared/components/Page/PageContainer';\n"
-    if 'src/components/' in f and f.count('/') == 3:
-         import_stmt = "import { PageContainer } from '../../shared/components/Page/PageContainer';\n"
-         
-    content = import_stmt + content
+    # Replace <div className="p-6"> with <PageContainer>
+    import_str = "import { PageContainer } from '../../shared/components/Page/PageContainer';\n"
+    if "shared/components/Page" not in content:
+        content = import_str + content
     
-    # Replace the return statement's outer div.
-    # Usually it's like <div className="p-6"> or <div className="min-h-screen p-6">
-    content = re.sub(r'return\s*\(\s*<div\b([^>]*)className="([^"]*?)(p-6|min-h-screen)([^"]*)"', 
-                     lambda m: f'return (\n    <PageContainer>\n      <div className="{m.group(2).replace("p-6", "").replace("min-h-screen", "").strip()}"', 
-                     content, count=1)
+    content = content.replace('<div className="p-6">', '<PageContainer>')
+    content = content.replace('<div className="p-6 min-h-screen bg-slate-50">', '<PageContainer>')
+    content = content.replace('<div className="p-4 h-full flex flex-col">', '<PageContainer>')
+    content = content.replace('<div className="p-4 h-full">', '<PageContainer>')
     
-    if '<PageContainer>' in content:
-        # Also need to close it at the end.
-        content = re.sub(r'</div>\s*\);\s*};', r'</div>\n    </PageContainer>\n  );\n};', content)
-        
-    with open(f, 'w', encoding='utf-8') as file:
-        file.write(content)
+    # We have to replace the closing </div> of the main container with </PageContainer>.
+    # Since it's hard to parse matching tags with regex, we can just find the last </div>\n    );\n  } or similar.
+    content = content.replace('</div>\n    );\n  }\n);', '</PageContainer>\n    );\n  }\n);')
+    content = content.replace('</div>\n    );\n};', '</PageContainer>\n    );\n};')
+    content = content.replace('</div>\n  );\n};', '</PageContainer>\n  );\n};')
+    
+    with open(filepath, 'w', encoding='utf-8') as f:
+        f.write(content)
+
+files_to_wrap = [
+    'src/components/catalog/ProductList.tsx',
+    'src/components/catalog/CustomerList.tsx',
+    'src/components/catalog/SupplierList.tsx',
+    'src/components/inventory/StockList.tsx',
+    'src/components/crm/DebtList.tsx',
+    'src/components/admin/BranchList.tsx',
+    'src/components/sales/SalesList.tsx',
+    'src/components/inventory/StockMovementList.tsx'
+]
+
+for file in files_to_wrap:
+    wrap_file(file)
+

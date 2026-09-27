@@ -1,3 +1,4 @@
+import { PageContainer } from '../../shared/components/Page/PageContainer';
 import React, { useState } from 'react';
 import { Search, Plus, X, Edit2, Trash2 } from 'lucide-react';
 import { ApiService } from '../../api/ApiService';
@@ -69,7 +70,7 @@ export const ProductList: React.FC = () => {
   const filtered = products.filter((p) => p.isActive !== false && p.name?.toLowerCase().includes(searchTerm.toLowerCase()));
 
   return (
-    <div className="p-6">
+    <PageContainer>
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold text-slate-900">Danh Mục Sản Phẩm</h2>
         {isAdmin && (
@@ -276,6 +277,6 @@ export const ProductList: React.FC = () => {
         }}
         onCancel={() => setConfirmState({ isOpen: false, id: '' })}
       />
-    </div>
+    </PageContainer>
   );
 };

@@ -27,3 +27,8 @@
 ## SPRINT 6: Màn hình Ðang nh?p
 - Thi?t k? l?i trang Login theo layout 2 c?t.
 - Pass t?t c? Unit Test và E2E Test cho Login.
+
+## SPRINT 7: Dashboard (E1-E5)
+- Chuy?n layout sang PageContainer và PageHeader.
+- Hoàn thi?n Top Products và các ch? s? Metrics Dashboard.
+- Pass t?t c? Unit Test và E2E Test cho Dashboard.

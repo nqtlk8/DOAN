@@ -177,3 +177,9 @@ pm run build
 - Thêm mock test ENV.isDev.
 - Vi?t 4 test case Unit Login.test.tsx thành công.
 - Vi?t 3 test case E2E login.spec.ts thành công.
+
+[#701] 2026-09-27 13:30 · Sprint 7 · Bu?c 1.5, 7.1, 7.2 · IMPLEMENT
+- Thêm dashboardPeriod.ts và PageContainer.tsx.
+- Xây d?ng l?i Dashboard.tsx theo thi?t k? m?i s? d?ng PageContainer và StatCard.
+- Pass t?t c? Unit Test và E2E Test cho Dashboard.
+- T?m th?i wrap các trang danh sách b?ng PageContainer.
