@@ -1,5 +1,5 @@
 export interface Customer {
-  id: string;
+  id: number | string;
   customerCode?: string;
   code?: string; // Tạm thời giữ để UI khỏi lỗi
   name: string;
@@ -13,7 +13,7 @@ export interface Customer {
 }
 
 export interface Product {
-  id: number;
+  id: number | string;
   code: string;
   name: string;
   categoryId?: number;
@@ -27,7 +27,7 @@ export interface Product {
 }
 
 export interface Supplier {
-  id: string;
+  id: number | string;
   branchId?: number;
   code: string;
   name: string;
@@ -35,7 +35,7 @@ export interface Supplier {
   email?: string;
   address?: string;
   taxCode?: string;
-  isActive: boolean;
+  isActive?: boolean;
   createdAt?: string;
   updatedAt?: string;
 }

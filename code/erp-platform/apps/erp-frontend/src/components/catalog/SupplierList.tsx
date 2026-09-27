@@ -20,7 +20,7 @@ export const SupplierList: React.FC = () => {
   const { query, createMutation, updateMutation, deleteMutation } = useSuppliers();
   const { data: response, isLoading: loading, isError, error, refetch } = query;
 
-  const suppliers: Supplier[] = response || [];
+  const suppliers: Supplier[] = (response as any) || [];
 
   const handleOpenModal = (supplier?: Supplier) => {
     if (supplier) {
@@ -49,7 +49,7 @@ export const SupplierList: React.FC = () => {
       taxCode: formData.taxCode,
     };
     if (isEditing && formData.id) {
-      updateMutation.mutate({ id: formData.id, payload }, { onSuccess: handleCloseModal });
+      updateMutation.mutate({ id: String(formData.id), payload }, { onSuccess: handleCloseModal });
     } else {
       createMutation.mutate(payload, { onSuccess: handleCloseModal });
     }
@@ -155,7 +155,7 @@ export const SupplierList: React.FC = () => {
                     </button>
                     {isAdmin && (
                       <button
-                        onClick={() => handleDelete(d.id)}
+                        onClick={() => handleDelete(String(d.id))}
                         className="text-slate-400 hover:text-red-600 transition-colors"
                         title="Xóa"
                       >

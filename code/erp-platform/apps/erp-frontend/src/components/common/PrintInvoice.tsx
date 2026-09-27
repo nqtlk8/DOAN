@@ -1,3 +1,4 @@
+import { formatNumber } from '../../shared/utils/format';
 import React from 'react';
 
 interface PrintInvoiceProps {
@@ -54,7 +55,7 @@ export const PrintInvoice: React.FC<PrintInvoiceProps> = ({
 
   // Format numbers to currency without decimal if not needed, typical VN format
   const formatMoney = (amount: number) => {
-    return new Intl.NumberFormat('vi-VN').format(amount);
+    return formatNumber(amount);
   };
 
   return (

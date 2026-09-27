@@ -1,3 +1,4 @@
+import { PageContainer } from '../../shared/components/Page/PageContainer';
 import React, { useState } from 'react';
 import { Search } from 'lucide-react';
 import { ApiService } from '../../api/ApiService';
@@ -16,7 +17,8 @@ export const BranchList: React.FC = () => {
   const filtered = items.filter((c) => c.branchName?.toLowerCase().includes(searchTerm.toLowerCase()));
 
   return (
-    <div className="p-6">
+    <PageContainer>
+      <div className="">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold text-slate-900">Danh Sách Chi Nhánh</h2>
       </div>
@@ -77,5 +79,6 @@ export const BranchList: React.FC = () => {
         </table>
       </div>
     </div>
+    </PageContainer>
   );
 };

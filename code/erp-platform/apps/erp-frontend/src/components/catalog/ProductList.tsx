@@ -22,7 +22,7 @@ export const ProductList: React.FC = () => {
   const { query, createMutation, updateMutation, deleteMutation } = useProducts();
   const { data: response, isLoading: loading, isError, error, refetch } = query;
 
-  const products: Product[] = response || [];
+  const products: Product[] = (response as any) || [];
 
   const handleOpenModal = (product?: Product) => {
     if (product) {
@@ -44,7 +44,7 @@ export const ProductList: React.FC = () => {
   const handleSave = () => {
     if (isEditing && formData.id) {
       updateMutation.mutate({
-        id: formData.id,
+        id: Number(formData.id),
         payload: {
           name: formData.name,
           categoryId: formData.categoryId,

@@ -1,458 +1,334 @@
 import React from 'react';
-import { Plus, Trash2, X, Search } from 'lucide-react';
+import { Plus, Trash2, Save, X, Printer, Check, Search, LogOut, Loader2 } from 'lucide-react';
+import { FormMode, DocStatus, DocumentLine, InfoField, PartnerField, SummaryField } from '../../../types/documents';
+import { NumberInput } from '../../../shared/components/Form/NumberInput';
+import { formatCurrency, formatDate } from '../../../shared/utils/format';
 
-export interface OrderItem {
-  id: string;
-  productId: string;
-  productName: string;
-  quantity: number;
-  unitPrice: number;
-  /** Đơn vị tính (lấy từ baseUnit của sản phẩm). */
-  unitOfMeasure?: string;
-}
-
-export type FormMode = 'VIEW' | 'ADD' | 'EDIT';
+export type OrderItem = DocumentLine;
 
 export interface GenericDocumentFormProps {
   mode: FormMode;
-  title: string;
-  error: string | null;
-  orderCode: string;
-  creator: string;
-  branch: string;
-  createdDate: string;
-  setCreatedDate: (date: string) => void;
-  note: string;
-  setNote: (note: string) => void;
-  partnerTitle: string;
-  partnerCodeLabel: string;
-  partnerPlaceholder: string;
-  partnerName: string;
-  onPartnerSearch: () => void;
-  address: string;
-  setAddress: (address: string) => void;
-  phone: string;
-  setPhone: (phone: string) => void;
-  contactPerson: string;
-  setContactPerson: (contactPerson: string) => void;
-  oldDebt: number;
-  setOldDebt: (val: number) => void;
-  totalAmount: number;
-  discount: number;
-  setDiscount: (val: number) => void;
-  tax: number;
-  setTax: (val: number) => void;
-  advancePayment: number;
-  setAdvancePayment: (val: number) => void;
-  invoiceRemaining: number;
-  remainingBalance: number;
-  items: OrderItem[];
-  onAddItem: () => void;
-  onRemoveItem: (id: string) => void;
-  onUpdateItem: (id: string, field: keyof OrderItem, value: any) => void;
-  onProductSearch: (itemId: string) => void;
-  renderPartnerCombobox?: (hasError?: boolean) => React.ReactNode;
-  renderProductCombobox?: (itemId: string, currentVal: string, hasError?: boolean) => React.ReactNode;
+  docTitle: string;
+  docCode: string;
+  status?: DocStatus;
+  error?: string | null;
   errors?: Record<string, string>;
+
+  info: InfoField[];
+  createdDate: string; 
+  onCreatedDateChange?: (v: string) => void;
+
+  partner: {
+    label: string;
+    required?: boolean;
+    renderCombobox: (hasError: boolean) => React.ReactNode;
+    displayName: string;
+    onAdvancedSearch?: () => void;
+    fields: PartnerField[];
+  };
+
+  summary: SummaryField[];
+
+  lines: {
+    testIdPrefix: 'sales' | 'inbound' | 'return';
+    items: DocumentLine[];
+    priceLabel?: string;
+    onAdd: () => void;
+    onRemove: (id: string) => void;
+    onUpdate: (id: string, field: keyof DocumentLine, value: unknown) => void;
+    renderProductCombobox: (line: DocumentLine, index: number, hasError: boolean) => React.ReactNode;
+  };
+
+  onAdd?: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
+  onConfirm?: () => void;
+  onPrint?: () => void;
+  onSave?: () => void;
+  onCancel?: () => void;
+  onExit?: () => void;
+  hideConfirm?: boolean;
+  isLoading?: boolean;
 }
 
 export const GenericDocumentForm: React.FC<GenericDocumentFormProps> = ({
-  mode,
-  error,
-  orderCode,
-  creator,
-  branch,
-  createdDate,
-  setCreatedDate,
-  note,
-  setNote,
-  partnerTitle,
-  partnerCodeLabel,
-  partnerPlaceholder,
-  partnerName,
-  onPartnerSearch,
-  address,
-  setAddress,
-  phone,
-  setPhone,
-  contactPerson,
-  setContactPerson,
-  oldDebt,
-  setOldDebt,
-  totalAmount,
-  discount,
-  setDiscount,
-  tax,
-  setTax,
-  advancePayment,
-  setAdvancePayment,
-  invoiceRemaining,
-  remainingBalance,
-  items,
-  onAddItem,
-  onRemoveItem,
-  onUpdateItem,
-  onProductSearch,
-  renderPartnerCombobox,
-  renderProductCombobox,
-  errors = {},
+  mode, docTitle, docCode, status, error, errors = {},
+  info, createdDate, onCreatedDateChange,
+  partner, summary, lines,
+  onAdd, onEdit, onDelete, onConfirm, onPrint, onSave, onCancel, onExit,
+  hideConfirm, isLoading
 }) => {
   const isView = mode === 'VIEW';
-  const [activeItemRowId, setActiveItemRowId] = React.useState<string | null>(null);
+  
+  const renderBadge = () => {
+    if (!status) return null;
+    if (status === 'DRAFT') return <span className="badge-warning px-2">Nháp</span>;
+    if (status === 'CONFIRMED') return <span className="badge-success px-2">Đã xác nhận</span>;
+    if (status === 'CANCELLED') return <span className="badge-danger px-2">Đã hủy</span>;
+    return null;
+  };
+
+  const codeDisplay = docCode === 'AUTO-GENERATE' ? <span className="text-ink-subtle">(Tự động)</span> : docCode;
 
   return (
-    <div className="font-sans flex-1 flex flex-col overflow-hidden bg-erp-bg-content">
+    <div className="flex flex-col h-full bg-surface">
+      {/* 1. Thanh tiêu đề */}
+      <div className="h-[40px] px-4 border-b border-line flex items-center justify-between shrink-0 bg-surface">
+        <div className="flex items-center gap-3">
+          <h1 className="text-[15px] font-semibold text-ink">{docTitle}</h1>
+          {renderBadge()}
+        </div>
+        <div className="text-[15px] font-semibold text-primary" data-testid="doc-code">
+          Số: {codeDisplay}
+        </div>
+      </div>
+      
       {error && (
-        <div data-testid="sales-error-msg" className="px-4 py-2 bg-red-100 text-red-700 text-sm border-b border-red-200 flex items-center gap-2">
-          <X size={14} /> {error}
+        <div className="px-4 py-2 bg-danger-soft text-danger text-[13px] border-b border-danger/20 font-medium">
+          {error}
         </div>
       )}
 
-      {/* HEADER FORM KHÔNG VIỀN (Giao diện Kế toán Desktop) */}
-      <div className="w-full mx-auto overflow-x-auto bg-erp-bg-content shrink-0 border-b border-erp-btn-border p-2">
-        <div className="grid grid-cols-[minmax(300px,1.2fr)_minmax(400px,2fr)_minmax(280px,1fr)] gap-6 w-full">
-          
-          {/* KHỐI TRÁI */}
-          <div className="grid items-center gap-1" style={{ gridTemplateColumns: '80px minmax(0, 1fr)' }}>
-            <div className="text-right text-erp-label pr-2">Ngày</div>
-            <div className="flex gap-2">
-              <input
-                type="date"
-                disabled={isView}
-                value={createdDate}
-                onChange={(e) => setCreatedDate(e.target.value)}
-                className="h-erp-input-height px-1 text-erp-base bg-erp-bg-input border border-erp-border-input focus:border-erp-border-input-focus outline-none disabled:bg-erp-bg-disabled disabled:text-erp-text-disabled disabled:border-erp-border-disabled rounded-none flex-1 min-w-0"
-              />
-              <div className="text-right text-erp-label pr-2 flex items-center justify-end">Số</div>
-              <input 
-                type="text" 
-                disabled 
-                value={orderCode} 
-                className="h-erp-input-height px-1 text-erp-base bg-erp-bg-disabled border border-erp-border-disabled text-erp-text-disabled outline-none rounded-none w-[100px] shrink-0" 
-              />
-            </div>
-
-            <div className="text-right text-erp-label pr-2">Lấy giá</div>
-            <input 
-              type="text" 
-              disabled 
-              value="Bán hàng theo khách" 
-              className="h-erp-input-height w-full px-1 text-erp-base bg-erp-bg-disabled border border-erp-border-disabled text-erp-text-disabled outline-none rounded-none" 
-            />
-
-            <div className="text-right text-erp-label pr-2">Kho xuất</div>
-            <input 
-              type="text" 
-              disabled 
-              value={branch} 
-              className="h-erp-input-height w-full px-1 text-erp-base bg-erp-bg-disabled border border-erp-border-disabled text-erp-text-disabled outline-none rounded-none" 
-            />
-
-            <div className="text-right text-erp-label pr-2">Nhân viên</div>
-            <input 
-              type="text" 
-              disabled 
-              value={creator} 
-              className="h-erp-input-height w-full px-1 text-erp-base bg-erp-bg-disabled border border-erp-border-disabled text-erp-text-disabled outline-none rounded-none" 
-            />
-
-            <div className="text-right text-erp-label pr-2">Người lập</div>
-            <input 
-              type="text" 
-              disabled 
-              value={creator} 
-              className="h-erp-input-height w-full px-1 text-erp-base bg-erp-bg-disabled border border-erp-border-disabled text-erp-text-disabled outline-none rounded-none" 
-            />
-          </div>
-
-          {/* KHỐI GIỮA (Khách hàng) */}
-          <div className="grid items-center gap-1" style={{ gridTemplateColumns: '90px minmax(0, 1fr)' }}>
-            <div className="text-right text-erp-label pr-2">{partnerCodeLabel.split('/')[0]}</div>
-            {renderPartnerCombobox && !isView ? (
-              <div className="h-erp-input-height w-full">
-                {renderPartnerCombobox(!!errors['partner'])}
-              </div>
+      {/* 2. Header 3 khối */}
+      <div className="grid grid-cols-[1fr_1.5fr_1fr] gap-x-6 p-3 bg-surface border-b border-line shrink-0">
+        
+        {/* Khối trái: Thông tin chung */}
+        <div className="flex flex-col gap-1.5">
+          <div className="grid grid-cols-[96px_minmax(0,1fr)] gap-x-2 items-center h-7">
+            <label className="erp-label text-right">Ngày</label>
+            {isView || !onCreatedDateChange ? (
+              <div className="text-[13px] text-ink truncate px-2">{formatDate(createdDate)}</div>
             ) : (
-              <div className="flex gap-1">
-                <input
-                  type="text"
-                  disabled={isView}
-                  value={partnerName}
-                  readOnly
-                  placeholder={partnerPlaceholder}
-                  className={`h-erp-input-height flex-1 min-w-0 px-1 text-erp-base bg-erp-bg-input border border-erp-border-input focus:border-erp-border-input-focus outline-none disabled:bg-erp-bg-disabled disabled:text-erp-text-disabled disabled:border-erp-border-disabled rounded-none ${!isView ? 'cursor-pointer' : ''} ${errors['partner'] ? 'border-erp-border-input-error bg-red-50' : ''}`}
-                  onClick={() => !isView && onPartnerSearch()}
-                />
-                {!isView && (
-                  <button
-                    onClick={onPartnerSearch}
-                    className="w-[28px] h-erp-input-height flex items-center justify-center bg-erp-btn-bg border border-erp-btn-border hover:bg-erp-btn-hover-bg shrink-0"
+              <input 
+                type="date" 
+                className="erp-input h-7" 
+                value={createdDate} 
+                onChange={e => onCreatedDateChange(e.target.value)} 
+              />
+            )}
+          </div>
+          {info.map(f => (
+            <div key={f.key} className="grid grid-cols-[96px_minmax(0,1fr)] gap-x-2 items-center h-7">
+              <label className="erp-label text-right">{f.label}</label>
+              <div className="text-[13px] text-ink truncate px-2" data-testid={f.testId}>{f.value}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Khối giữa: Đối tác */}
+        <div className="flex flex-col gap-1.5">
+          <div className="grid grid-cols-[96px_minmax(0,1fr)] gap-x-2 items-center h-7">
+            <label className="erp-label text-right">
+              {partner.label} {partner.required && <span className="text-danger">*</span>}
+            </label>
+            {isView ? (
+              <div className="text-[13px] text-ink truncate px-2 font-medium">{partner.displayName}</div>
+            ) : (
+              <div className="flex gap-1 h-7">
+                <div className="flex-1 min-w-0">
+                  {partner.renderCombobox(!!errors['partner'])}
+                </div>
+                {partner.onAdvancedSearch && (
+                  <button 
+                    type="button" 
+                    onClick={partner.onAdvancedSearch}
+                    className="w-7 h-7 flex items-center justify-center border border-line rounded bg-surface hover:bg-slate-50 shrink-0 text-ink-muted"
                   >
                     <Search size={14} />
                   </button>
                 )}
               </div>
             )}
-
-            <div className="text-right text-erp-label pr-2">Họ tên</div>
-            <input
-              type="text"
-              disabled={isView}
-              value={contactPerson}
-              onChange={(e) => setContactPerson(e.target.value)}
-              className="h-erp-input-height w-full px-1 text-erp-base bg-erp-bg-input border border-erp-border-input focus:border-erp-border-input-focus outline-none disabled:bg-erp-bg-disabled disabled:text-erp-text-disabled disabled:border-erp-border-disabled rounded-none"
-            />
-
-            <div className="text-right text-erp-label pr-2">Điện thoại</div>
-            <input
-              type="text"
-              disabled={isView}
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              className="h-erp-input-height w-full px-1 text-erp-base bg-erp-bg-input border border-erp-border-input focus:border-erp-border-input-focus outline-none disabled:bg-erp-bg-disabled disabled:text-erp-text-disabled disabled:border-erp-border-disabled rounded-none"
-            />
-
-            <div className="text-right text-erp-label pr-2">Địa chỉ</div>
-            <input
-              type="text"
-              disabled={isView}
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              className="h-erp-input-height w-full px-1 text-erp-base bg-erp-bg-input border border-erp-border-input focus:border-erp-border-input-focus outline-none disabled:bg-erp-bg-disabled disabled:text-erp-text-disabled disabled:border-erp-border-disabled rounded-none"
-            />
-
-            <div className="text-right text-erp-label pr-2">Ghi chú</div>
-            <input
-              type="text"
-              disabled={isView}
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              className="h-erp-input-height w-full px-1 text-erp-base bg-erp-bg-input border border-erp-border-input focus:border-erp-border-input-focus outline-none disabled:bg-erp-bg-disabled disabled:text-erp-text-disabled disabled:border-erp-border-disabled rounded-none"
-            />
           </div>
-
-          {/* KHỐI TÀI CHÍNH (Phải) */}
-          <div className="grid items-center gap-1" style={{ gridTemplateColumns: '90px minmax(0, 1fr)' }}>
-            <div className="text-right text-erp-label pr-2">Nợ trước</div>
-            <input
-              type="number"
-              disabled={isView}
-              value={oldDebt}
-              onChange={(e) => setOldDebt(Number(e.target.value) || 0)}
-              className="h-erp-input-height w-full px-1 text-erp-base bg-erp-bg-input border border-erp-border-input focus:border-erp-border-input-focus outline-none disabled:bg-erp-bg-disabled disabled:text-erp-text-disabled disabled:border-erp-border-disabled rounded-none text-right"
-            />
-
-            <div className="text-right text-erp-label pr-2">Tiền hàng</div>
-            <input 
-              type="text" 
-              disabled 
-              value={totalAmount.toLocaleString()} 
-              className="h-erp-input-height w-full px-1 text-erp-base bg-erp-bg-disabled border border-erp-border-disabled outline-none rounded-none text-right font-bold text-erp-text-accent-red" 
-            />
-
-            <div className="text-right text-erp-label pr-2">Chiết khấu</div>
-            <div className="flex gap-2">
-              <input
-                type="number"
-                disabled={isView}
-                value={discount}
-                onChange={(e) => setDiscount(Number(e.target.value) || 0)}
-                className="h-erp-input-height flex-1 min-w-0 px-1 text-erp-base bg-erp-bg-input border border-erp-border-input focus:border-erp-border-input-focus outline-none disabled:bg-erp-bg-disabled disabled:text-erp-text-disabled disabled:border-erp-border-disabled rounded-none text-right"
-              />
-              <div className="text-right text-erp-label pr-1 flex items-center justify-end">VAT</div>
-              <input
-                type="number"
-                disabled={isView}
-                value={tax}
-                onChange={(e) => setTax(Number(e.target.value) || 0)}
-                className="h-erp-input-height w-[70px] shrink-0 px-1 text-erp-base bg-erp-bg-input border border-erp-border-input focus:border-erp-border-input-focus outline-none disabled:bg-erp-bg-disabled disabled:text-erp-text-disabled disabled:border-erp-border-disabled rounded-none text-right"
-              />
+          {partner.fields.map(f => (
+            <div key={f.key} className="grid grid-cols-[96px_minmax(0,1fr)] gap-x-2 items-center h-7">
+              <label className="erp-label text-right">
+                {f.label} {f.required && !isView && <span className="text-danger">*</span>}
+              </label>
+              {isView || !f.onChange ? (
+                <div className="text-[13px] text-ink truncate px-2" data-testid={f.testId}>{f.value}</div>
+              ) : (
+                <input 
+                  type="text" 
+                  className="erp-input h-7" 
+                  value={f.value} 
+                  onChange={e => f.onChange!(e.target.value)}
+                  placeholder={f.placeholder}
+                  data-testid={f.testId}
+                />
+              )}
             </div>
-
-            <div className="text-right text-erp-label pr-2">Trả trước</div>
-            <input
-              type="number"
-              disabled={isView}
-              value={advancePayment}
-              onChange={(e) => setAdvancePayment(Number(e.target.value) || 0)}
-              className="h-erp-input-height w-full px-1 text-erp-base bg-erp-bg-input border border-erp-border-input focus:border-erp-border-input-focus outline-none disabled:bg-erp-bg-disabled disabled:text-erp-text-disabled disabled:border-erp-border-disabled rounded-none text-right"
-            />
-
-              <div className="text-right text-erp-label pr-2">Còn của đơn</div>
-              <input
-                type="text"
-                disabled
-                value={invoiceRemaining.toLocaleString()}
-                className="h-erp-input-height w-full px-1 text-erp-base bg-erp-bg-disabled border border-erp-border-disabled outline-none rounded-none text-right font-bold text-erp-text-accent-red"
-              />
-
-              <div className="text-right text-erp-label pr-2">Nợ tổng mới</div>
-              <input
-                type="text"
-                disabled
-                value={remainingBalance.toLocaleString()}
-                className="h-erp-input-height w-full px-1 text-erp-base bg-erp-bg-disabled border border-erp-border-disabled outline-none rounded-none text-right font-bold text-erp-text-accent-red"
-              />
-          </div>
+          ))}
         </div>
+
+        {/* Khối phải: Summary */}
+        <div className="flex flex-col gap-1.5">
+          {summary.map(f => {
+            let toneClass = 'text-ink';
+            if (f.tone === 'primary') toneClass = 'text-primary';
+            else if (f.tone === 'danger') toneClass = 'text-danger';
+
+            return (
+              <div key={f.key} className="grid grid-cols-[96px_minmax(0,1fr)] gap-x-2 items-center h-7">
+                <label className={`erp-label text-right ${f.strong ? 'font-semibold' : ''}`}>{f.label}</label>
+                {isView || !f.onChange ? (
+                  <div 
+                    className={`text-[13px] truncate px-2 text-right tabular-nums ${toneClass} ${f.strong ? 'font-semibold' : ''}`}
+                    data-testid={f.testId}
+                  >
+                    {formatCurrency(f.value)}
+                  </div>
+                ) : (
+                  <NumberInput
+                    value={f.value}
+                    onChange={f.onChange}
+                    className="h-7"
+                    allowNegative={true}
+                    data-testid={f.testId}
+                  />
+                )}
+              </div>
+            );
+          })}
+        </div>
+        
       </div>
 
-      {/* KHU VỰC 5: BẢNG DANH SÁCH HÀNG HÓA */}
-      <div className="font-sans flex-1 w-full max-w-[1600px] min-w-[1024px] mx-auto flex flex-col bg-white">
-        <div className="flex-1 overflow-auto bg-white border-b border-erp-border-table relative">
-          <table className="w-full border-collapse table-fixed" style={{ borderCollapse: 'collapse' }}>
-            <thead className="sticky top-0 bg-erp-bg-table-header z-10 shadow-[0_1px_0_var(--color-erp-border-table)]">
-              <tr className="h-erp-row-height">
-                <th className="border border-erp-border-table px-1 font-bold text-erp-label text-center text-erp-text-primary" style={{ width: '40px' }}>STT</th>
-                <th className="border border-erp-border-table px-1 font-bold text-erp-label text-center text-erp-text-primary" style={{ width: '30%' }}>Hàng hóa</th>
-                <th className="border border-erp-border-table px-1 font-bold text-erp-label text-center text-erp-text-primary" style={{ width: '10%' }}>Số lượng</th>
-                <th className="border border-erp-border-table px-1 font-bold text-erp-label text-center text-erp-text-primary" style={{ width: '13%' }}>Đơn giá</th>
-                <th className="border border-erp-border-table px-1 font-bold text-erp-label text-center text-erp-text-primary" style={{ width: '10%' }}>Chiết khấu</th>
-                <th className="border border-erp-border-table px-1 font-bold text-erp-label text-center text-erp-text-primary" style={{ width: '15%' }}>Thành tiền</th>
-                <th className="border border-erp-border-table px-1 font-bold text-erp-label text-center text-erp-text-primary" style={{ width: '15%' }}>Ghi chú</th>
-                {!isView && <th className="border border-erp-border-table px-1" style={{ width: '30px' }}></th>}
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((item, index) => {
-                const isSelected = activeItemRowId === item.id;
-                return (
-                  <tr
-                    key={item.id}
-                    data-testid="sales-line-row"
-                    className={`h-erp-row-height border-b border-erp-border-table cursor-default ${
-                      isSelected ? 'bg-erp-row-selected-bg text-erp-row-selected-text' : 'hover:bg-erp-row-hover-bg text-erp-text-primary'
-                    }`}
-                    onClick={() => setActiveItemRowId(item.id)}
-                  >
-                    <td className="border-r border-l border-erp-border-table px-1 text-center text-erp-base">{index + 1}</td>
-                    <td className="border-r border-erp-border-table px-0 relative">
-                      {renderProductCombobox && !isView ? (
-                        <div className="h-full w-full" onClick={(e) => e.stopPropagation()}>
-                          {renderProductCombobox(item.id, item.productName, !!errors[`item_${index}_product`])}
-                        </div>
-                      ) : (
-                        <input
-                          type="text"
-                          disabled={isView}
-                          placeholder="Bấm chọn..."
-                          readOnly
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setActiveItemRowId(item.id);
-                            if (!isView) onProductSearch(item.id);
-                          }}
-                          className={`w-full h-full px-1 bg-transparent outline-none cursor-pointer uppercase text-left text-erp-base ${isSelected ? 'text-erp-row-selected-text placeholder:text-erp-row-selected-text' : 'text-erp-text-primary'}`}
-                          value={item.productName}
-                        />
-                      )}
-                    </td>
-                    <td className="border-r border-erp-border-table px-0">
-                      <input
-                        data-testid="sales-line-quantity"
-                        type="number"
-                        disabled={isView}
-                        min="1"
-                        className={`w-full h-full px-1 bg-transparent outline-none text-right font-bold text-erp-base ${
-                          errors[`item_${index}_quantity`] ? 'ring-1 ring-inset ring-red-500 bg-red-50 text-red-600' : isSelected ? 'text-erp-row-selected-text' : 'text-erp-text-accent-red'
-                        }`}
-                        value={item.quantity}
-                        onChange={(e) => onUpdateItem(item.id, 'quantity', parseInt(e.target.value) || 0)}
-                        onClick={(e) => { e.stopPropagation(); setActiveItemRowId(item.id); }}
-                      />
-                    </td>
-                    <td className="border-r border-erp-border-table px-0">
-                      <input
-                        data-testid="sales-line-price"
-                        type="number"
-                        disabled={isView}
-                        min="0"
-                        className={`w-full h-full px-1 bg-transparent outline-none text-right text-erp-base ${isSelected ? 'text-erp-row-selected-text' : 'text-erp-text-primary'}`}
-                        value={item.unitPrice}
-                        onChange={(e) => onUpdateItem(item.id, 'unitPrice', parseFloat(e.target.value) || 0)}
-                        onClick={(e) => { e.stopPropagation(); setActiveItemRowId(item.id); }}
-                      />
-                    </td>
-                    <td className="border-r border-erp-border-table px-0">
-                      <input
-                        type="number"
-                        disabled={isView}
-                        className={`w-full h-full px-1 bg-transparent outline-none text-right text-erp-base ${isSelected ? 'text-erp-row-selected-text' : 'text-erp-text-primary'}`}
-                        value={0}
-                        readOnly
-                        onClick={(e) => { e.stopPropagation(); setActiveItemRowId(item.id); }}
-                      />
-                    </td>
-                    <td data-testid="sales-line-total" className={`border-r border-erp-border-table px-1 text-right font-bold text-erp-base ${isSelected ? 'text-erp-row-selected-text' : 'text-erp-text-accent-red'}`}>
-                      {(item.quantity * item.unitPrice).toLocaleString()}
-                    </td>
-                    <td className="border-r border-erp-border-table px-0">
-                      <input
-                        type="text"
-                        disabled={isView}
-                        className={`w-full h-full px-1 bg-transparent outline-none text-left text-erp-base ${isSelected ? 'text-erp-row-selected-text' : 'text-erp-text-primary'}`}
-                        onClick={(e) => { e.stopPropagation(); setActiveItemRowId(item.id); }}
-                      />
-                    </td>
-                    {!isView && (
-                      <td className="border-r border-erp-border-table text-center bg-white">
-                        <button
-                          type="button"
-                          onClick={(e) => { e.stopPropagation(); onRemoveItem(item.id); }}
-                          className="text-erp-text-accent-red hover:text-red-800 flex items-center justify-center w-full h-full"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </td>
+      {/* 3. Bảng hàng hóa */}
+      <div className="flex-1 overflow-auto bg-slate-50 min-h-0 relative">
+        <table className="w-full text-[13px] border-collapse relative">
+          <thead className="sticky top-0 z-20 bg-slate-100 border-b border-line shadow-sm">
+            <tr className="h-8">
+              <th className="font-semibold text-ink-muted px-2 border-r border-line w-12">STT</th>
+              <th className="font-semibold text-ink-muted px-2 border-r border-line text-left">Mã hàng</th>
+              <th className="font-semibold text-ink-muted px-2 border-r border-line text-left">Tên hàng</th>
+              <th className="font-semibold text-ink-muted px-2 border-r border-line text-left w-[80px]">ĐVT</th>
+              <th className="font-semibold text-ink-muted px-2 border-r border-line text-right w-[100px]">Số lượng</th>
+              <th className="font-semibold text-ink-muted px-2 border-r border-line text-right w-[120px]">{lines.priceLabel || 'Đơn giá'}</th>
+              <th className="font-semibold text-ink-muted px-2 border-r border-line text-right w-[120px]">Thành tiền</th>
+              {!isView && <th className="font-semibold text-ink-muted px-2 w-10"></th>}
+            </tr>
+          </thead>
+          <tbody className="bg-surface">
+            {lines.items.map((item, index) => {
+              const qtyError = !!errors[`line_${index}_quantity`];
+              return (
+                <tr key={item.id} className="h-8 border-b border-line last:border-0 hover:bg-slate-50 transition-colors" data-testid={`${lines.testIdPrefix}-line-row`}>
+                  <td className="px-2 text-center text-ink-subtle border-r border-line">{index + 1}</td>
+                  <td className="px-2 border-r border-line">{item.productCode}</td>
+                  <td className="p-0 border-r border-line relative">
+                    {isView ? (
+                      <div className="px-2 truncate">{item.productName}</div>
+                    ) : (
+                      <div className="absolute inset-0">
+                        {lines.renderProductCombobox(item, index, !!errors[`line_${index}_product`])}
+                      </div>
                     )}
-                  </tr>
-                );
-              })}
-              {!isView && items.length === 0 && (
-                <tr>
-                  <td colSpan={8} className="border-b border-erp-border-table px-1 py-4 text-center text-slate-500 text-erp-base">
-                    Chưa có dữ liệu. Hãy bấm "Dòng mới" bên dưới.
                   </td>
-                </tr>
-              )}
-              {!isView && (
-                <tr className="h-erp-row-height bg-white">
-                  <td colSpan={8} className="border-b border-erp-border-table px-2">
-                    <button
-                      type="button"
-                      data-testid="sales-add-line"
-                      onClick={onAddItem}
-                      className="text-blue-700 hover:underline flex items-center gap-1 font-medium text-erp-base"
-                    >
-                      <Plus size={14} /> Dòng mới
-                    </button>
+                  <td className="px-2 border-r border-line truncate">{item.unitOfMeasure}</td>
+                  <td className="p-0 border-r border-line relative">
+                    {isView ? (
+                      <div className="px-2 text-right tabular-nums">{formatCurrency(item.quantity)}</div>
+                    ) : (
+                      <div className="absolute inset-0">
+                        <NumberInput
+                          value={item.quantity}
+                          onChange={(v) => lines.onUpdate(item.id, 'quantity', v)}
+                          variant="cell"
+                          data-testid={`${lines.testIdPrefix}-line-quantity`}
+                          className={qtyError ? 'bg-danger-soft' : ''}
+                        />
+                      </div>
+                    )}
                   </td>
+                  <td className="px-2 border-r border-line text-right tabular-nums">{formatCurrency(item.unitPrice)}</td>
+                  <td className="px-2 border-r border-line text-right tabular-nums font-medium text-primary" data-testid={`${lines.testIdPrefix}-line-total`}>
+                    {formatCurrency(item.quantity * item.unitPrice)}
+                  </td>
+                  {!isView && (
+                    <td className="p-0 text-center">
+                      <button 
+                        type="button" 
+                        onClick={() => lines.onRemove(item.id)}
+                        className="w-full h-full flex items-center justify-center text-danger hover:bg-danger-soft transition-colors"
+                        data-testid={`${lines.testIdPrefix}-line-delete`}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </td>
+                  )}
                 </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* TỔNG CỘNG (Luôn ở dưới cùng) */}
-        <div className="shrink-0 bg-erp-bg-table-header border-t-2 border-erp-border-table">
-          <table className="w-full border-collapse table-fixed">
-            <tbody>
-              <tr className="h-[28px]">
-                <td colSpan={2} style={{ width: 'calc(40px + 30%)' }} className="border-r border-erp-border-table px-2 text-center font-bold text-erp-text-primary text-erp-base">
-                  TỔNG CỘNG
+              );
+            })}
+            {!isView && (
+              <tr className="h-8 bg-surface border-b border-line">
+                <td colSpan={8} className="px-2">
+                  <button 
+                    type="button" 
+                    onClick={lines.onAdd}
+                    className="flex items-center gap-1 text-[13px] font-medium text-primary hover:underline"
+                    data-testid={`${lines.testIdPrefix}-add-line`}
+                  >
+                    <Plus size={14} /> Dòng mới
+                  </button>
                 </td>
-                <td style={{ width: '10%' }} className="border-r border-erp-border-table px-1 text-right font-bold text-erp-text-accent-red text-erp-base">
-                  {items.reduce((sum, item) => sum + item.quantity, 0).toLocaleString()}
-                </td>
-                <td colSpan={2} style={{ width: '23%' }} className="border-r border-erp-border-table"></td>
-                <td style={{ width: '15%' }} className="border-r border-erp-border-table px-1 text-right font-bold text-erp-text-accent-red text-[13px]">
-                  {totalAmount.toLocaleString()}
-                </td>
-                <td colSpan={isView ? 1 : 2} style={{ width: isView ? '15%' : 'calc(15% + 30px)' }}></td>
               </tr>
-            </tbody>
-          </table>
-        </div>
+            )}
+          </tbody>
+          <tfoot className="sticky bottom-0 z-20 bg-slate-100 border-t border-line font-semibold shadow-sm text-ink text-[13px]">
+            <tr className="h-8">
+              <td colSpan={6} className="px-2 text-right border-r border-line uppercase">Tổng cộng</td>
+              <td className="px-2 text-right text-primary tabular-nums" data-testid={`${lines.testIdPrefix}-grand-total`}>
+                {formatCurrency(lines.items.reduce((s, i) => s + i.quantity * i.unitPrice, 0))}
+              </td>
+              {!isView && <td className=""></td>}
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+      {/* 4. Thanh nút dưới cùng */}
+      <div className="h-[40px] px-4 border-t border-line bg-surface flex items-center justify-end gap-2 shrink-0">
+        {isView && onAdd && (
+          <button data-testid="btn-add" onClick={onAdd} className="btn btn-secondary flex items-center gap-1.5 px-3">
+            <Plus size={14} /> Thêm mới <kbd className="text-[11px] text-ink-subtle ml-1 font-sans">F2</kbd>
+          </button>
+        )}
+        {isView && onEdit && status !== 'CANCELLED' && (
+          <button data-testid="btn-edit" onClick={onEdit} className="btn btn-secondary flex items-center gap-1.5 px-3">
+            Sửa <kbd className="text-[11px] text-ink-subtle ml-1 font-sans">F3</kbd>
+          </button>
+        )}
+        {isView && onDelete && status !== 'CANCELLED' && (
+          <button data-testid="btn-delete" onClick={onDelete} className="btn btn-danger flex items-center gap-1.5 px-3">
+            Xóa
+          </button>
+        )}
+        {isView && onConfirm && !hideConfirm && status === 'DRAFT' && (
+          <button data-testid="btn-confirm" onClick={onConfirm} disabled={isLoading} className="btn btn-primary flex items-center gap-1.5 px-3">
+            {isLoading ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />} Xác nhận
+          </button>
+        )}
+        {isView && onPrint && status !== 'DRAFT' && (
+          <button data-testid="btn-print" onClick={onPrint} className="btn btn-secondary flex items-center gap-1.5 px-3">
+            <Printer size={14} /> In <kbd className="text-[11px] text-ink-subtle ml-1 font-sans">F7</kbd>
+          </button>
+        )}
+        {!isView && onSave && (
+          <button data-testid="btn-save" onClick={onSave} disabled={isLoading} className="btn btn-primary flex items-center gap-1.5 px-3">
+            {isLoading ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} Lưu <kbd className="text-[11px] text-primary/70 ml-1 font-sans">F4</kbd>
+          </button>
+        )}
+        {!isView && onCancel && (
+          <button data-testid="btn-cancel" onClick={onCancel} className="btn btn-secondary flex items-center gap-1.5 px-3">
+            <X size={14} /> Hủy <kbd className="text-[11px] text-ink-subtle ml-1 font-sans">Esc</kbd>
+          </button>
+        )}
+        {onExit && (
+          <button data-testid="btn-exit" onClick={onExit} className="btn btn-secondary flex items-center gap-1.5 px-3">
+            <LogOut size={14} /> Thoát <kbd className="text-[11px] text-ink-subtle ml-1 font-sans">F8</kbd>
+          </button>
+        )}
       </div>
     </div>
   );

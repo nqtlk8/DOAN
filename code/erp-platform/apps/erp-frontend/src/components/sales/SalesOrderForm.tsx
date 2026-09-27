@@ -8,6 +8,9 @@ import { SearchModal } from '../common/SearchModal';
 import type { Customer, Product } from '../../types/catalog';
 
 import { GenericDocumentForm, type OrderItem } from '../common/document/GenericDocumentForm';
+import { QuickCreateCustomer } from '../common/quick-create/QuickCreateCustomer';
+import { QuickCreateProduct } from '../common/quick-create/QuickCreateProduct';
+import { formatCurrency } from '../../shared/utils/format';
 import { SearchableCombobox } from '../common/SearchableCombobox';
 import { ConfirmDialog } from '../../shared/components/Dialog/ConfirmDialog';
 import toast from 'react-hot-toast';
@@ -293,100 +296,121 @@ export const SalesOrderForm = forwardRef<SalesOrderFormRef, SalesOrderFormProps>
         {/* Scrollable Content */}
         <GenericDocumentForm
           mode={mode}
-          title={
-            mode === 'ADD'
-              ? 'Thêm mới Đơn hàng'
-              : mode === 'EDIT'
-                ? `Sửa Đơn: ${orderCode}`
-                : `Đơn Bán Hàng: ${orderCode}`
-          }
+          docTitle="Phiếu bán hàng"
+          docCode={orderCode || 'AUTO-GENERATE'}
+          status={initialData?.status}
           error={error}
           errors={fieldErrors}
-          orderCode={orderCode}
-          creator={creator}
-          branch={branch}
-          createdDate={createdDate}
-          setCreatedDate={setCreatedDate}
-          note={note}
-          setNote={setNote}
-          partnerTitle="Khách hàng / Đối tác"
-          partnerCodeLabel="Mã KH / Tên KH"
-          partnerPlaceholder="Nhấn để chọn khách hàng..."
-          partnerName={customerName}
-          onPartnerSearch={() => setShowCustomerSearch(true)}
-          onProductSearch={() => setShowProductSearch(true)}
-          address={address}
-          setAddress={setAddress}
-          phone={phone}
-          setPhone={setPhone}
-          contactPerson={contactPerson}
-          setContactPerson={setContactPerson}
-          oldDebt={oldDebt}
-          setOldDebt={setOldDebt}
-          totalAmount={totalAmount}
-          discount={discount}
-          setDiscount={setDiscount}
-          tax={tax}
-          setTax={setTax}
-          advancePayment={advancePayment}
-          setAdvancePayment={setAdvancePayment}
-          invoiceRemaining={invoiceRemaining}
-          remainingBalance={remainingBalance}
-          items={items}
-          onAddItem={addItem}
-          onRemoveItem={removeItem}
-          onUpdateItem={updateItem}
-          renderPartnerCombobox={(hasError) => (
-            <SearchableCombobox
-              data-testid="sales-customer-combo"
-              value={customerName}
-              placeholder="Nhấn để chọn khách hàng..."
-              disabled={mode === 'VIEW'}
-              error={hasError}
-              fetchData={ApiService.Catalog.searchCustomers}
-              columns={[
-                { header: 'Mã KH', field: 'customerCode', width: '20%' },
-                { header: 'Tên KH', field: 'name', width: '50%' },
-                { header: 'Điện thoại', field: 'phone', width: '30%' }
-              ]}
-              onSelect={async (customer) => {
-                setCustomerCode(customer.customerCode || customer.customerId || '');
-                setCustomerId(customer.id);
-                setCustomerName(customer.name);
-                setAddress(customer.address || '');
-                setPhone(customer.phone || '');
-                setContactPerson(customer.contactPerson || '');
-                try {
-                  const debt = await ApiService.Debt.getBalance(customer.id);
-                  setOldDebt(debt || 0);
-                } catch (e) {
-                  console.error('Failed to fetch debt', e);
-                  setOldDebt(0);
-                }
-              }}
-            />
-          )}
-          renderProductCombobox={(itemId, currentVal, hasError) => (
-            <SearchableCombobox
-              data-testid={`sales-product-combo-${itemId}`}
-              value={currentVal}
-              placeholder="Nhấn để chọn..."
-              disabled={mode === 'VIEW'}
-              error={hasError}
-              fetchData={ApiService.Catalog.searchProducts}
-              columns={[
-                { header: 'Mã', field: 'code', width: '20%' },
-                { header: 'Tên', field: 'name', width: '50%' },
-                { header: 'Giá', field: 'price', width: '30%', format: (val) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val || 0) }
-              ]}
-              onSelect={(product) => {
-                updateItem(itemId, 'productId', String(product.id));
-                updateItem(itemId, 'productName', product.name);
-                updateItem(itemId, 'unitPrice', Number(product.price ?? 0));
-                updateItem(itemId, 'unitOfMeasure', product.baseUnit || 'CAI');
-              }}
-            />
-          )}
+          info={[
+            { key: 'branch', label: 'Kho xuất', value: branch || 'CN Trung tâm' },
+            { key: 'priceList', label: 'Bảng giá', value: 'Bán hàng theo khách' },
+            { key: 'creator', label: 'Nhân viên', value: user?.username || '' }
+          ]}
+          createdDate={createdDate ?? ''}
+          onCreatedDateChange={setCreatedDate}
+          partner={{
+            label: 'Khách hàng',
+            required: true,
+            displayName: `${customerName} ${customerCode ? `(${customerCode})` : ''}`,
+            onAdvancedSearch: () => setShowCustomerSearch(true),
+            renderCombobox: (hasError) => (
+              <SearchableCombobox
+                data-testid="sales-customer-combo"
+                value={customerName}
+                placeholder="Nhập mã, tên hoặc SĐT khách hàng..."
+                error={hasError}
+                fetchData={ApiService.Catalog.searchCustomers as any}
+                columns={[
+                  { header: 'MÃ KH', field: 'customerCode', width: '90px' },
+                  { header: 'TÊN KH', field: 'name', width: '1fr' },
+                  { header: 'ĐIỆN THOẠI', field: 'phone', width: '110px' },
+                  { header: 'ĐỊA CHỈ', field: 'address', width: '30%' }
+                ]}
+                onSelect={async (customer) => {
+                  setCustomerCode(customer.customerCode || customer.customerId || '');
+                  setCustomerId(customer.id);
+                  setCustomerName(customer.name);
+                  setAddress(customer.address || '');
+                  setPhone(customer.phone || '');
+                  setContactPerson(customer.contactPerson || '');
+                  try {
+                    const debt = await ApiService.Debt.getBalance(customer.id);
+                    setOldDebt(debt || 0);
+                  } catch (e) {
+                    console.error('Failed to fetch debt', e);
+                    setOldDebt(0);
+                  }
+                }}
+                onCreateNew={user?.role === 'ADMIN' ? () => setShowCustomerSearch(true) : undefined}
+                
+              />
+            ),
+            fields: [
+              { key: 'contact', label: 'Người liên hệ', value: contactPerson, onChange: setContactPerson },
+              { key: 'phone', label: 'Điện thoại', value: phone, onChange: setPhone },
+              { key: 'address', label: 'Địa chỉ', value: address, onChange: setAddress },
+              { key: 'note', label: 'Ghi chú', value: note, onChange: setNote }
+            ]
+          }}
+          summary={[
+            { key: 'oldDebt', label: 'Nợ trước', value: oldDebt, onChange: setOldDebt, testId: 'sum-old-debt' },
+            { key: 'total', label: 'Tiền hàng', value: totalAmount, testId: 'sum-total' },
+            { key: 'discount', label: 'Chiết khấu', value: discount, onChange: setDiscount, testId: 'sum-discount' },
+            { key: 'tax', label: 'VAT', value: tax, onChange: setTax, testId: 'sum-tax' },
+            { key: 'advance', label: 'Trả trước', value: advancePayment, onChange: setAdvancePayment, testId: 'sum-advance' },
+            { key: 'invoiceRemaining', label: 'Cần của đơn', value: invoiceRemaining, tone: 'primary', strong: true, testId: 'sum-invoice-remaining' },
+            { key: 'newDebt', label: 'Nợ tổng mới', value: remainingBalance, tone: 'danger', strong: true, testId: 'sum-new-debt' },
+          ]}
+          lines={{
+            testIdPrefix: 'sales',
+            items: items,
+            priceLabel: 'Đơn giá',
+            onAdd: () => setItems([...items, { id: Date.now().toString() + Math.random(), productId: '', productName: '', quantity: 1, unitPrice: 0 }]),
+            onRemove: (id) => setItems(items.filter(i => i.id !== id)),
+            onUpdate: (id, field, value) => updateItem(id, field as any, value),
+            renderProductCombobox: (line, index, hasError) => (
+              <SearchableCombobox
+                data-testid={`sales-product-combo-${line.id}`}
+                value={line.productName}
+                placeholder="Nhấn để chọn..."
+                error={hasError}
+                fetchData={ApiService.Catalog.searchProducts as any}
+                columns={[
+                  { header: 'MÃ', field: 'code', width: '90px' },
+                  { header: 'TÊN', field: 'name', width: '1fr' },
+                  { header: 'ĐVT', field: 'baseUnit', width: '70px' },
+                  { header: 'GIÁ', field: 'price', width: '120px', format: (val) => formatCurrency(val || 0) }
+                ]}
+                onSelect={(product) => {
+                  updateItem(line.id, 'productId', String(product.id));
+                  updateItem(line.id, 'productCode', product.code || '');
+                  updateItem(line.id, 'productName', product.name);
+                  updateItem(line.id, 'unitPrice', Number(product.price ?? 0));
+                  updateItem(line.id, 'unitOfMeasure', product.baseUnit || 'CAI');
+                  
+                  setTimeout(() => {
+                    try {
+                      const inputs = document.querySelectorAll(`[data-testid="sales-line-quantity"]`);
+                      const input = inputs[index] as HTMLInputElement;
+                      if (input) input.focus();
+                    } catch (e) {}
+                  }, 50);
+                }}
+                onCreateNew={user?.role === 'ADMIN' ? () => setShowProductSearch(true) : undefined}
+                
+              />
+            )
+          }}
+          onAdd={handleAdd}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+          onConfirm={handleConfirm}
+          onPrint={handlePrint}
+          onSave={handleSubmit}
+          onCancel={handleCancel}
+          onExit={handleExit}
+          hideConfirm={initialData?.status === 'CONFIRMED'}
+          isLoading={createMutation.isPending || confirmMutation.isPending}
         />
 
         {/* Print Preview Modal */}
@@ -446,7 +470,7 @@ export const SalesOrderForm = forwardRef<SalesOrderFormRef, SalesOrderFormProps>
           onClose={() => setShowCustomerSearch(false)}
           title="Tìm kiếm Khách hàng"
           placeholder="Nhập tên hoặc mã KH..."
-          fetchData={(query) => ApiService.Catalog.searchCustomers(query)}
+          fetchData={(query) => ApiService.Catalog.searchCustomers(query) as any}
           renderItem={(c) => (
             <div>
               <div className="font-medium text-slate-900">
@@ -473,7 +497,7 @@ export const SalesOrderForm = forwardRef<SalesOrderFormRef, SalesOrderFormProps>
           }}
           title="Tìm kiếm Sản phẩm"
           placeholder="Nhập tên hoặc mã SP..."
-          fetchData={(query) => ApiService.Catalog.searchProducts(query)}
+          fetchData={(query) => ApiService.Catalog.searchProducts(query) as any}
           renderItem={(p) => (
             <div className="flex justify-between items-center">
               <div>

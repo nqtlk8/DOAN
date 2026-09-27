@@ -26,11 +26,11 @@ export const ApiService = {
       axiosInstance.post('/api/v1/inventory/inbound/' + id + '/confirm').then((res: any) => res.data.data),
   },
   GoodsReturn: {
-    getAll: (): Promise<components['schemas']['GoodsReturnResponseDto'][]> => axiosInstance.get('/api/v1/goods-returns').then((res: any) => res.data.data),
-    getById: (id: string): Promise<components['schemas']['GoodsReturnResponseDto']> => axiosInstance.get('/api/v1/goods-returns/' + id).then((res: any) => res.data.data),
-    create: (payload: components['schemas']['GoodsReturnCreateDto']): Promise<components['schemas']['GoodsReturnCreateResponseDto']> =>
+    getAll: (): Promise<any[]> => axiosInstance.get('/api/v1/goods-returns').then((res: any) => res.data.data),
+    getById: (id: string): Promise<any> => axiosInstance.get('/api/v1/goods-returns/' + id).then((res: any) => res.data.data),
+    create: (payload: any): Promise<any> =>
       axiosInstance.post('/api/v1/goods-returns', payload).then((res: any) => res.data.data),
-    confirm: (id: string): Promise<components['schemas']['GoodsReturnCreateResponseDto']> =>
+    confirm: (id: string): Promise<any> =>
       axiosInstance.post('/api/v1/goods-returns/' + id + '/confirm').then((res: any) => res.data.data),
   },
   Catalog: {
@@ -86,8 +86,8 @@ export const ApiService = {
     },
   },
   Branch: {
-    getAll: (): Promise<components['schemas']['BranchResponseDto'][]> => axiosInstance.get('/api/v1/branches').then((res: any) => res.data.data),
-    getById: (id: string): Promise<components['schemas']['BranchResponseDto']> => axiosInstance.get('/api/v1/branches/' + id).then((res: any) => res.data.data),
+    getAll: (): Promise<any[]> => axiosInstance.get('/api/v1/branches').then((res: any) => res.data.data),
+    getById: (id: string): Promise<any> => axiosInstance.get('/api/v1/branches/' + id).then((res: any) => res.data.data),
   },
   Inventory: {
     getStockMovements: (productId: string): Promise<components['schemas']['StockMovementResponseDto'][]> => axiosInstance.get(`/api/v1/stock-movements?productId=${productId}`).then((res: any) => res.data.data),

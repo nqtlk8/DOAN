@@ -1,3 +1,4 @@
+import { PageContainer } from '../../shared/components/Page/PageContainer';
 import React, { useState } from 'react';
 import { Search } from 'lucide-react';
 import { ApiService } from '../../api/ApiService';
@@ -17,7 +18,8 @@ export const StockList: React.FC = () => {
   const filtered = items.filter((c) => c.productName?.toLowerCase().includes(searchTerm.toLowerCase()));
 
   return (
-    <div className="p-6">
+    <PageContainer>
+      <div className="">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold text-slate-900">Danh Mục Tồn Kho</h2>
       </div>
@@ -80,5 +82,6 @@ export const StockList: React.FC = () => {
         </table>
       </div>
     </div>
+    </PageContainer>
   );
 };

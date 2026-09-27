@@ -18,6 +18,7 @@ export interface MdiModuleLayoutProps {
   onPrint?: () => void;
   onExit?: () => void;
   isLoading?: boolean;
+  hideConfirm?: boolean;
 }
 
 export const MdiModuleLayout: React.FC<MdiModuleLayoutProps> = ({
@@ -34,11 +35,13 @@ export const MdiModuleLayout: React.FC<MdiModuleLayoutProps> = ({
   onPrint,
   onExit,
   isLoading = false,
+  hideConfirm = false,
 }) => {
   const isView = mode === 'VIEW';
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.defaultPrevented) return;
       if (activeSubView !== 'FORM') return; // Only trigger hotkeys in FORM view
       // Note: If there are modals open (like Print Preview), you might need an external state to skip hotkeys.
 
@@ -154,7 +157,7 @@ export const MdiModuleLayout: React.FC<MdiModuleLayoutProps> = ({
                     <span>Xóa</span>
                     <span className="text-slate-500 ml-1 text-erp-label">(F8)</span>
                   </button>
-                  {onConfirm && (
+                  {onConfirm && !hideConfirm && (
                     <button
                       onClick={onConfirm}
                       data-testid="btn-confirm"

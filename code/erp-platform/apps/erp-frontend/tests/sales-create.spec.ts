@@ -48,6 +48,7 @@ test.describe('Sales flow', () => {
       localStorage.setItem('user', JSON.stringify(data.user));
       localStorage.setItem('access_token', data.accessToken);
     }, mockStaffResponse.data);
+    await page.reload();
 
     // Navigate to root which auto-opens Sales Order for staff
     await page.goto('/');

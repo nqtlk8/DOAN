@@ -1,3 +1,4 @@
+import { PageContainer } from '../../shared/components/Page/PageContainer';
 import React, { useState } from 'react';
 import { Search, Eye } from 'lucide-react';
 import { ApiService } from '../../api/ApiService';
@@ -31,7 +32,8 @@ export const DebtList: React.FC = () => {
   };
 
   return (
-    <div className="p-6">
+    <PageContainer>
+      <div className="">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold text-slate-900">Danh Mục Công Nợ</h2>
       </div>
@@ -112,5 +114,6 @@ export const DebtList: React.FC = () => {
         </table>
       </div>
     </div>
+    </PageContainer>
   );
 };

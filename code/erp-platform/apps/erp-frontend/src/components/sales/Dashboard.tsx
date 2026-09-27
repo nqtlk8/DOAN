@@ -1,3 +1,4 @@
+import { PageContainer } from '../../shared/components/Page/PageContainer';
 import React, { useEffect, useState } from 'react';
 import { TrendingUp, ShoppingCart, DollarSign, Package, Download, AlertCircle, RefreshCw } from 'lucide-react';
 import { ApiService } from '../../api/ApiService';
@@ -105,7 +106,8 @@ export const Dashboard: React.FC = () => {
   };
 
   return (
-    <div className="space-y-8 bg-slate-50/50 min-h-screen p-2">
+    <PageContainer>
+      <div className="space-y-8 bg-slate-50/50">
       {/* Header Section */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
@@ -274,6 +276,7 @@ export const Dashboard: React.FC = () => {
         )}
       </DataState>
     </div>
+    </PageContainer>
   );
 };
 

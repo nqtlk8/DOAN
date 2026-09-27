@@ -1,3 +1,4 @@
+import { PageContainer } from '../../shared/components/Page/PageContainer';
 import React from 'react';
 import { DataState } from '../../shared/components/DataState/DataState';
 import { StockMovement } from '../../types/inventory';

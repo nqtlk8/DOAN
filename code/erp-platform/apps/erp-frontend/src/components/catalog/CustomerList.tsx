@@ -1,3 +1,4 @@
+import { PageContainer } from '../../shared/components/Page/PageContainer';
 import React, { useState } from 'react';
 import { Search, Plus, X, Edit, Trash2 } from 'lucide-react';
 import type { Customer } from '../../types/catalog';
@@ -65,7 +66,7 @@ export const CustomerList: React.FC = () => {
     };
 
     if (isEditing && formData.id) {
-      updateCustomer({ id: formData.id, payload }, { onSuccess: handleCloseModal });
+      updateCustomer({ id: String(formData.id), payload }, { onSuccess: handleCloseModal });
     } else {
       createCustomer(payload, { onSuccess: handleCloseModal });
     }
@@ -80,7 +81,8 @@ export const CustomerList: React.FC = () => {
   const filtered = customers.filter((c) => !c.isDeleted && c.name?.toLowerCase().includes(searchTerm.toLowerCase()));
 
   return (
-    <div data-testid="customer-page" className="p-6">
+    <PageContainer>
+      <div className="">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold text-slate-900">Danh Mục Khách Hàng</h2>
         {isAdmin && (
@@ -280,5 +282,6 @@ export const CustomerList: React.FC = () => {
         </div>
       )}
     </div>
+    </PageContainer>
   );
 };
