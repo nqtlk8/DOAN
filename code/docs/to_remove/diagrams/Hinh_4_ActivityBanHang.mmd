@@ -1,0 +1,18 @@
+flowchart TD
+    Start((Bắt đầu)) --> InputInvoice[Nhân viên nhập hóa đơn bán hàng]
+    InputInvoice --> Validate[Hệ thống kiểm tra tính hợp lệ khách hàng]
+    Validate -- Hợp lệ --> Compute[Tính tổng tiền hóa đơn]
+    Validate -- Không hợp lệ --> EndError((Lỗi / Dừng))
+    
+    Compute --> StartLoop{Còn dòng\nsản phẩm?}
+    StartLoop -- Có --> FIFO[Xuất kho theo FIFO]
+    FIFO --> RecordCost[Ghi giá vốn từng dòng]
+    RecordCost --> StartLoop
+    
+    StartLoop -- Không --> IncreaseDebt[Ghi tăng công nợ khách hàng]
+    IncreaseDebt --> Prepaid{Khách có\ntrả trước?}
+    Prepaid -- Có --> DecreaseDebt[Trừ công nợ tương ứng]
+    Prepaid -- Không --> Confirm[Xác nhận hóa đơn]
+    DecreaseDebt --> Confirm
+    
+    Confirm --> EndSuccess((Hoàn thành))

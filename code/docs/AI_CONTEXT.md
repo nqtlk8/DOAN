@@ -70,7 +70,7 @@ Hệ thống ERP cho cửa hàng VLXD & thiết bị thông minh nhà.
 - Public: auth/public/health/swagger paths.
 - Role system consists of ONLY `ADMIN` and `STAFF`.
 - Phân quyền theo Chi nhánh (`Branch-Level Security`) được thực hiện ngay tại lớp Controller/Service, sử dụng `AuthUtils.getBranchIdOrNull()`. Nhân viên chi nhánh A không thể truy vấn hoặc thao tác trên dữ liệu chi nhánh B.
-- HQ Analytics dynamically aggregates stock and debt via `stock_movement` and `sales_invoice` rather than copying snapshot tables (`stock_on_hand`, `receivable_debt`).
+- HQ Analytics dynamically aggregates some metrics, but snapshot tables (`stock_on_hand`, `receivable_debt`) are replicated from Branch to HQ with a row filter (`branch_id = X`) to support reconciliation and reporting.
 - Branch master tables are restricted by `V9__branch_db_security.sql` for `erp_user` in Docker runtime.
 
 ## Source of truth

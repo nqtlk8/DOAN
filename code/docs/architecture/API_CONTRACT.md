@@ -62,6 +62,33 @@ Tất cả các REST API đều được bọc trong `ApiResponse<T>`:
 | GET | `/api/v1/receivable-debts` | DTO bao gồm `customerId`, tổng nợ. |
 | POST | `/api/v1/receivable-debts/payments` | API Khách trả tiền. Gọi Service giảm nợ (`ReceivableDebtMovementType.PAYMENT`). Yêu cầu `Idempotency-Key` |
 
+### 4.6. Analytics (Dashboard & Cảnh báo)
+| Method | Path | Ghi chú |
+|---|---|---|
+| GET | `/api/v1/analytics/dashboard` | Trả về `DashboardMetricsDto` (lưu ý: `totalReceivableDebt` thay cho `totalOverdueDebt` ⚠️ BREAKING). Dành cho ADMIN. |
+| GET | `/api/v1/analytics/stock-alerts` | Trả về `ApiResponse<StockAlertSummaryDto>` chứa danh sách cảnh báo tồn kho. Dành cho ADMIN. |
+
+**Ví dụ JSON Dashboard:**
+```json
+{
+  "success": true,
+  "data": {
+    "totalRevenue": 1500000.0,
+    "grossProfit": 500000.0,
+    "inventoryTurnoverRatio": 1.25,
+    "totalReceivableDebt": 300000.0,
+    "topSellingProducts": [],
+    "slowMovingProducts": []
+  },
+  "message": "Success",
+  "errors": null
+}
+```
+
+**Mã lỗi thường gặp:**
+- `400 Bad Request`: Validation ngày bắt đầu lớn hơn ngày kết thúc, định dạng ngày sai.
+- `403 Forbidden`: Người dùng không có quyền ADMIN.
+
 ## 5. Xử lý lỗi (Exception Handling)
 Tất cả các exception được `GlobalExceptionHandler` chặn lại và trả về:
 ```json

@@ -1,0 +1,21 @@
+flowchart LR
+    subgraph HQ["Trụ sở chính (HQ Database)"]
+        HQ_PUB["Publisher: MASTER_TABLES"]
+        HQ_SUB["Subscriber: TRANSACTION_TABLES"]
+        T_Cat[("Catalog, Users, Price")]
+        T_Trans_HQ[("Invoices, Receipts")]
+        T_Cat --> HQ_PUB
+        HQ_SUB --> T_Trans_HQ
+    end
+
+    subgraph Branch["Chi nhánh (Branch Database)"]
+        B_SUB["Subscriber: MASTER_TABLES"]
+        B_PUB["Publisher: TRANSACTION_TABLES"]
+        T_Cat_B[("Catalog, Users, Price\n(ReadOnly)")]
+        T_Trans_B[("Invoices, Receipts")]
+        B_SUB --> T_Cat_B
+        T_Trans_B --> B_PUB
+    end
+
+    HQ_PUB == Đồng bộ xuống (Push) ==> B_SUB
+    B_PUB == Đồng bộ lên (Push) ==> HQ_SUB

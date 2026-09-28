@@ -139,3 +139,28 @@ Môi trường mạng không ổn định, frontend có thể gửi double-click
 
 ### Trade-off
 Tăng thêm một round-trip vào database để kiểm tra trạng thái key trước khi thực thi nghiệp vụ, đổi lấy sự an toàn 100%.
+
+## ADR-13 - Replicate bảng snapshot có row filter (thay thế quyết định Sprint 6)
+
+### Context
+Sprint 6 quyết định KHÔNG replicate `stock_on_hand` và `receivable_debt` lên HQ; HQ tự tính động từ `stock_movement` và `sales_invoice.remaining_debt`. Thực tế, công nợ theo chi nhánh không tính đúng được từ `sales_invoice` vì còn số dư đầu kỳ, thu nợ và hàng trả (các khoản này ghi vào `receivable_debt` / `receivable_debt_movement` ở chi nhánh). Trong khi đó `AnalyticsDataAdapter` khi lọc theo chi nhánh lại đọc 2 bảng này ở HQ — vốn rỗng hoặc chỉ có dữ liệu seed cũ.
+
+Thêm một ràng buộc: seed V2/V13 chèn dữ liệu `branch_id = 1` (cùng UUID) vào DB của MỌI instance, kể cả TP2. Nếu replicate nguyên bảng, TP2 sẽ đẩy bản sao dòng của TP1 lên HQ → hai writer cho cùng một khóa, vi phạm Single-Writer Invariant.
+
+### Decision
+- Mỗi chi nhánh publish thêm `stock_on_hand` và `receivable_debt` trong `pub_<branch>_to_hq`, **có row filter** `WHERE (branch_id = N)` với N là `branch.id` của chính chi nhánh đó (lấy từ DB, không hard-code).
+- Migration `V21` đặt `REPLICA IDENTITY USING INDEX` (`uk_stock_product_branch`, `uk_debt_customer_branch`) trên mọi DB. PostgreSQL yêu cầu cột dùng trong row filter phải thuộc replica identity khi publish UPDATE/DELETE; thiếu bước này, lệnh `UPDATE stock_on_hand` ở chi nhánh sẽ báo lỗi và làm hỏng luồng bán hàng.
+- Bật cho chi nhánh đang chạy bằng `scripts/enable-snapshot-replication.sh <branch>`: tại HQ chỉ `DELETE ... WHERE branch_id = N` rồi `ALTER SUBSCRIPTION ... REFRESH PUBLICATION WITH (copy_data = true)`. Không `TRUNCATE`, vì sẽ xoá dữ liệu các chi nhánh khác đã đồng bộ. Chi nhánh mới: `setup-replication.sh` tự gọi script này.
+- HQ không có API ghi 2 bảng này (controller giao dịch chỉ bật ở BRANCH/ALL; opening-balance từ chối khi không có branchId) — được khẳng định bằng `ReplicationOwnershipHqTest`.
+- Cảnh báo tồn kho vẫn tính từ `stock_movement` (append-only); `stock_on_hand` ở HQ dùng cho màn tồn kho và đối soát.
+
+### Rejected alternatives
+- **Giữ quyết định Sprint 6 (tính động ở HQ):** bỏ, vì công nợ theo chi nhánh sai khi có số dư đầu kỳ/thu nợ/hàng trả, và `receivable_debt_movement` cũng không được replicate.
+- **Replicate không lọc dòng:** bỏ, vì dữ liệu seed `branch_id = 1` có ở mọi DB chi nhánh (vi phạm Single-Writer).
+- **Bảng riêng `stock_on_hand_hq` do job tổng hợp:** bỏ, vì thêm bảng, thêm job và thêm độ trễ mà không giải quyết được công nợ.
+
+### Trade-off
+- Cần PostgreSQL 15+ (docker-compose đang dùng `postgres:15`).
+- Tăng lượng WAL do 2 bảng snapshot được UPDATE thường xuyên; chấp nhận ở quy mô hiện tại.
+- Dữ liệu ở HQ là nhất quán cuối (eventual consistency) theo độ trễ replication.
+- ⚠️ BREAKING so với Sprint 6: quy trình bật replication cho chi nhánh có thêm bước chạy `enable-snapshot-replication.sh`.

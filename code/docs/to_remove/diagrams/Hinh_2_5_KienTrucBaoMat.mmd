@@ -1,0 +1,18 @@
+flowchart TD
+    subgraph HQ["HQ (Centralized Auth)"]
+        AuthService["Auth Service\n(Login, Generate JWT)"]
+        HQ_Key["Private Key (RS256)"]
+        AuthService --> HQ_Key
+    end
+
+    subgraph Branch["Branch (Offline Verification)"]
+        SecFilter["Security Filter\n(Validate JWT)"]
+        Pub_Key["Public Key (RS256)"]
+        SecFilter --> Pub_Key
+    end
+
+    Client["User / Staff"]
+    Client -- "1. POST /login" --> AuthService
+    AuthService -- "2. Trả về JWT Token" --> Client
+    Client -- "3. Gọi API kèm JWT" --> SecFilter
+    SecFilter -- "4. Xác thực ngoại tuyến (Offline)" --> Pub_Key

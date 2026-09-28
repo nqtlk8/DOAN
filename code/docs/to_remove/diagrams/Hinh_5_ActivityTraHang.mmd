@@ -1,0 +1,17 @@
+flowchart TD
+    Start((Bắt đầu)) --> InputDraft[Lập phiếu trả hàng nháp]
+    InputDraft --> ReqConfirm[Yêu cầu xác nhận]
+    ReqConfirm --> LockInvoice[Khóa hóa đơn gốc\n(Pessimistic Write Lock)]
+    
+    LockInvoice --> CheckQty{Số lượng trả <=\nSố lượng mua?}
+    CheckQty -- Không --> UnlockErr[Báo lỗi / Mở khóa] --> EndError((Lỗi))
+    CheckQty -- Có --> MarkConfirm[Đánh dấu phiếu Xác nhận]
+    
+    MarkConfirm --> LoopStart{Còn dòng\nhàng hoàn trả?}
+    LoopStart -- Có --> ReturnStock[Hoàn hàng vào kho]
+    ReturnStock --> RecordReturn[Ghi nhận lịch sử hoàn hàng]
+    RecordReturn --> LoopStart
+    
+    LoopStart -- Không --> DecreaseDebt[Giảm công nợ khách hàng]
+    DecreaseDebt --> Notify[Thông báo hoàn thành]
+    Notify --> EndSuccess((Hoàn thành))

@@ -24,6 +24,7 @@
 | inbound_receipt_line | Branch | No | Yes | Branch -> HQ |
 | stock_movement | Branch | No | Yes | Branch -> HQ |
 | cost_layer | Branch | No | Yes | Branch -> HQ |
-| inventory_alert_log | Local/HQ | Yes | No | None |
+| stock_on_hand | Branch | No | Yes | Branch -> HQ (row filter branch_id) |
+| receivable_debt | Branch | No | Yes | Branch -> HQ (row filter branch_id) |
 | fact_sales | HQ | Yes | No | None (DW only) |
 | fact_stock_movement | HQ | Yes | No | None (DW only) |

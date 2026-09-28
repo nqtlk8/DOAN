@@ -1,0 +1,30 @@
+flowchart TD
+    subgraph REST_API["REST API Layer"]
+        API_HQ[HQ Endpoints]
+        API_Branch[Branch Endpoints]
+    end
+
+    subgraph Facade_Layer["Facade Layer (Cross-Module Communication)"]
+        CRM_Facade[CRM Facade]
+        Inv_Facade[Inventory Facade]
+    end
+
+    subgraph Business_Modules["Core Business Modules (Isolated)"]
+        M_Id[Identity]
+        M_Cat[Catalog]
+        M_CRM[CRM]
+        M_Sales[Sales]
+        M_Return[Goods Return]
+        M_Inbound[Inbound]
+        M_Inv[Inventory]
+        M_Analytics[Analytics]
+    end
+
+    subgraph Data_Access["Data Access Layer"]
+        Repositories[Spring Data JPA Repositories]
+    end
+
+    REST_API --> Facade_Layer
+    REST_API --> Business_Modules
+    Facade_Layer -.-> Business_Modules
+    Business_Modules --> Data_Access

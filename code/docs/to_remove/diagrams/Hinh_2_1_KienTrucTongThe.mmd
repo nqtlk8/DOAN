@@ -1,0 +1,29 @@
+flowchart TD
+    subgraph HQ["Trụ sở chính (Headquarter)"]
+        HQ_Nginx["Nginx (Load Balancer/Reverse Proxy)"]
+        HQ_App["Spring Boot (HQ Profile)"]
+        HQ_DB[("PostgreSQL\n(HQ DB)")]
+        HQ_Redis[("Redis\n(Cache/Session)")]
+        HQ_Nginx --> HQ_App
+        HQ_App --> HQ_DB
+        HQ_App --> HQ_Redis
+    end
+
+    subgraph Branch1["Chi nhánh 1 (Branch)"]
+        B1_Nginx["Nginx"]
+        B1_App["Spring Boot (Branch Profile)"]
+        B1_DB[("PostgreSQL\n(Branch 1 DB)")]
+        B1_Nginx --> B1_App
+        B1_App --> B1_DB
+    end
+
+    subgraph BranchN["Chi nhánh N (Branch)"]
+        BN_Nginx["Nginx"]
+        BN_App["Spring Boot (Branch Profile)"]
+        BN_DB[("PostgreSQL\n(Branch N DB)")]
+        BN_Nginx --> BN_App
+        BN_App --> BN_DB
+    end
+
+    HQ_DB <-->|Logical Replication| B1_DB
+    HQ_DB <-->|Logical Replication| BN_DB

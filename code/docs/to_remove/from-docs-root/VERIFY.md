@@ -1,0 +1,13 @@
+# SPRINT D0 – XÁC MINH
+
+| Mã | Câu hỏi | Trả lời | Nguồn |
+|---|---|---|---|
+| V1 | CustomerWriteController chạy ở HQ, Branch hay cả hai (điều kiện instance.role, @ConditionalOnProperty, @PreAuthorize)? | Chạy ở HQ (điều kiện `@ConditionalOnExpression("'${instance.role:ALL}' == 'HQ' or '${instance.role:ALL}' == 'ALL'")`). Các endpoint yêu cầu quyền ADMIN (`@PreAuthorize("hasAuthority('ADMIN')")`). | `CustomerWriteController.java:22-29` |
+| V2 | Có chức năng báo cáo/analytics cho ADMIN không (endpoint nào)? | Có. Endpoint: `GET /api/v1/analytics/dashboard` và `GET /api/v1/analytics/export/excel`. | `DashboardController.java:26-37` |
+| V3 | Luồng tra cứu giá riêng: controller, service, phương thức chính, các bước; có lấy giá từ PriceList khi không có giá riêng không? (Tìm lớp dùng CustomerProductPrice). | Controller: `CustomerProductPriceController`, Service: `CustomerProductPriceService`. Phương thức: `getPrice`. Các bước: Controller lấy `branchId` từ token, gọi Service -> Service gọi Repository `findByCustomerIdAndProductIdAndBranchId`. Nếu không có giá riêng, hệ thống trả về `null` với thông báo "No special price found" (không tự động lấy từ PriceList trong luồng này). | `CustomerProductPriceController.java:27-36`, `CustomerProductPriceService.java:24-27` |
+| V4 | recordReturn gồm những bước nào (tăng tồn, biến động RETURN, CostLayer.fromReturn)? | 1. Tìm hoặc tạo `StockOnHand` theo productId, branchId.<br>2. Tăng số lượng tồn (`stock.increase`).<br>3. Lưu `StockOnHand`.<br>4. Tạo `StockMovement.returnGoods`.<br>5. Lưu `StockMovement`.<br>6. Tạo `CostLayer.fromReturn`.<br>7. Lưu `CostLayer`. | `InventoryFacadeImpl.java:83-94` |
+| V5 | Supplier.branchId có nullable không? | Có (Không có ràng buộc `nullable = false`). | `Supplier.java:22-23` |
+| V6 | GoodsReturn.invoiceId có nullable không? | Có (Comment chỉ định `// nullable` và không có `@Column(nullable = false)`). | `GoodsReturn.java:30-31` |
+| V7 | Tên lớp Service xử lý 4 luồng: bán hàng, trả hàng, nhập kho, tra cứu giá. | Bán hàng: `SalesInvoiceService`.<br>Trả hàng: `GoodsReturnService`.<br>Nhập kho: `InboundReceiptService`.<br>Tra cứu giá: `CustomerProductPriceService`. | `FACTS.md`, `CustomerProductPriceService.java:15` |
+| V8 | Endpoint tạo hóa đơn có @IdempotencyProtected không? | Có. | `SalesInvoiceController.java:38` |
+| V9 | AuthService.login kiểm tra những gì, theo thứ tự nào? | 1. Format credentials (không rỗng/null).<br>2. Tìm user bằng username.<br>3. Mật khẩu khớp (`passwordEncoder.matches`).<br>4. Trạng thái active (`isActive`).<br>5. User phải có role (`roles.isEmpty()`). | `AuthService.java:46-70` |

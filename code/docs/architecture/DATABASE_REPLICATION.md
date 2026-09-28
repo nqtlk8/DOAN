@@ -26,7 +26,10 @@ Branch tạo `SUBSCRIPTION` tương ứng để nhận luồng dữ liệu này.
 
 ### Branch tới HQ (Transaction Data)
 Branch tạo `pub_<branch_id>_to_hq` bao gồm các bảng:
-`sales_invoice, sales_invoice_line, goods_return, goods_return_line, inbound_receipt, inbound_receipt_line, stock_movement, cost_layer`
+- Các bảng lịch sử: `sales_invoice, sales_invoice_line, goods_return, goods_return_line, inbound_receipt, inbound_receipt_line, stock_movement, cost_layer`
+- Các bảng snapshot (có lọc dòng theo `branch_id`): `stock_on_hand WHERE (branch_id = N)`, `receivable_debt WHERE (branch_id = N)`.
+Lý do dùng row filter (`WHERE branch_id = N`): Seed data của dự án tạo các dòng mẫu (VD: `branch_id = 1`) trong mọi database (HQ và các Branch). Nếu không lọc, chi nhánh 2 sẽ đẩy bản ghi `branch_id = 1` của nó lên HQ, đụng độ với bản ghi của chi nhánh 1 (vi phạm single-writer).
+Đồng thời, đối với bảng có row filter, phải thiết lập `REPLICA IDENTITY USING INDEX` (PostgreSQL 15+ yêu cầu cột trong `WHERE` phải thuộc replica identity) - đã xử lý trong migration V21.
 
 HQ tạo `SUBSCRIPTION` tương ứng để nhận dữ liệu từ tất cả các nhánh.
 

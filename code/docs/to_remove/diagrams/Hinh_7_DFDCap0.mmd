@@ -1,0 +1,10 @@
+flowchart LR
+    Admin([Quản trị viên / Admin])
+    Staff([Nhân viên Chi nhánh / Staff])
+    System((Hệ thống ERP\nĐa chi nhánh))
+
+    Admin -- "Cấu hình Master Data\n(Người dùng, Sản phẩm, Bảng giá)" --> System
+    System -- "Báo cáo tổng hợp, Doanh thu, Tồn kho" --> Admin
+    
+    Staff -- "Giao dịch bán lẻ\n(Hóa đơn, Trả hàng, Nhập kho)" --> System
+    System -- "Thông tin khách hàng, Tồn kho, Công nợ cục bộ" --> Staff

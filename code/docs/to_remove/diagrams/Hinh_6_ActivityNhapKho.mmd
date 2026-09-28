@@ -1,0 +1,13 @@
+flowchart TD
+    Start((Bắt đầu)) --> InputDraft[Lập phiếu nhập kho nháp]
+    InputDraft --> ReqConfirm[Yêu cầu xác nhận]
+    ReqConfirm --> MarkConfirm[Đánh dấu phiếu Xác nhận]
+    
+    MarkConfirm --> LoopStart{Còn dòng\nsản phẩm?}
+    LoopStart -- Có --> IncreaseStock[Tăng tồn kho sản phẩm]
+    IncreaseStock --> RecordMovement[Ghi nhận biến động nhập]
+    RecordMovement --> CreateCostLayer[Tạo lớp giá vốn mới]
+    CreateCostLayer --> LoopStart
+    
+    LoopStart -- Không --> Notify[Thông báo kết quả]
+    Notify --> EndSuccess((Hoàn thành))

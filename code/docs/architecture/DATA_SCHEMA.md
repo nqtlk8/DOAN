@@ -45,7 +45,9 @@ Và được cấp quyền bảo mật tại:
 - `dim_date`: Chiều thời gian cho Data Warehouse đơn giản.
 - `fact_sales`: Báo cáo bán hàng.
 - `fact_stock_movement`: Báo cáo tồn kho.
-- `inventory_alert_config` & `inventory_alert_log`: Cảnh báo khi tồn kho quá ít.
+- `inventory_alert_config`: Cấu hình cảnh báo khi tồn kho dưới ngưỡng (theo `product_id`, `branch_id`).
+
+*(Ghi chú: Bảng `inventory_alert_log` đã bị xoá trong `V21__analytics_alert_and_snapshot_replication.sql` vì không còn dùng).*
 
 ## 4. Bảng ngoài phạm vi (Removed or Planned for V6)
 Các bảng sau ĐÃ BỊ LOẠI BỎ và **KHÔNG TỒN TẠI** trong codebase thực tế:
