@@ -9,4 +9,5 @@ import java.util.List;
 @Repository
 public interface InventoryAlertConfigRepository extends JpaRepository<InventoryAlertConfig, Long> {
     List<InventoryAlertConfig> findByIsActiveTrue();
+    List<InventoryAlertConfig> findByIsActiveTrueAndBranchId(Long branchId);
 }

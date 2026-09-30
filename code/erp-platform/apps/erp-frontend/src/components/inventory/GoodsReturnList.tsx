@@ -1,83 +1,68 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ApiService } from '../../api/ApiService';
 import { DataState } from '../../shared/components/DataState/DataState';
-import { formatCurrency } from '../../shared/utils/format';
+import { StatusBadge } from '../../shared/components/StatusBadge';
+import { formatDateTime, formatNumber } from '../../shared/utils/format';
+import type { GoodsReturnResponse } from '../../types/documents';
 
 interface GoodsReturnListProps {
   onRowDoubleClick?: (id: string) => void;
 }
 
 export const GoodsReturnList: React.FC<GoodsReturnListProps> = ({ onRowDoubleClick }) => {
-  const { data: response, isLoading, isError, error, refetch } = useQuery({
-    queryKey: ['GoodsReturns'],
+  const { data: returns = [], isLoading, isError, error, refetch } = useQuery<GoodsReturnResponse[]>({
+    queryKey: ['goods-returns'],
     queryFn: () => ApiService.GoodsReturn.getAll(),
   });
 
-  const returns = response || [];
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'CONFIRMED':
-        return 'bg-primary/10 text-primary-dark border-primary-soft';
-      case 'DRAFT':
-        return 'bg-amber-50 text-amber-700 border-amber-200';
-      case 'CANCELLED':
-        return 'bg-danger-soft text-danger border-line';
-      default:
-        return 'bg-slate-50 text-slate-700 border-slate-200';
-    }
-  };
-
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'CONFIRMED': return 'Đã xác nhận';
-      case 'DRAFT': return 'Nháp';
-      case 'CANCELLED': return 'Đã hủy';
-      default: return status;
-    }
-  };
+  const total = (r: GoodsReturnResponse) =>
+    r.totalAmount ??
+    (r.lines ?? []).reduce((s, l) => s + (Number(l.quantity) || 0) * (Number(l.unitPrice) || 0), 0);
 
   return (
-    <div className="h-full bg-surface flex flex-col">
+    <div className="h-full bg-surface flex flex-col card overflow-hidden">
       <DataState
         isLoading={isLoading}
         isError={isError}
         error={error}
         onRetry={refetch}
-        
-        isEmpty={returns.length === 0 && !isLoading}
+        loadingType="table"
+        isEmpty={returns.length === 0}
+        emptyTitle="Chưa có phiếu nhập lại hàng bán"
+        emptyMessage="Các phiếu trả hàng đã lưu sẽ hiển thị ở đây."
       >
         <div className="flex-1 overflow-auto">
-          <table className="w-full erp-table">
-            <thead>
+          <table className="erp-table">
+            <thead className="sticky top-0">
               <tr>
                 <th className="w-12 text-center">STT</th>
                 <th>Số phiếu</th>
                 <th>Ngày tạo</th>
-                <th>Nhà cung cấp</th>
-                <th className="text-right">Tổng tiền</th>
-                <th className="text-center w-32">Trạng thái</th>
+                <th>Khách hàng</th>
+                <th className="num">Tổng tiền trả</th>
+                <th className="w-32 text-center">Trạng thái</th>
+                <th>Lý do</th>
               </tr>
             </thead>
             <tbody>
-              {returns.map((retItem: any, index: number) => (
+              {returns.map((r, index) => (
                 <tr
-                  key={retItem.id}
-                  className="hover:bg-slate-50 cursor-pointer"
+                  key={r.id}
+                  className="cursor-pointer"
                   data-testid="return-list-row"
-                  onDoubleClick={() => onRowDoubleClick?.(retItem.id)}
+                  title="Nhấp đúp để xem phiếu"
+                  onDoubleClick={() => onRowDoubleClick?.(r.id)}
                 >
-                  <td className="text-center text-slate-500">{index + 1}</td>
-                  <td className="font-medium text-primary">{retItem.returnCode}</td>
-                  <td>{new Date(retItem.createdAt).toLocaleString('vi-VN')}</td>
-                  <td>{retItem.customerName}</td>
-                  <td className="text-right font-medium">{formatCurrency(retItem.totalAmount || 0)}</td>
+                  <td className="text-center text-ink-subtle">{index + 1}</td>
+                  <td className="font-medium text-primary">{r.returnCode || '—'}</td>
+                  <td>{formatDateTime(r.createdAt)}</td>
+                  <td>{r.customerName || '—'}</td>
+                  <td className="num font-medium">{formatNumber(total(r))}</td>
                   <td className="text-center">
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${getStatusColor(retItem.status)}`}>
-                      {getStatusText(retItem.status)}
-                    </span>
+                    <StatusBadge status={r.status} />
                   </td>
+                  <td className="text-ink-muted truncate max-w-[240px]">{r.reason}</td>
                 </tr>
               ))}
             </tbody>
@@ -87,4 +72,3 @@ export const GoodsReturnList: React.FC<GoodsReturnListProps> = ({ onRowDoubleCli
     </div>
   );
 };
-

@@ -93,4 +93,31 @@ test.describe('SearchableCombobox tests', () => {
       }
     }
   });
+
+  test('E-CB-04: Gõ ký tự đặc biệt "(" "+" "[" không làm sập app', async ({ page }) => {
+    const errors: string[] = [];
+    page.on('pageerror', (e) => errors.push(e.message));
+    await loginAs(page, 'STAFF');
+    await page.goto('/');
+
+    await page.locator('[data-testid="sales-add-line"]').click();
+    const productCombo = page.locator('[data-testid^="sales-product-combo-"]').first();
+    await productCombo.fill('(');
+    await expect(page.locator('[data-testid="combobox-dropdown"]')).toBeVisible();
+    await productCombo.fill('+[');
+    await expect(page.locator('[data-testid="combobox-dropdown"]')).toBeVisible();
+    await expect(page.getByTestId('doc-code')).toBeVisible(); // vẫn ở form, không phải màn lỗi
+    expect(errors).toEqual([]);
+  });
+
+  test('E-CB-05: Esc khi dropdown đang mở chỉ đóng dropdown, không hỏi hủy phiếu', async ({ page }) => {
+    await loginAs(page, 'STAFF');
+    await page.goto('/');
+    const combo = page.locator('[data-testid="sales-customer-combo"]');
+    await combo.click();
+    await expect(page.locator('[data-testid="combobox-dropdown"]')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.locator('[data-testid="combobox-dropdown"]')).toBeHidden();
+    await expect(page.getByText('Bạn có chắc chắn muốn hủy')).toBeHidden();
+  });
 });

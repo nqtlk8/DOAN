@@ -1,4 +1,5 @@
 import React from 'react';
+import type { components } from '@erp/api-contract';
 
 export type FormMode = 'VIEW' | 'ADD' | 'EDIT';
 export type DocStatus = 'DRAFT' | 'CONFIRMED' | 'CANCELLED';
@@ -22,8 +23,10 @@ export interface PartnerField {
 export interface SummaryField {
   key: string; label: string; value: number;
   onChange?: (v: number) => void;   // có => ô NumberInput
-  tone?: 'default' | 'primary' | 'danger';
+  tone?: 'default' | 'primary' | 'danger';   // danger chỉ tô đỏ khi value > 0
   strong?: boolean; testId?: string;
+  allowNegative?: boolean;          // cho phép nhập số âm (vd Nợ trước)
+  isQuantity?: boolean;             // hiển thị dạng số lượng (không kèm ₫)
 }
 
 /* Type trả về từ Backend cho Phiếu Nhập Lại Hàng Bán (Goods Return) */
@@ -51,3 +54,18 @@ export interface GoodsReturnResponse {
   createdAt?: string;
   lines?: GoodsReturnLineResponse[];
 }
+
+export interface GoodsReturnCreatePayload {
+  customerId: string;
+  reason?: string;
+  note?: string;
+  invoiceId?: string;
+  lines: { productId: number; quantity: number; unitPrice: number; unitOfMeasure: string }[];
+}
+
+/* Alias ngắn cho DTO sinh từ OpenAPI */
+export type ProductDto = components['schemas']['ProductResponseDto'];
+export type SupplierDto = components['schemas']['SupplierResponseDto'];
+export type CustomerDto = components['schemas']['CustomerResponseDto'];
+export type InboundReceiptDto = components['schemas']['InboundReceiptResponseDto'];
+export type SalesInvoiceDto = components['schemas']['SalesInvoiceResponseDto'];

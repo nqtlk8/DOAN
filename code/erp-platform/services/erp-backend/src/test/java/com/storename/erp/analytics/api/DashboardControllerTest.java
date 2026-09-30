@@ -79,5 +79,35 @@ public class DashboardControllerTest {
                 .with(SecurityMockMvcRequestPostProcessors.authentication(auth)))
                 .andExpect(status().isForbidden());
     }
+
+    @Test
+    void getDashboardMetrics_ShouldReturn400_WhenStartDateGreaterThanEndDate() throws Exception {
+        when(dashboardService.getDashboardMetrics(any(), any(), any()))
+                .thenThrow(new IllegalArgumentException("startDateKey must be less than or equal to endDateKey"));
+
+        JwtAuthDetails details = new JwtAuthDetails("1", "token-123");
+        UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
+                "user", null, List.of(new SimpleGrantedAuthority("ADMIN")));
+        auth.setDetails(details);
+
+        mockMvc.perform(get("/api/v1/analytics/dashboard?startDateKey=20260930&endDateKey=20260901")
+                .with(SecurityMockMvcRequestPostProcessors.authentication(auth)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void getDashboardMetrics_ShouldReturn400_WhenDateIsInvalid() throws Exception {
+        when(dashboardService.getDashboardMetrics(any(), any(), any()))
+                .thenThrow(new IllegalArgumentException("Invalid date format for startDateKey or endDateKey"));
+
+        JwtAuthDetails details = new JwtAuthDetails("1", "token-123");
+        UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
+                "user", null, List.of(new SimpleGrantedAuthority("ADMIN")));
+        auth.setDetails(details);
+
+        mockMvc.perform(get("/api/v1/analytics/dashboard?startDateKey=20260231&endDateKey=20260930")
+                .with(SecurityMockMvcRequestPostProcessors.authentication(auth)))
+                .andExpect(status().isBadRequest());
+    }
 }
 

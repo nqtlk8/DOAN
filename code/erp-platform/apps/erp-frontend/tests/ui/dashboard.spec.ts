@@ -15,6 +15,25 @@ test.describe('Dashboard E2E', () => {
       await route.fulfill({ status: 200, json: { data: [{ id: 1, name: 'Chi nhánh TP1', branchCode: 'CN1' }] } });
     });
 
+    // Mock stock alerts
+    await page.route('**/api/v1/analytics/stock-alerts*', async (route) => {
+      await route.fulfill({
+        status: 200,
+        json: {
+          data: {
+            negativeCount: 1,
+            lowStockCount: 0,
+            generatedAt: '2026-09-28T00:00:00Z',
+            alerts: [
+              {
+                productId: 301, productCode: 'SP301', productName: 'Sản phẩm âm', branchId: 1, branchName: 'CN1', currentQuantity: -5, minQuantityThreshold: null, alertType: 'NEGATIVE_STOCK'
+              }
+            ]
+          }
+        }
+      });
+    });
+
     // Mock analytics dashboard
     await page.route('**/api/v1/analytics/dashboard*', async (route) => {
       await route.fulfill({
@@ -24,11 +43,12 @@ test.describe('Dashboard E2E', () => {
             totalRevenue: 50000000,
             grossProfit: 15000000,
             inventoryTurnoverRatio: 1.25,
-            totalOverdueDebt: 500000,
+            totalReceivableDebt: 500000,
             topSellingProducts: [
               { productId: 101, productName: 'Sản phẩm 1', quantitySold: 120, revenue: 30000000 },
               { productId: 102, productName: 'Sản phẩm 2', quantitySold: 80, revenue: 20000000 }
-            ]
+            ],
+            slowMovingProducts: [{ productId: 201, productCode: 'SP201', productName: 'Sản phẩm chậm', currentStock: 50 }]
           }
         }
       });
@@ -48,6 +68,7 @@ test.describe('Dashboard E2E', () => {
     await expect(page.getByTestId('metric-revenue')).toContainText('50.000.000');
     await expect(page.getByTestId('metric-debt')).toContainText('500.000');
     await expect(page.getByTestId('metric-debt')).toContainText('Cần thu hồi');
+    await expect(page.getByText('1 sản phẩm tồn âm')).toBeVisible();
   });
 
   test('E-DASH-02: top-product-row có 2 dòng', async ({ page }) => {

@@ -22,7 +22,7 @@ const mockDashboardMetrics = {
     totalRevenue: 50000000,
     grossProfit: 15000000,
     inventoryTurnoverRatio: 1.25,
-    totalOverdueDebt: 500000,
+    totalReceivableDebt: 500000,
     topSellingProducts: [
       { productId: 1, productName: 'Product A', quantitySold: 100, revenue: 10000000 }
     ],

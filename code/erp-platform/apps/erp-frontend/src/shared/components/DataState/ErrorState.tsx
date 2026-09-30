@@ -29,7 +29,7 @@ export const ErrorState: React.FC<ErrorStateProps> = ({ error, onRetry }) => {
       {onRetry && (
         <button 
           onClick={onRetry}
-          className="btn-secondary h-8 flex items-center justify-center gap-2"
+          className="btn btn-secondary h-8"
         >
           <RefreshCcw size={14} />
           <span>Thử lại</span>

@@ -12,7 +12,7 @@ public class DashboardMetricsDto {
     private BigDecimal totalRevenue;
     private BigDecimal grossProfit;
     private BigDecimal inventoryTurnoverRatio;
-    private BigDecimal totalOverdueDebt;
+    private BigDecimal totalReceivableDebt;
     private List<ProductPerformanceDto> topSellingProducts;
-    private List<ProductPerformanceDto> slowMovingProducts;
+    private List<SlowMovingProductDto> slowMovingProducts;
 }

@@ -44,11 +44,11 @@ export const QuickCreateDialog: React.FC<QuickCreateDialogProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-[400] flex items-center justify-center p-4">
+    <div role="dialog" aria-modal="true" aria-label={title} className="fixed inset-0 bg-black/50 z-[400] flex items-center justify-center p-4">
       <div className="card w-full max-w-md flex flex-col" onClick={e => e.stopPropagation()}>
         <div className="h-[44px] px-4 border-b border-line flex justify-between items-center bg-slate-50 rounded-t-lg">
           <h2 className="text-[15px] font-semibold text-ink">{title}</h2>
-          <button onClick={onClose} className="text-ink-muted hover:text-ink">
+          <button type="button" onClick={onClose} aria-label="Đóng" className="text-ink-muted hover:text-ink">
             <X size={18} />
           </button>
         </div>
@@ -58,10 +58,10 @@ export const QuickCreateDialog: React.FC<QuickCreateDialogProps> = ({
         </div>
 
         <div className="p-3 border-t border-line bg-slate-50 flex justify-end gap-2 rounded-b-lg">
-          <button onClick={onClose} disabled={isSaving} className="btn btn-secondary">
+          <button type="button" onClick={onClose} disabled={isSaving} className="btn btn-secondary" data-testid="quick-create-cancel">
             Hủy
           </button>
-          <button onClick={onSave} disabled={isSaving} className="btn btn-primary min-w-[80px]">
+          <button type="button" onClick={onSave} disabled={isSaving} className="btn btn-primary min-w-[80px]" data-testid="quick-create-save">
             {isSaving ? 'Đang lưu...' : 'Lưu'}
           </button>
         </div>

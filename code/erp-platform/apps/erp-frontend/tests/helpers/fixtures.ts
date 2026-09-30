@@ -1,4 +1,4 @@
-export const customers = [
+﻿export const customers = [
   { id: 'c0a80101-0000-4000-8000-000000000001', customerCode: 'KH001', name: 'Nguyễn Văn A', phone: '0901234567', address: 'Hà Nội' },
   { id: 'c0a80101-0000-4000-8000-000000000002', customerCode: 'KH002', name: 'Trần Thị B', phone: '0987654321', address: 'TP.HCM' },
 ];

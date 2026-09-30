@@ -43,7 +43,7 @@ export class ErrorBoundary extends Component<Props, State> {
             )}
             <button
               onClick={() => window.location.reload()}
-              className="btn-primary h-9 px-6 flex items-center gap-2"
+              className="btn btn-primary h-9 px-6"
             >
               <RefreshCw size={16} />
               <span>Tải lại trang</span>

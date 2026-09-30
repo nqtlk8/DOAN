@@ -1,10 +1,11 @@
+import { formatNumber, normalizeSearch } from '../../shared/utils/format';
 import { PageHeader } from '../../shared/components/Page/PageHeader';
 import { PageContainer } from '../../shared/components/Page/PageContainer';
 import React, { useState } from 'react';
 import { Search, Eye } from 'lucide-react';
 import { ApiService } from '../../api/ApiService';
 import { useQuery } from '@tanstack/react-query';
-import { DataState } from '../../shared/components/DataState/DataState';
+import { ListTable } from '../../shared/components/DataState/ListTable';
 import type { components } from '@erp/api-contract';
 import { useTabs } from '../../context/TabContext';
 import { DebtStatement } from './DebtStatement';
@@ -19,7 +20,10 @@ export const DebtList: React.FC = () => {
   });
 
   const items = response || [];
-  const filtered = items.filter((c) => c.customerName?.toLowerCase().includes(searchTerm.toLowerCase()));
+  const term = normalizeSearch(searchTerm);
+  const filtered = items.filter(
+    (c) => normalizeSearch(c.customerName).includes(term) || normalizeSearch(c.customerCode).includes(term),
+  );
 
   const handleViewStatement = (debt: components['schemas']['ReceivableDebtResponseDto']) => {
     if (debt.customerId && debt.customerName) {
@@ -33,7 +37,7 @@ export const DebtList: React.FC = () => {
   };
 
   return (
-    <PageContainer>
+    <PageContainer data-testid="debt-page">
       <PageHeader 
         title="Danh Mục Công Nợ"
         actions={
@@ -53,77 +57,45 @@ export const DebtList: React.FC = () => {
         }
       />
 
-      <div className="card overflow-hidden">
-        <DataState
-          isLoading={loading}
-          isError={isError}
-          error={error}
-          isEmpty={filtered.length === 0} 
-          onRetry={refetch}
-          loadingType="table"
-        >
-          <table className="erp-table">
-          <thead>
-            <tr className="bg-app border-b border-line">
-              <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-ink-subtle">MÃ Đối Tác</th>
-              <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-ink-subtle">Tên Đối Tác</th>
-              <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-ink-subtle">Số Điện Thoại</th>
-              <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-ink-subtle">Địa Chỉ</th>
-              <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-ink-subtle">Dư Nợ</th>
-              <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-ink-subtle text-right">Thao Tác</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td colSpan={6} className="p-0">
-                <DataState
-                  isLoading={loading}
-                  isError={isError}
-                  error={error}
-                  isEmpty={items.length === 0}
-                  onRetry={refetch}
-                  loadingType="table"
-                  emptyTitle="Chưa có công nợ"
-                  emptyMessage="Hệ thống chưa ghi nhận công nợ nào."
-                >
-                  {items.length > 0 && filtered.length === 0 ? (
-                    <div className="p-8 text-center text-ink-subtle bg-surface">
-                      Không tìm thấy kết quả nào phù hợp với "{searchTerm}"
-                    </div>
-                  ) : null}
-                </DataState>
-              </td>
-            </tr>
-            {!loading && !isError && filtered.length > 0 && (
-              filtered.map((c, i) => (
-                <tr 
-                  key={i} 
-                  className="border-b border-slate-50 hover:bg-app transition-colors cursor-pointer group"
-                  onDoubleClick={() => handleViewStatement(c)}
-                >
-                  <td className="px-4 py-2 text-sm text-ink">{c.customerCode || '-'}</td>
-                  <td className="px-4 py-2 text-sm text-ink font-medium">{c.customerName}</td>
-                  <td className="px-4 py-2 text-sm text-ink">{c.phone || '-'}</td>
-                  <td className="px-4 py-2 text-sm text-ink">{c.address || '-'}</td>
-                  <td className="px-4 py-2 text-sm text-ink">
-                    {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(c.totalDebt || 0)}
-                  </td>
-                  <td className="px-4 py-2 text-right">
-                    <button
-                      onClick={() => handleViewStatement(c)}
-                      className="inline-flex items-center gap-1 px-2 py-1 text-sm text-primary hover:text-primary-dark hover:bg-primary-soft rounded transition-colors opacity-0 group-hover:opacity-100"
-                      title="Xem sao kê"
-                    >
-                      <Eye size={16} /> Sao kê
-                    </button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-        </DataState>
-      </div>
+      <ListTable
+        colCount={6}
+        isLoading={loading}
+        isError={isError}
+        error={error}
+        onRetry={refetch}
+        totalCount={items.length}
+        filteredCount={filtered.length}
+        searchTerm={searchTerm}
+        emptyTitle="Chưa có công nợ"
+        emptyMessage="Chưa có khách hàng nào phát sinh công nợ."
+        header={
+          <tr>
+            <th className="w-32">Mã KH</th>
+            <th>Tên khách hàng</th>
+            <th className="w-36">Số điện thoại</th>
+            <th>Địa chỉ</th>
+            <th className="num w-40">Tổng nợ</th>
+            <th className="w-28 text-right">Sao kê</th>
+          </tr>
+        }
+      >
+        {filtered.map((c, i) => (
+          <tr key={c.customerId ?? i} data-testid="debt-row" className="cursor-pointer" onDoubleClick={() => handleViewStatement(c)}>
+            <td>{c.customerCode || '—'}</td>
+            <td className="font-medium">{c.customerName}</td>
+            <td>{c.phone || '—'}</td>
+            <td className="truncate max-w-xs">{c.address || '—'}</td>
+            <td className={`num font-medium ${(c.totalDebt ?? 0) > 0 ? 'text-danger' : 'text-ink'}`}>
+              {formatNumber(c.totalDebt ?? 0)}
+            </td>
+            <td className="text-right">
+              <button type="button" onClick={() => handleViewStatement(c)} className="btn btn-ghost h-7 text-primary" title="Xem sao kê">
+                <Eye size={15} /> Sao kê
+              </button>
+            </td>
+          </tr>
+        ))}
+      </ListTable>
     </PageContainer>
   );
 };

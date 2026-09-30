@@ -132,4 +132,9 @@ if [[ "$BRANCH_SUB_STATE" != "r" && -n "$BRANCH_SUB_STATE" ]]; then
      echo "WARNING: Branch subscription state is not 'r' (ready). State: $BRANCH_SUB_STATE"
 fi
 
+echo "8. Setting up snapshot replication for stock_on_hand and receivable_debt..."
+# Wait a moment for tables to be created and subscriptions to be somewhat ready
+sleep 3
+bash "$(dirname "$0")/enable-snapshot-replication.sh" "$BRANCH_NAME" --yes
+
 echo "Replication setup completed successfully!"

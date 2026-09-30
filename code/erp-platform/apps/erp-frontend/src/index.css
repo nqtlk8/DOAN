@@ -112,6 +112,10 @@
   .num {
     @apply text-right tabular-nums;
   }
+  .erp-table th.num,
+  .erp-table td.num {
+    @apply text-right;
+  }
   .badge {
     @apply inline-flex h-5 items-center rounded px-1.5 text-[11px] font-semibold;
   }
@@ -126,5 +130,13 @@
   }
   .badge-neutral {
     @apply inline-flex h-5 items-center rounded px-1.5 text-[11px] font-semibold bg-slate-100 text-ink-muted;
+  }
+}
+
+/* Ẩn thanh cuộn nhưng vẫn cuộn được (ribbon, thanh dọc MDI) */
+@utility scrollbar-hide {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
   }
 }

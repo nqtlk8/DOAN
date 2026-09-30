@@ -1,18 +1,44 @@
-import { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
+import { errorMessage } from '../../shared/errors/errorMessage';
 import { ApiService } from '../../api/ApiService';
 import { useAuth } from '../../context/AuthContext';
-import { GenericDocumentForm, type OrderItem } from '../common/document/GenericDocumentForm';
-import { SearchableCombobox } from '../common/SearchableCombobox';
-import toast from 'react-hot-toast';
-import { ConfirmDialog } from '../../shared/components/Dialog/ConfirmDialog';
 import { useTabs } from '../../context/TabContext';
+import { GenericDocumentForm } from '../common/document/GenericDocumentForm';
+import {
+  focusLineCell,
+  newLineId,
+  productToLinePatch,
+  type ProductLike,
+  sumLines,
+  sumQuantity,
+  useDocumentLines,
+  validateLines,
+  omitKey,
+} from '../common/document/documentLines';
+import { SearchableCombobox } from '../common/SearchableCombobox';
+import { SearchModal } from '../common/SearchModal';
+import { QuickCreateCustomer } from '../common/quick-create/QuickCreateCustomer';
+import { QuickCreateProduct } from '../common/quick-create/QuickCreateProduct';
+import { ConfirmDialog } from '../../shared/components/Dialog/ConfirmDialog';
+import { formatCurrency, toInputDate } from '../../shared/utils/format';
+import type { DocStatus, DocumentLine, FormMode, GoodsReturnResponse } from '../../types/documents';
 
-export type FormMode = 'VIEW' | 'ADD' | 'EDIT';
+export type { FormMode };
+
+interface CustomerLike {
+  id?: string;
+  customerCode?: string;
+  name?: string;
+  phone?: string;
+  address?: string;
+}
 
 export interface GoodsReturnFormProps {
   mode?: FormMode;
-  initialData?: any;
-  onStateChange?: (mode: FormMode, isLoading: boolean) => void;
+  initialData?: GoodsReturnResponse | null;
+  onStateChange?: (mode: FormMode, isLoading: boolean, status?: DocStatus) => void;
 }
 
 export interface GoodsReturnFormRef {
@@ -23,282 +49,292 @@ export interface GoodsReturnFormRef {
   handleExit: () => void;
 }
 
+const mapInitialLines = (data?: GoodsReturnResponse | null): DocumentLine[] =>
+  (data?.lines ?? []).map((l) => ({
+    id: newLineId(),
+    productId: l.productId != null ? String(l.productId) : '',
+    productCode: l.productCode || '',
+    productName: l.productName || '',
+    unitOfMeasure: l.unitOfMeasure || 'CAI',
+    quantity: Number(l.quantity) || 0,
+    unitPrice: Number(l.unitPrice) || 0,
+  }));
+
+type DialogState = null | 'CANCEL' | 'EXIT';
+
 export const GoodsReturnForm = forwardRef<GoodsReturnFormRef, GoodsReturnFormProps>(
-  ({ mode = 'ADD', initialData, onStateChange }, ref) => {
+  ({ mode: initialMode = 'ADD', initialData, onStateChange }, ref) => {
     const { user } = useAuth();
-    const { closeTab } = useTabs();
-    const [showCancelConfirm, setShowCancelConfirm] = useState(false);
-    
-    // UI states
-    const [currentMode, setCurrentMode] = useState<FormMode>(mode);
+    const isAdmin = user?.role === 'ADMIN';
+    const { closeTab, activeTabId } = useTabs();
+    const queryClient = useQueryClient();
+
+    const [mode, setMode] = useState<FormMode>(initialMode);
+    const isView = mode === 'VIEW';
     const [isLoading, setIsLoading] = useState(false);
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-    
-    // Dialogs
-    const [showCustomerSearch, setShowCustomerSearch] = useState(false);
-    const [showProductSearch, setShowProductSearch] = useState(false);
-    const [activeLineIndex, setActiveLineIndex] = useState<number>(-1);
+    const [dialog, setDialog] = useState<DialogState>(null);
 
-    // Form data states
-    const [returnId, setReturnId] = useState(initialData?.id || '');
-    const [returnCode, setReturnCode] = useState(initialData?.returnCode || '');
-    const [status, setStatus] = useState<'DRAFT' | 'CONFIRMED' | 'CANCELLED' | ''>(initialData?.status || (returnId ? 'DRAFT' : ''));
-    const [createdDate, setCreatedDate] = useState(initialData?.createdAt || new Date().toISOString());
-    const [branch] = useState(initialData?.branch || 'CN Trung tâm');
-    const creator = initialData?.creator || user?.username || 'Admin';
+    const [returnId, setReturnId] = useState<string>(initialData?.id || '');
+    const [returnCode, setReturnCode] = useState<string>(initialData?.returnCode || '');
+    const [status, setStatus] = useState<DocStatus | undefined>(initialData?.status);
+    const createdDate = initialData?.createdAt || toInputDate(new Date());
 
-    const [customerId, setCustomerId] = useState<string>(initialData?.customerId || '');
-    const [customerName, setCustomerName] = useState<string>(initialData?.customerName || '');
-    const [customerPhone, setCustomerPhone] = useState<string>(initialData?.customerPhone || '');
-    const [customerAddress, setCustomerAddress] = useState<string>(initialData?.customerAddress || '');
+    const [customer, setCustomer] = useState<CustomerLike | null>(
+      initialData?.customerId ? { id: initialData.customerId, name: initialData.customerName } : null,
+    );
     const [reason, setReason] = useState<string>(initialData?.reason || '');
-    const [note, setNote] = useState<string>(initialData?.note || '');
+    const [note, setNote] = useState<string>('');
+    const { lines, setLines, addLine, removeLine, updateLine, patchLine } = useDocumentLines(() =>
+      mapInitialLines(initialData),
+    );
 
-    const [lines, setLines] = useState<OrderItem[]>(() => {
-      if (initialData?.lines && Array.isArray(initialData.lines)) {
-        return initialData.lines.map((l: any, i: number) => ({
-          id: `line_${i}`,
-          productId: l.productId?.toString() || '',
-          productCode: l.productCode || '',
-          productName: l.productName || '',
-          unitOfMeasure: l.unitOfMeasure || 'CAI',
-          quantity: l.quantity || 1,
-          unitPrice: l.unitPrice || 0
-        }));
-      }
-      return [];
-    });
+    const [quickCustomer, setQuickCustomer] = useState<string | null>(null);
+    const [quickProduct, setQuickProduct] = useState<{ lineId: string; name: string } | null>(null);
+    const [showCustomerSearch, setShowCustomerSearch] = useState(false);
 
     useEffect(() => {
-      onStateChange?.(currentMode, isLoading);
-    }, [currentMode, isLoading, onStateChange]);
+      onStateChange?.(mode, isLoading, status);
+    }, [mode, isLoading, status, onStateChange]);
+
+    const closeCurrentTab = () => {
+      if (activeTabId) closeTab(activeTabId);
+    };
+
+    const resetForm = () => {
+      setMode('ADD');
+      setReturnId('');
+      setReturnCode('');
+      setStatus(undefined);
+      setCustomer(null);
+      setReason('');
+      setNote('');
+      setLines([]);
+      setFieldErrors({});
+    };
+
+    const selectCustomer = (c: CustomerLike) => {
+      setCustomer(c);
+      setFieldErrors((prev) => omitKey(prev, 'partner'));
+    };
+
+    const selectProduct = (lineId: string, p: ProductLike) => {
+      patchLine(lineId, productToLinePatch(p));
+      focusLineCell(lineId, 'quantity');
+    };
+
+    const validate = () => {
+      const errors: Record<string, string> = {};
+      if (!customer?.id) errors.partner = 'Vui lòng chọn khách hàng';
+      if (lines.length === 0) {
+        setFieldErrors(errors);
+        toast.error('Phiếu trả phải có ít nhất 1 sản phẩm.');
+        return false;
+      }
+      Object.assign(errors, validateLines(lines));
+      setFieldErrors(errors);
+      if (Object.keys(errors).length > 0) {
+        toast.error('Vui lòng kiểm tra lại thông tin nhập.');
+        return false;
+      }
+      return true;
+    };
+
+    const handleSubmit = async () => {
+      if (mode !== 'ADD' || isLoading) return; // Backend chưa có API sửa phiếu trả
+      if (!validate()) return;
+      setIsLoading(true);
+      try {
+        const res = await ApiService.GoodsReturn.create({
+          customerId: String(customer!.id),
+          reason: reason || undefined,
+          note: note || undefined,
+          lines: lines.map((l) => ({
+            productId: Number(l.productId),
+            quantity: l.quantity,
+            unitPrice: l.unitPrice,
+            unitOfMeasure: l.unitOfMeasure || 'CAI',
+          })),
+        });
+        const newId = typeof res === 'string' ? res : '';
+        setReturnId(newId);
+        setStatus('DRAFT');
+        setMode('VIEW');
+        toast.success('Lưu phiếu trả thành công');
+        queryClient.invalidateQueries({ queryKey: ['goods-returns'] });
+        if (newId) {
+          try {
+            const fresh = await ApiService.GoodsReturn.getById(newId);
+            if (fresh?.returnCode) setReturnCode(fresh.returnCode);
+            if (fresh?.status) setStatus(fresh.status);
+          } catch {
+            /* Không lấy được số phiếu thì vẫn giữ phiếu đã lưu. */
+          }
+        }
+      } catch (error) {
+        toast.error(errorMessage(error, 'Lưu phiếu trả thất bại'));
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    const handleConfirm = async () => {
+      if (!returnId || status !== 'DRAFT' || isLoading) return;
+      setIsLoading(true);
+      try {
+        await ApiService.GoodsReturn.confirm(returnId);
+        setStatus('CONFIRMED');
+        toast.success('Xác nhận trả hàng thành công');
+        queryClient.invalidateQueries({ queryKey: ['goods-returns'] });
+        queryClient.invalidateQueries({ queryKey: ['stocks'] });
+      } catch (error) {
+        toast.error(errorMessage(error, 'Xác nhận trả hàng thất bại'));
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
     useImperativeHandle(ref, () => ({
-      handleAdd: () => {
-        setCurrentMode('ADD');
-        setReturnId('');
-        setReturnCode('');
-        setStatus('');
-        setCustomerId('');
-        setCustomerName('');
-        setCustomerPhone('');
-        setCustomerAddress('');
-        setReason('');
-        setNote('');
-        setLines([]);
-        setFieldErrors({});
-      },
-      handleSubmit: async () => {
-        if (!validateForm()) return;
-        setIsLoading(true);
-        try {
-          const payload = {
-            customerId,
-            reason,
-            note,
-            lines: lines.map(l => ({
-              productId: Number(l.productId),
-              quantity: l.quantity,
-              unitPrice: l.unitPrice,
-              unitOfMeasure: l.unitOfMeasure
-            }))
-          };
-          
-          let resultId = returnId;
-          
-          if (currentMode === 'ADD') {
-            const res = await ApiService.GoodsReturn.create(payload as any);
-            resultId = typeof res === 'string' ? res : (res as any).id;
-            toast.success('Lưu phiếu trả thành công');
-          } else {
-            // Edit API does not exist according to specs
-          }
-
-          if (resultId) {
-            const freshData = await ApiService.GoodsReturn.getById(resultId);
-            setReturnId(freshData.id as string);
-            setReturnCode(freshData.returnCode as string);
-            setStatus((freshData as any).status || 'DRAFT');
-            setCurrentMode('VIEW');
-          }
-        } catch (error: any) {
-          toast.error(error.message || 'Có lỗi xảy ra');
-        } finally {
-          setIsLoading(false);
-        }
-      },
+      handleAdd: resetForm,
+      handleSubmit,
       handleCancel: () => {
-        if (currentMode === 'ADD' || currentMode === 'EDIT') {
-          setShowCancelConfirm(true);
-        }
+        if (!isView) setDialog('CANCEL');
       },
-      handleConfirm: async () => {
-        if (!returnId) return;
-        setIsLoading(true);
-        try {
-          await ApiService.GoodsReturn.confirm(returnId);
-          toast.success('Xác nhận trả hàng thành công');
-          setStatus('CONFIRMED');
-        } catch (error: any) {
-          toast.error(error.message || 'Có lỗi xảy ra');
-        } finally {
-          setIsLoading(false);
-        }
+      handleConfirm,
+      handleExit: () => {
+        if (!isView && (customer || lines.length > 0 || reason || note)) setDialog('EXIT');
+        else closeCurrentTab();
       },
-      handleExit: () => {}
     }));
 
-    const validateForm = () => {
-      const errors: Record<string, string> = {};
-      if (!customerId) errors.partner = 'Vui lòng chọn khách hàng';
-      
-      if (lines.length === 0) {
-        toast.error('Phiếu trả phải có ít nhất 1 sản phẩm.');
-        errors.lines = 'Phiếu trả phải có ít nhất 1 sản phẩm.';
-      }
-      
-      let hasLineError = false;
-      lines.forEach((l, i) => {
-        if (!l.productId || l.quantity <= 0) {
-          errors[`line_${i}_qty`] = 'Số lượng phải > 0';
-          hasLineError = true;
-        }
-      });
-      
-      if (hasLineError) {
-        toast.error('Vui lòng kiểm tra lại thông tin nhập.');
-      }
-      
-      setFieldErrors(errors);
-      return Object.keys(errors).length === 0;
-    };
-
-    const handleAddLine = () => {
-      setLines([...lines, { id: `line_${Date.now()}`, productId: '', productName: '', quantity: 1, unitPrice: 0, unitOfMeasure: 'CAI' }]);
-    };
-
-    const handleRemoveLine = (id: string) => {
-      setLines(lines.filter(l => l.id !== id));
-    };
-
-    const handleUpdateLine = (id: string, field: keyof OrderItem, value: any) => {
-      setLines(lines.map(l => l.id === id ? { ...l, [field]: value } : l));
-    };
-
-    const totalQty = lines.reduce((sum, l) => sum + (Number(l.quantity) || 0), 0);
-    const totalAmount = lines.reduce((sum, l) => sum + ((Number(l.quantity) || 0) * (Number(l.unitPrice) || 0)), 0);
-
     return (
-      <div className="h-full bg-erp-bg-content relative">
+      <div className="h-full bg-surface relative">
         <GenericDocumentForm
-          mode={currentMode}
-          docTitle="Phiếu nhập lỗi hàng bán"
-          docCode={returnCode || 'AUTO-GENERATE'}
-          status={status as any}
+          mode={mode}
+          docTitle="Phiếu nhập lại hàng bán"
+          docCode={returnCode || (returnId ? '' : 'AUTO-GENERATE')}
+          status={returnId ? status : undefined}
+          errors={fieldErrors}
           info={[
-            { key: 'branch', label: 'Kho nhập', value: branch || 'CN Trung tâm' },
-            { key: 'creator', label: 'Người lập', value: creator }
+            { key: 'branch', label: 'Kho nhập', value: initialData?.branchId ? `Chi nhánh #${initialData.branchId}` : 'Chi nhánh đang đăng nhập' },
+            { key: 'creator', label: 'Người lập', value: user?.username || '' },
           ]}
           createdDate={createdDate}
           partner={{
             label: 'Khách hàng',
-            displayName: customerName,
             required: true,
+            displayName: customer?.name || '',
+            onAdvancedSearch: () => setShowCustomerSearch(true),
             renderCombobox: (hasError) => (
-              <SearchableCombobox
-                error={hasError}
+              <SearchableCombobox<CustomerLike>
                 data-testid="return-customer-combo"
-                value={customerName}
-                placeholder="Tìm theo Mã, Tên, SĐT..."
-                fetchData={async (q) => {
-                  const data = await ApiService.Catalog.getCustomers();
-                  const term = q.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-                  return data.filter((s: any) => (
-                    s.name?.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes(term) ||
-                    s.customerCode?.toLowerCase().includes(term) ||
-                    s.phone?.includes(term)
-                  )) as any;
-                }}
+                value={customer?.name || ''}
+                placeholder="Nhập mã, tên hoặc SĐT khách hàng…"
+                error={hasError}
+                fetchData={(q) => ApiService.Catalog.searchCustomers(q) as Promise<CustomerLike[]>}
                 columns={[
                   { header: 'Mã KH', field: 'customerCode', width: '90px' },
-                  { header: 'Tên KH', field: 'name' },
-                  { header: 'Điện thoại', field: 'phone', width: '110px' }
+                  { header: 'Tên khách hàng', field: 'name' },
+                  { header: 'Điện thoại', field: 'phone', width: '110px' },
+                  { header: 'Địa chỉ', field: 'address', width: '30%' },
                 ]}
-                onSelect={(customer: any) => {
-                  setCustomerId(String(customer.id));
-                  setCustomerName(customer.name);
-                  setCustomerPhone(customer.phone || '');
-                  setCustomerAddress(customer.address || '');
-                  setFieldErrors(prev => ({ ...prev, partner: '' }));
-                }}
-                onCreateNew={user?.role === 'ADMIN' ? () => setShowCustomerSearch(true) : undefined}
+                onSelect={selectCustomer}
+                onCreateNew={isAdmin ? (q) => setQuickCustomer(q) : undefined}
+                createLabel="Thêm khách hàng mới"
               />
             ),
             fields: [
-              { key: 'phone', label: 'Điện thoại', value: customerPhone },
-              { key: 'address', label: 'Địa chỉ', value: customerAddress },
+              { key: 'phone', label: 'Điện thoại', value: customer?.phone || '' },
+              { key: 'address', label: 'Địa chỉ', value: customer?.address || '' },
               { key: 'reason', label: 'Lý do trả', value: reason, onChange: setReason, testId: 'return-reason' },
-              { key: 'note', label: 'Ghi chú', value: note, onChange: setNote, testId: 'return-note' }
-            ]
+              { key: 'note', label: 'Ghi chú', value: note, onChange: setNote, testId: 'return-note' },
+            ],
           }}
           summary={[
-            { key: 'totalQty', label: 'Tổng số lượng', value: totalQty, testId: 'sum-total-qty' },
-            { key: 'totalAmount', label: 'Tổng tiền trả', value: totalAmount, strong: true, tone: 'primary', testId: 'sum-total' }
+            { key: 'totalQty', label: 'Tổng số lượng', value: sumQuantity(lines), isQuantity: true, testId: 'sum-total-qty' },
+            { key: 'totalAmount', label: 'Tổng tiền trả', value: sumLines(lines), strong: true, tone: 'primary', testId: 'sum-total' },
           ]}
           lines={{
             items: lines,
             testIdPrefix: 'return',
             priceLabel: 'Đơn giá',
-            onAdd: handleAddLine,
-            onRemove: handleRemoveLine,
-            onUpdate: handleUpdateLine,
-            renderProductCombobox: (item, index) => (
+            onAdd: addLine,
+            onRemove: removeLine,
+            onUpdate: updateLine,
+            renderProductCombobox: (line, _index, hasError) => (
               <SearchableCombobox
-                data-testid={`return-product-combo-${item.id}`}
+                data-testid={`return-product-combo-${line.id}`}
                 variant="cell"
-                value={item.productName}
-                placeholder="Tìm sản phẩm..."
-                error={!!fieldErrors[`line_${index}_qty`]}
-                fetchData={(query) => ApiService.Catalog.searchProducts(query) as any}
+                value={line.productName}
+                placeholder="Tìm mã hoặc tên hàng…"
+                error={hasError}
+                fetchData={(q) => ApiService.Catalog.searchProducts(q)}
                 columns={[
-                  { header: 'Mã Hàng', field: 'code', width: '90px' },
-                  { header: 'Tên sản phẩm', field: 'name' }
+                  { header: 'Mã', field: 'code', width: '100px' },
+                  { header: 'Tên hàng', field: 'name' },
+                  { header: 'ĐVT', field: 'baseUnit', width: '70px' },
+                  { header: 'Giá bán', field: 'price', width: '120px', align: 'right', format: (v) => formatCurrency(v ?? 0) },
                 ]}
-                onSelect={(product: any) => {
-                  handleUpdateLine(item.id, 'productId', String(product.id));
-                  handleUpdateLine(item.id, 'productCode', product.code);
-                  handleUpdateLine(item.id, 'productName', product.name);
-                  handleUpdateLine(item.id, 'unitOfMeasure', product.baseUnit || 'CAI');
-                  handleUpdateLine(item.id, 'unitPrice', product.price || 0);
-                  setFieldErrors(prev => ({ ...prev, [`line_${index}_qty`]: '' }));
-                  
-                  setTimeout(() => {
-                    try {
-                      const input = document.querySelector<HTMLInputElement>(`[data-testid="return-line-quantity"][data-line-id="${item.id}"]`) || document.querySelector<HTMLInputElement>(`[data-testid="return-line-quantity"]`);
-                      if (input) input.focus();
-                    } catch (e) {}
-                  }, 50);
-                }}
-                onCreateNew={user?.role === 'ADMIN' ? () => { setActiveLineIndex(index); setShowProductSearch(true); } : undefined}
+                onSelect={(p) => selectProduct(line.id, p)}
+                onCreateNew={isAdmin ? (q) => setQuickProduct({ lineId: line.id, name: q }) : undefined}
+                createLabel="Thêm sản phẩm mới"
               />
-            )
+            ),
           }}
-          errors={fieldErrors}
         />
-        <ConfirmDialog
-          isOpen={showCancelConfirm}
-          title="Xác nhận hủy"
-          message="Bạn có chắc chắn muốn hủy phiếu trả này? Các thay đổi sẽ không được lưu."
-          confirmLabel="Đồng ý"
-          cancelLabel="Đóng"
-          onConfirm={() => {
-            setShowCancelConfirm(false);
-            if (returnId) setCurrentMode('VIEW');
-            else closeTab('return');
+
+        <SearchModal<CustomerLike>
+          isOpen={showCustomerSearch}
+          onClose={() => setShowCustomerSearch(false)}
+          title="Tìm khách hàng"
+          placeholder="Nhập mã, tên hoặc SĐT…"
+          fetchData={(q) => ApiService.Catalog.searchCustomers(q) as Promise<CustomerLike[]>}
+          renderItem={(c) => (
+            <div>
+              <div className="font-medium text-ink">
+                {c.name} {c.customerCode ? <span className="text-ink-subtle">({c.customerCode})</span> : null}
+              </div>
+              <div className="text-[12px] text-ink-muted">{[c.phone, c.address].filter(Boolean).join(' · ')}</div>
+            </div>
+          )}
+          onSelect={selectCustomer}
+        />
+
+        <QuickCreateCustomer
+          isOpen={quickCustomer !== null}
+          initialName={quickCustomer ?? ''}
+          onClose={() => setQuickCustomer(null)}
+          onCreated={(c) => c && selectCustomer(c)}
+        />
+        <QuickCreateProduct
+          isOpen={quickProduct !== null}
+          initialName={quickProduct?.name ?? ''}
+          onClose={() => setQuickProduct(null)}
+          onCreated={(p) => {
+            if (p && quickProduct) selectProduct(quickProduct.lineId, p);
           }}
-          onCancel={() => setShowCancelConfirm(false)}
+        />
+
+        <ConfirmDialog
+          isOpen={dialog !== null}
+          title={dialog === 'EXIT' ? 'Thoát phiếu trả hàng' : 'Hủy phiếu trả hàng'}
+          message={
+            dialog === 'EXIT'
+              ? 'Dữ liệu chưa được lưu. Bạn có chắc chắn muốn thoát?'
+              : 'Bạn có chắc chắn muốn hủy phiếu trả này? Các thay đổi sẽ không được lưu.'
+          }
+          confirmLabel="Đồng ý"
+          cancelLabel="Quay lại"
+          onConfirm={() => {
+            const d = dialog;
+            setDialog(null);
+            if (d === 'EXIT' || !returnId) closeCurrentTab();
+            else setMode('VIEW');
+          }}
+          onCancel={() => setDialog(null)}
         />
       </div>
     );
-  }
+  },
 );
+GoodsReturnForm.displayName = 'GoodsReturnForm';

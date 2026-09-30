@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FilePlus, ShoppingCart, FileText, RefreshCcw, PackageSearch, Truck, CreditCard, LogOut, Settings, Users, Box, Users2, BarChart2, UserCircle2 } from 'lucide-react';
+import { ShoppingCart, PackageSearch, Truck, CreditCard, LogOut, Settings, Users, Box, Users2, BarChart2, UserCircle2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useTabs } from '../../context/TabContext';
 import { Dashboard } from '../sales/Dashboard';
@@ -18,7 +18,6 @@ import { allTabs } from '../../config/menuConfig';
 export const TopRibbon: React.FC = () => {
   const { user, logout } = useAuth();
   const { openTab } = useTabs();
-  const isAdmin = user?.role === 'ADMIN';
   const [activeTab, setActiveTab] = useState('BanHang');
 
   const handleOpenTab = (id: string, title: string, component: React.ReactNode, isClosable?: boolean) => {
@@ -62,7 +61,7 @@ export const TopRibbon: React.FC = () => {
               {user?.role === 'ADMIN' ? 'Quản trị' : 'Nhân viên'}
             </span>
           </div>
-          <button data-testid="ribbon-logout" onClick={logout} className="btn-ghost px-2">
+          <button data-testid="ribbon-logout" onClick={logout} className="btn btn-ghost px-2">
             <LogOut size={16} className="text-danger" />
             <span className="text-danger">Đăng xuất</span>
           </button>
@@ -74,6 +73,7 @@ export const TopRibbon: React.FC = () => {
         {activeTab === 'ChucNang' && (
           <>
             <button
+              data-testid="ribbon-btn-new-order"
               onClick={() => handleOpenTab('new-order', 'BÁN HÀNG', <SalesModule initialSubView="FORM" mode="ADD" />, false)}
               className="flex flex-col items-center justify-center p-1 min-w-[60px] shrink-0 hover:bg-primary-soft rounded-[4px] gap-1"
             >
@@ -87,7 +87,7 @@ export const TopRibbon: React.FC = () => {
             
             <button 
               data-testid="ribbon-btn-return"
-              onClick={() => handleOpenTab('goods-return', 'NHẬP LẠI HÀNG BÁN', <GoodsReturnModule />)}
+              onClick={() => handleOpenTab('goods-return', 'NHẬP LẠI HÀNG BÁN', <GoodsReturnModule mode="ADD" />)}
               className="flex flex-col items-center justify-center p-1 min-w-[60px] shrink-0 hover:bg-primary-soft rounded-[4px] gap-1"
             >
               <PackageSearch size={20} className="text-primary" />
@@ -96,7 +96,7 @@ export const TopRibbon: React.FC = () => {
             
             <button 
               data-testid="ribbon-btn-inbound"
-              onClick={() => handleOpenTab('new-inbound', 'NHẬP HÀNG', <InboundReceiptModule mode="ADD" />, false)}
+              onClick={() => handleOpenTab('new-inbound', 'NHẬP HÀNG', <InboundReceiptModule mode="ADD" />)}
               className="flex flex-col items-center justify-center p-1 min-w-[60px] shrink-0 hover:bg-primary-soft rounded-[4px] gap-1"
             >
               <Truck size={20} className="text-primary" />
@@ -108,6 +108,7 @@ export const TopRibbon: React.FC = () => {
         {activeTab === 'DanhMuc' && (
           <>
             <button
+              data-testid="ribbon-btn-products"
               onClick={() => handleOpenTab('products', 'SẢN PHẨM', <ProductList />)}
               className="flex flex-col items-center justify-center p-1 min-w-[60px] shrink-0 hover:bg-primary-soft rounded-[4px] gap-1"
             >
@@ -115,6 +116,7 @@ export const TopRibbon: React.FC = () => {
               <span className="text-[12px] whitespace-nowrap leading-none text-ink">Sản Phẩm</span>
             </button>
             <button
+              data-testid="ribbon-btn-customers"
               onClick={() => handleOpenTab('customers', 'KHÁCH HÀNG', <CustomerList />)}
               className="flex flex-col items-center justify-center p-1 min-w-[60px] shrink-0 hover:bg-primary-soft rounded-[4px] gap-1"
             >
@@ -122,6 +124,7 @@ export const TopRibbon: React.FC = () => {
               <span className="text-[12px] whitespace-nowrap leading-none text-ink">Khách Hàng</span>
             </button>
             <button
+              data-testid="ribbon-btn-distributors"
               onClick={() => handleOpenTab('distributors', 'NHÀ PHÂN PHỐI', <SupplierList />)}
               className="flex flex-col items-center justify-center p-1 min-w-[60px] shrink-0 hover:bg-primary-soft rounded-[4px] gap-1"
             >
@@ -134,6 +137,7 @@ export const TopRibbon: React.FC = () => {
         {activeTab === 'TonKho' && (
           <>
             <button
+              data-testid="ribbon-btn-stocks"
               onClick={() => handleOpenTab('stocks', 'TỒN KHO', <StockList />)}
               className="flex flex-col items-center justify-center p-1 min-w-[60px] shrink-0 hover:bg-primary-soft rounded-[4px] gap-1"
             >
@@ -146,6 +150,7 @@ export const TopRibbon: React.FC = () => {
         {activeTab === 'CongNo' && (
           <>
             <button
+              data-testid="ribbon-btn-debts"
               onClick={() => handleOpenTab('debts', 'CÔNG NỢ', <DebtList />)}
               className="flex flex-col items-center justify-center p-1 min-w-[60px] shrink-0 hover:bg-primary-soft rounded-[4px] gap-1"
             >
@@ -158,6 +163,7 @@ export const TopRibbon: React.FC = () => {
         {activeTab === 'ThongKe' && (
           <>
             <button
+              data-testid="ribbon-btn-dashboard"
               onClick={() => handleOpenTab('dashboard', 'TỔNG QUAN', <Dashboard />)}
               className="flex flex-col items-center justify-center p-1 min-w-[60px] shrink-0 hover:bg-primary-soft rounded-[4px] gap-1"
             >
@@ -170,6 +176,7 @@ export const TopRibbon: React.FC = () => {
         {activeTab === 'HeThong' && (
           <>
             <button
+              data-testid="ribbon-btn-branches"
               onClick={() => handleOpenTab('branches', 'CHI NHÁNH', <BranchList />)}
               className="flex flex-col items-center justify-center p-1 min-w-[60px] shrink-0 hover:bg-primary-soft rounded-[4px] gap-1"
             >

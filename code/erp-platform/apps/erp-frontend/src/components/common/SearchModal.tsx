@@ -24,7 +24,8 @@ export function SearchModal<T>({
   const [results, setResults] = useState<T[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const requestRef = useRef(0);
 
   useEffect(() => {
     if (isOpen) {
@@ -53,14 +54,16 @@ export function SearchModal<T>({
   }, [isOpen, onClose]);
 
   const handleSearch = async (searchQuery: string) => {
+    const req = ++requestRef.current; // chỉ nhận kết quả của lần tìm mới nhất
     setIsLoading(true);
     try {
       const data = await fetchData(searchQuery);
-      setResults(data);
+      if (req === requestRef.current) setResults(data ?? []);
     } catch (error) {
       console.error(error);
+      if (req === requestRef.current) setResults([]);
     } finally {
-      setIsLoading(false);
+      if (req === requestRef.current) setIsLoading(false);
     }
   };
 
@@ -77,11 +80,11 @@ export function SearchModal<T>({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-[200] flex items-center justify-center p-4">
+    <div role="dialog" aria-modal="true" aria-label={title} className="fixed inset-0 bg-black/50 z-[200] flex items-center justify-center p-4">
       <div className="card w-full max-w-lg flex flex-col max-h-[80vh] overflow-hidden" onClick={e => e.stopPropagation()}>
         <div className="h-[44px] px-4 border-b border-line flex justify-between items-center bg-slate-50">
           <h2 className="text-[15px] font-semibold text-ink">{title}</h2>
-          <button onClick={onClose} className="text-ink-muted hover:text-ink">
+          <button type="button" onClick={onClose} aria-label="Đóng" className="text-ink-muted hover:text-ink">
             <X size={18} />
           </button>
         </div>
@@ -95,6 +98,7 @@ export function SearchModal<T>({
               value={query}
               onChange={onSearchChange}
               className="erp-input h-8 pl-8 pr-8"
+              data-testid="search-modal-input"
             />
             <Search className="absolute left-2.5 top-2 text-ink-subtle pointer-events-none" size={16} />
             {isLoading && <Loader2 className="absolute right-2.5 top-2 text-primary animate-spin pointer-events-none" size={16} />}
@@ -107,6 +111,7 @@ export function SearchModal<T>({
               {results.map((item, index) => (
                 <li
                   key={index}
+                  data-testid="search-modal-row"
                   onClick={() => {
                     onSelect(item);
                     onClose();

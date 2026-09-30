@@ -1,10 +1,11 @@
+import { normalizeSearch } from '../../shared/utils/format';
 import React, { useState } from 'react';
 import { Search } from 'lucide-react';
 import { ApiService } from '../../api/ApiService';
 import { useQuery } from '@tanstack/react-query';
 import { PageContainer } from '../../shared/components/Page/PageContainer';
 import { PageHeader } from '../../shared/components/Page/PageHeader';
-import { DataState } from '../../shared/components/DataState/DataState';
+import { ListTable } from '../../shared/components/DataState/ListTable';
 
 export const BranchList: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -15,10 +16,13 @@ export const BranchList: React.FC = () => {
   });
 
   const items: any[] = response || [];
-  const filtered = items.filter((c) => c.name?.toLowerCase().includes(searchTerm.toLowerCase()));
+  const term = normalizeSearch(searchTerm);
+  const filtered = items.filter(
+    (c) => normalizeSearch(c.name).includes(term) || normalizeSearch(c.branchCode).includes(term),
+  );
 
   return (
-    <PageContainer>
+    <PageContainer data-testid="branch-page">
       <PageHeader 
         title="Danh Sách Chi Nhánh"
         actions={
@@ -37,37 +41,33 @@ export const BranchList: React.FC = () => {
         }
       />
 
-      <div className="card overflow-hidden">
-        <DataState
-          isLoading={loading}
-          isError={isError}
-          error={error}
-          isEmpty={filtered.length === 0} 
-          onRetry={refetch}
-          loadingType="table"
-          emptyTitle="Chưa có chi nhánh"
-          emptyMessage="Hệ thống chưa có chi nhánh nào hoặc không tìm thấy."
-        >
-          <table className="erp-table">
-            <thead>
-              <tr>
-                <th>Mã CN</th>
-                <th>Tên Chi Nhánh</th>
-                <th>Địa Chỉ</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((c, i) => (
-                <tr key={i}>
-                  <td>{c.branchCode || '-'}</td>
-                  <td className="font-medium text-ink">{c.name}</td>
-                  <td>{c.address || '-'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </DataState>
-      </div>
+      <ListTable
+        colCount={3}
+        isLoading={loading}
+        isError={isError}
+        error={error}
+        onRetry={refetch}
+        totalCount={items.length}
+        filteredCount={filtered.length}
+        searchTerm={searchTerm}
+        emptyTitle="Chưa có chi nhánh"
+        emptyMessage="Hệ thống chưa có chi nhánh nào."
+        header={
+          <tr>
+            <th className="w-32">Mã CN</th>
+            <th>Tên chi nhánh</th>
+            <th>Địa chỉ</th>
+          </tr>
+        }
+      >
+        {filtered.map((c, i) => (
+          <tr key={c.id ?? i} data-testid="branch-row">
+            <td>{c.branchCode || '—'}</td>
+            <td className="font-medium">{c.name}</td>
+            <td>{c.address || '—'}</td>
+          </tr>
+        ))}
+      </ListTable>
     </PageContainer>
   );
 };

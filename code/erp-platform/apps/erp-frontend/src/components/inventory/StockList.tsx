@@ -1,10 +1,11 @@
+import { formatNumber, normalizeSearch } from '../../shared/utils/format';
 import { PageHeader } from '../../shared/components/Page/PageHeader';
 import { PageContainer } from '../../shared/components/Page/PageContainer';
 import React, { useState } from 'react';
 import { Search } from 'lucide-react';
 import { ApiService } from '../../api/ApiService';
 import { useQuery } from '@tanstack/react-query';
-import { DataState } from '../../shared/components/DataState/DataState';
+import { ListTable } from '../../shared/components/DataState/ListTable';
 import type { components } from '@erp/api-contract';
 
 export const StockList: React.FC = () => {
@@ -16,10 +17,13 @@ export const StockList: React.FC = () => {
   });
 
   const items = response || [];
-  const filtered = items.filter((c) => c.productName?.toLowerCase().includes(searchTerm.toLowerCase()));
+  const term = normalizeSearch(searchTerm);
+  const filtered = items.filter(
+    (c) => normalizeSearch(c.productName).includes(term) || normalizeSearch(c.productCode).includes(term),
+  );
 
   return (
-    <PageContainer>
+    <PageContainer data-testid="stock-page">
       <PageHeader 
         title="Danh Mục Tồn Kho"
         actions={
@@ -39,61 +43,40 @@ export const StockList: React.FC = () => {
         }
       />
 
-      <div className="card overflow-hidden">
-        <DataState
-          isLoading={loading}
-          isError={isError}
-          error={error}
-          isEmpty={filtered.length === 0} 
-          onRetry={refetch}
-          loadingType="table"
-        >
-          <table className="erp-table">
-          <thead>
-            <tr className="bg-app border-b border-line">
-              <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-ink-subtle">Mã SP</th>
-              <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-ink-subtle">Tên SP</th>
-              <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-ink-subtle num">Số Lượng</th>
-              <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-ink-subtle">Kho</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td colSpan={4} className="p-0">
-                <DataState
-                  isLoading={loading}
-                  isError={isError}
-                  error={error}
-                  isEmpty={items.length === 0}
-                  onRetry={refetch}
-                  loadingType="table"
-                  emptyTitle="Chưa có tồn kho"
-                  emptyMessage="Hệ thống chưa ghi nhận tồn kho nào."
-                >
-                  {items.length > 0 && filtered.length === 0 ? (
-                    <div className="p-8 text-center text-ink-subtle bg-surface">
-                      Không tìm thấy kết quả nào phù hợp với "{searchTerm}"
-                    </div>
-                  ) : null}
-                </DataState>
-              </td>
-            </tr>
-            {!loading && !isError && filtered.length > 0 && (
-              filtered.map((c, i) => (
-                <tr key={i} className="border-b border-slate-50 hover:bg-app transition-colors">
-                  <td className="px-4 py-1.5 text-sm text-ink">{c.productCode || '-'}</td>
-                  <td className="px-4 py-1.5 text-sm text-ink font-medium">{c.productName}</td>
-                  <td className={`px-4 py-1.5 text-sm num ${c.quantity != null && c.quantity < 0 ? 'text-danger' : 'text-ink'}`}>
-                    {c.quantity || 0}
-                  </td>
-                  <td className="px-4 py-1.5 text-sm text-ink">{c.branchName || '-'}</td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-        </DataState>
-      </div>
+      <ListTable
+        colCount={4}
+        isLoading={loading}
+        isError={isError}
+        error={error}
+        onRetry={refetch}
+        totalCount={items.length}
+        filteredCount={filtered.length}
+        searchTerm={searchTerm}
+        emptyTitle="Chưa có tồn kho"
+        emptyMessage="Hệ thống chưa ghi nhận tồn kho nào."
+        header={
+          <tr>
+            <th className="w-36">Mã SP</th>
+            <th>Tên sản phẩm</th>
+            <th className="num w-32">Số lượng</th>
+            <th className="w-48">Kho</th>
+          </tr>
+        }
+      >
+        {filtered.map((c, i) => (
+          <tr key={c.id ?? i} data-testid="stock-row">
+            <td>{c.productCode || '—'}</td>
+            <td className="font-medium">{c.productName}</td>
+            <td
+              data-testid="stock-qty"
+              className={`num font-medium ${c.quantity != null && c.quantity < 0 ? 'text-danger' : 'text-ink'}`}
+            >
+              {formatNumber(c.quantity ?? 0, 3)}
+            </td>
+            <td>{c.branchName || '—'}</td>
+          </tr>
+        ))}
+      </ListTable>
     </PageContainer>
   );
 };

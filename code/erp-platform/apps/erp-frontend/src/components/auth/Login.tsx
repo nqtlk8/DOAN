@@ -38,7 +38,7 @@ export const Login: React.FC = () => {
         <div>
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 bg-surface rounded-lg flex items-center justify-center">
-              <span className="text-primary-dark font-bold text-xl">{BRAND.mark}</span>
+              <span className="text-primary-hover font-bold text-xl">{BRAND.mark}</span>
             </div>
             <div>
               <h1 className="text-[22px] font-semibold leading-tight">{BRAND.name}</h1>
@@ -97,7 +97,7 @@ export const Login: React.FC = () => {
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  className="block w-full h-[40px] pl-9 pr-3 bg-surface border border-line-strong rounded-[6px] text-[14px] text-ink placeholder:text-ink-lighter focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all"
+                  className="block w-full h-[40px] pl-9 pr-3 bg-surface border border-line-strong rounded-[6px] text-[14px] text-ink placeholder:text-ink-subtle focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all"
                   placeholder="admin"
                   required
                   autoFocus
@@ -116,7 +116,7 @@ export const Login: React.FC = () => {
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="block w-full h-[40px] pl-9 pr-10 bg-surface border border-line-strong rounded-[6px] text-[14px] text-ink placeholder:text-ink-lighter focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all"
+                  className="block w-full h-[40px] pl-9 pr-10 bg-surface border border-line-strong rounded-[6px] text-[14px] text-ink placeholder:text-ink-subtle focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all"
                   placeholder="••••••••"
                   required
                 />
@@ -136,7 +136,7 @@ export const Login: React.FC = () => {
               data-testid="login-submit"
               type="submit"
               disabled={isLoading}
-              className="w-full h-[40px] mt-2 flex justify-center items-center px-4 border border-transparent rounded-[6px] text-[14px] font-medium text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+              className="w-full h-[40px] mt-2 flex justify-center items-center px-4 border border-transparent rounded-[6px] text-[14px] font-medium text-white bg-primary hover:bg-primary-hover focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {isLoading ? 'Đang xử lý...' : 'Đăng nhập'}
             </button>

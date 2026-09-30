@@ -138,4 +138,17 @@ describe('SearchableCombobox', () => {
     
     expect(onCreateNew).toHaveBeenCalledWith('KhongTonTai');
   });
+
+  it('U-CB-06: gõ ký tự đặc biệt "(" không làm lỗi khi tô đậm kết quả', async () => {
+    mockFetchData.mockResolvedValue([{ name: 'Nước suối (500ml)' }]);
+    render(
+      <SearchableCombobox value="" fetchData={mockFetchData} columns={columns} onSelect={mockOnSelect} data-testid="test-combo" />,
+    );
+    const input = screen.getByTestId('test-combo');
+    fireEvent.click(input);
+    fireEvent.change(input, { target: { value: '(500' } });
+    const mark = await screen.findByText('(500', { selector: 'mark' }, { timeout: 2000 });
+    expect(mark).toBeInTheDocument();
+  });
 });
+

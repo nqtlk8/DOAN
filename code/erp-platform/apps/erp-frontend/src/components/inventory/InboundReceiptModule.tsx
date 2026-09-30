@@ -1,36 +1,47 @@
-import React, { useRef, useState } from 'react';
-import { MdiModuleLayout, type SubViewType, type FormMode } from '../layout/MdiModuleLayout';
-import { InboundReceiptForm, type InboundReceiptFormRef } from './InboundReceiptForm';
-import { ApiService } from '../../api/ApiService';
+import React, { useCallback, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
+import { errorMessage } from '../../shared/errors/errorMessage';
+import { MdiModuleLayout, type SubViewType } from '../layout/MdiModuleLayout';
+import { InboundReceiptForm, type InboundReceiptFormRef } from './InboundReceiptForm';
 import { InboundReceiptList } from './InboundReceiptList';
+import { ApiService } from '../../api/ApiService';
+import type { DocStatus, FormMode, InboundReceiptDto } from '../../types/documents';
 
-export const InboundReceiptModule: React.FC<{ initialSubView?: SubViewType; mode?: FormMode; initialData?: any }> = ({
+interface InboundReceiptModuleProps {
+  initialSubView?: SubViewType;
+  mode?: FormMode;
+  initialData?: InboundReceiptDto | null;
+}
+
+export const InboundReceiptModule: React.FC<InboundReceiptModuleProps> = ({
   initialSubView = 'FORM',
-  mode: initialMode = 'VIEW',
+  mode: initialMode = 'ADD',
   initialData,
 }) => {
   const [activeSubView, setActiveSubView] = useState<SubViewType>(initialSubView);
   const [currentMode, setCurrentMode] = useState<FormMode>(initialMode);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [status, setStatus] = useState<DocStatus | undefined>(initialData?.status);
+  const [isLoading, setIsLoading] = useState(false);
+  const [formData, setFormData] = useState<InboundReceiptDto | null | undefined>(initialData);
+  const [formKey, setFormKey] = useState(0);
   const formRef = useRef<InboundReceiptFormRef>(null);
-  const [formData, setFormData] = useState<any>(initialData);
 
-  const handleStateChange = (mode: FormMode, loading: boolean) => {
+  const handleStateChange = useCallback((mode: FormMode, loading: boolean, st?: DocStatus) => {
     setCurrentMode(mode);
     setIsLoading(loading);
-  };
+    setStatus(st);
+  }, []);
 
   const handleRowDoubleClick = async (receiptId: string) => {
     try {
       setIsLoading(true);
       const res = await ApiService.InboundReceipt.getById(receiptId);
-      setFormData(res || {}); 
+      setFormData(res ?? null);
       setCurrentMode('VIEW');
+      setFormKey((k) => k + 1);
       setActiveSubView('FORM');
-    } catch (err: any) {
-      console.error(err);
-      toast.error('Lỗi tải chi tiết phiếu nhập: ' + err.message);
+    } catch (err) {
+      toast.error('Không tải được chi tiết phiếu nhập: ' + errorMessage(err, ''));
     } finally {
       setIsLoading(false);
     }
@@ -42,22 +53,24 @@ export const InboundReceiptModule: React.FC<{ initialSubView?: SubViewType; mode
       onSubViewChange={setActiveSubView}
       mode={currentMode}
       isLoading={isLoading}
-      hideConfirm={currentMode === 'VIEW' && formData?.status === 'CONFIRMED'}
+      hideConfirm={status !== 'DRAFT'}
       onAdd={() => formRef.current?.handleAdd()}
       onSave={() => formRef.current?.handleSubmit()}
       onCancel={() => formRef.current?.handleCancel()}
       onConfirm={() => formRef.current?.handleConfirm()}
       onExit={() => formRef.current?.handleExit()}
     >
-      {activeSubView === 'FORM' ? (
+      {/* Giữ form luôn mounted để chuyển qua "Danh sách phiếu" rồi quay lại không mất dữ liệu đang nhập */}
+      <div className={activeSubView === 'FORM' ? 'h-full' : 'hidden'}>
         <InboundReceiptForm
-          key={formData?.id ?? 'new'}
+          key={`${formData?.id ?? 'new'}-${formKey}`}
           ref={formRef}
-          mode={currentMode}
+          mode={formData?.id ? 'VIEW' : initialMode}
           initialData={formData}
           onStateChange={handleStateChange}
         />
-      ) : (
+      </div>
+      {activeSubView === 'LIST' && (
         <div className="p-4 h-full">
           <InboundReceiptList onRowDoubleClick={handleRowDoubleClick} />
         </div>

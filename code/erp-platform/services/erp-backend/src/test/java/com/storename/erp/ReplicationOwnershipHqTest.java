@@ -77,4 +77,34 @@ public class ReplicationOwnershipHqTest {
                 .content("{}"))
                 .andExpect(status().isNotFound());
     }
+
+    @Test
+    public void hqCannotWriteReceivableDebtOpeningBalance() throws Exception {
+        JwtAuthDetails details = new JwtAuthDetails(null, "token123");
+        UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
+            "b6a4a984-7dc4-4d23-95b8-c3dc164a2c5f", null, Collections.singletonList(new SimpleGrantedAuthority("ADMIN")));
+        auth.setDetails(details);
+        SecurityContextHolder.getContext().setAuthentication(auth);
+
+        mockMvc.perform(post("/api/v1/receivable-debts/opening-balance")
+                .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf())
+                .contentType("application/json")
+                .content("{\"customerId\":\"11111111-1111-1111-1111-111111111111\",\"amount\":1000}"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    public void hqCannotWriteInventoryInbound() throws Exception {
+        JwtAuthDetails details = new JwtAuthDetails(null, "token123");
+        UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
+            "b6a4a984-7dc4-4d23-95b8-c3dc164a2c5f", null, Collections.singletonList(new SimpleGrantedAuthority("ADMIN")));
+        auth.setDetails(details);
+        SecurityContextHolder.getContext().setAuthentication(auth);
+
+        mockMvc.perform(post("/api/v1/inventory/inbound")
+                .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf())
+                .contentType("application/json")
+                .content("{}"))
+                .andExpect(status().isNotFound());
+    }
 }

@@ -2,14 +2,13 @@ import { PageHeader } from '../../shared/components/Page/PageHeader';
 import { PageContainer } from '../../shared/components/Page/PageContainer';
 import React, { useState } from 'react';
 import { Search, Plus, X, Edit2, Trash2 } from 'lucide-react';
-import { ApiService } from '../../api/ApiService';
 import type { Product } from '../../types/catalog';
-import { useQueryClient } from '@tanstack/react-query';
 import { useAuth, ROLES } from '../../context/AuthContext';
-import { DataState } from '../../shared/components/DataState/DataState';
+import { ListTable } from '../../shared/components/DataState/ListTable';
 import { ConfirmDialog } from '../../shared/components/Dialog/ConfirmDialog';
 import { StockMovementList } from '../inventory/StockMovementList';
 import { useProducts } from '../../hooks/useProducts';
+import { formatNumber, normalizeSearch } from '../../shared/utils/format';
 
 export const ProductList: React.FC = () => {
   const { hasRole } = useAuth();
@@ -68,14 +67,13 @@ export const ProductList: React.FC = () => {
 
   const submitting = createMutation.isPending;
 
-  const filtered = products.filter((p) => 
-    p.isActive !== false && 
-    (p.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-     p.code?.toLowerCase().includes(searchTerm.toLowerCase()))
+  const term = normalizeSearch(searchTerm);
+  const filtered = products.filter(
+    (p) => p.isActive !== false && (normalizeSearch(p.name).includes(term) || normalizeSearch(p.code).includes(term)),
   );
 
   return (
-    <PageContainer>
+    <PageContainer data-testid="product-page">
       <PageHeader 
         title="Danh Mục Sản Phẩm"
         actions={
@@ -91,7 +89,7 @@ export const ProductList: React.FC = () => {
               />
             </div>
             {isAdmin && (
-              <button onClick={() => handleOpenModal()} className="btn-primary h-8 px-3 flex items-center">
+              <button onClick={() => handleOpenModal()} className="btn btn-primary h-8">
                 <Plus size={16} className="mr-1" />
                 Thêm mới
               </button>
@@ -100,95 +98,48 @@ export const ProductList: React.FC = () => {
         }
       />
 
-      <div className="card overflow-hidden">
-        <DataState
-          isLoading={loading}
-          isError={isError}
-          error={error}
-          isEmpty={filtered.length === 0} 
-          onRetry={refetch}
-          loadingType="table"
-        >
-          <table className="erp-table">
-          <thead>
-            <tr className="bg-app border-b border-line">
-              <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-ink-subtle">ID</th>
-              <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-ink-subtle">Mã (SKU)</th>
-              <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-ink-subtle">Tên Sản Phẩm</th>
-              <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-ink-subtle">Đơn Giá</th>
-              <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-ink-subtle">Đơn vị</th>
-              <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-ink-subtle text-right">
-                Thao tác
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td colSpan={6} className="p-0">
-                <DataState
-                  isLoading={loading}
-                  isError={isError}
-                  error={error}
-                  isEmpty={products.length === 0}
-                  onRetry={refetch}
-                  loadingType="table"
-                  emptyTitle="Chưa có sản phẩm"
-                  emptyMessage="Hệ thống chưa có sản phẩm nào. Hãy tạo sản phẩm đầu tiên."
-                  emptyAction={
-                    isAdmin && (
-                      <button
-                        onClick={() => handleOpenModal()}
-                        className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-dark transition-colors mt-2"
-                      >
-                        <Plus size={20} />
-                        <span>Thêm mới</span>
-                      </button>
-                    )
-                  }
-                >
-                  {products.length > 0 && filtered.length === 0 ? (
-                    <div className="p-8 text-center text-ink-subtle bg-surface">
-                      Không tìm thấy kết quả nào phù hợp với "{searchTerm}"
-                    </div>
-                  ) : null}
-                </DataState>
-              </td>
-            </tr>
-            {!loading && !isError && filtered.length > 0 && (
-              filtered.map((p) => (
-                <tr key={p.id} className="border-b border-slate-50 hover:bg-app transition-colors">
-                  <td className="px-4 py-1.5 text-sm text-ink">{p.id}</td>
-                  <td className="px-4 py-1.5 text-sm text-ink">{p.code || '-'}</td>
-                  <td className="px-4 py-1.5 text-sm text-ink font-medium">{p.name}</td>
-                  <td className="px-4 py-1.5 text-sm text-ink">
-                    {p.price?.toLocaleString() || 0} đ
-                  </td>
-                  <td className="px-4 py-1.5 text-sm text-ink">{p.baseUnit || '-'}</td>
-                  <td className="px-4 py-1.5 text-sm text-right space-x-2">
-                    <button
-                      onClick={() => handleOpenModal(p)}
-                      className="text-ink-lighter hover:text-primary transition-colors"
-                      title={isAdmin ? "Sửa" : "Xem chi tiết"}
-                    >
-                      <Edit2 size={16} />
+      <ListTable
+        colCount={6}
+        isLoading={loading}
+        isError={isError}
+        error={error}
+        onRetry={refetch}
+        totalCount={products.length}
+        filteredCount={filtered.length}
+        searchTerm={searchTerm}
+        emptyTitle="Chưa có sản phẩm"
+        emptyMessage="Hệ thống chưa có sản phẩm nào."
+        header={
+          <tr>
+            <th className="w-16">ID</th>
+            <th className="w-36">Mã (SKU)</th>
+            <th>Tên sản phẩm</th>
+            <th className="num w-36">Đơn giá</th>
+            <th className="w-24">Đơn vị</th>
+            <th className="w-24 text-right">Thao tác</th>
+          </tr>
+        }
+      >
+        {filtered.map((p) => (
+          <tr key={p.id} data-testid="product-row">
+            <td className="text-ink-subtle">{p.id}</td>
+            <td>{p.code || '—'}</td>
+            <td className="font-medium">{p.name}</td>
+            <td className="num">{formatNumber(p.price ?? 0)}</td>
+            <td>{p.baseUnit || '—'}</td>
+            <td className="text-right whitespace-nowrap">
+                  <button type="button" onClick={() => handleOpenModal(p)} className="btn btn-ghost h-7 w-7 px-0 hover:text-primary" title={isAdmin ? 'Sửa' : 'Xem chi tiết'} aria-label={isAdmin ? 'Sửa' : 'Xem chi tiết'}>
+                    <Edit2 size={15} />
+                  </button>
+                  {isAdmin && (
+                    <button type="button" onClick={() => setConfirmState({ isOpen: true, id: String(p.id) })} className="btn btn-ghost h-7 w-7 px-0 hover:text-danger" title="Xóa" aria-label="Xóa">
+                      <Trash2 size={15} />
                     </button>
-                    {isAdmin && (
-                      <button
-                        onClick={() => setConfirmState({ isOpen: true, id: p.id.toString() })}
-                        className="text-ink-lighter hover:text-danger transition-colors"
-                        title="Xóa"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-        </DataState>
-      </div>
+                  )}
+                </td>
+          </tr>
+        ))}
+      </ListTable>
 
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
@@ -269,7 +220,7 @@ export const ProductList: React.FC = () => {
                 <button
                   onClick={handleSave}
                   disabled={submitting || !formData.name}
-                  className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors disabled:opacity-50"
+                  className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors disabled:opacity-50"
                 >
                   {submitting ? 'Đang lưu...' : 'Lưu lại'}
                 </button>

@@ -1,0 +1,24 @@
+feat: update dashboard, stock alerts, and replication
+
+- Frontend:
+  - Add `StockAlertPanel` and `useStockAlerts` for displaying low stock and slow-moving products.
+  - Update `Dashboard` to use new metrics and alert panel.
+  - Add and update E2E tests for dashboard, sales, goods return, inbound, and login.
+  - Clean up temporary Python scripts and old return components.
+  - Add generic UI components like `ListTable` and `StatusBadge`.
+  - Refactor format utilities and error messages.
+
+- Backend:
+  - Add `StockAlertController` and `StockAlertService` to provide stock alert data.
+  - Remove deprecated `LowStockAlertJob`.
+  - Enhance `DashboardService` and `AnalyticsDataAdapter` for accurate total calculations and metric fetching.
+  - Add PostgreSQL integration tests for analytics data and stock alerts.
+  - Add V21 migration script for analytics alert and snapshot replication tables.
+  - Introduce `AnalyticsProperties` for configuration-driven queries.
+
+- Infrastructure/Replication:
+  - Add `enable-snapshot-replication.sh` script.
+  - Update `setup-replication.sh`.
+
+- Documentation:
+  - Add new drafts in `khoaluan-draft/`.

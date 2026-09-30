@@ -1,10 +1,20 @@
-import React from 'react';
-import { Plus, Trash2, Save, X, Printer, Check, Search, LogOut, Loader2 } from 'lucide-react';
-import { FormMode, DocStatus, DocumentLine, InfoField, PartnerField, SummaryField } from '../../../types/documents';
+import React, { useEffect, useRef, useState } from 'react';
+import { Plus, Search, Trash2 } from 'lucide-react';
+import type {
+  DocStatus,
+  DocumentLine,
+  FormMode,
+  InfoField,
+  PartnerField,
+  SummaryField,
+} from '../../../types/documents';
 import { NumberInput } from '../../../shared/components/Form/NumberInput';
-import { formatCurrency, formatDate } from '../../../shared/utils/format';
+import { StatusBadge } from '../../../shared/components/StatusBadge';
+import { formatCurrency, formatDate, formatNumber } from '../../../shared/utils/format';
+import { focusLineCell, lineErrorKey, QTY_FRACTION_DIGITS } from './documentLines';
 
 export type OrderItem = DocumentLine;
+export type { FormMode };
 
 export interface GenericDocumentFormProps {
   mode: FormMode;
@@ -12,10 +22,11 @@ export interface GenericDocumentFormProps {
   docCode: string;
   status?: DocStatus;
   error?: string | null;
+  /** key: 'partner', lineErrorKey(i, 'product' | 'quantity') */
   errors?: Record<string, string>;
 
   info: InfoField[];
-  createdDate: string; 
+  createdDate: string;
   onCreatedDateChange?: (v: string) => void;
 
   partner: {
@@ -38,37 +49,59 @@ export interface GenericDocumentFormProps {
     onUpdate: (id: string, field: keyof DocumentLine, value: unknown) => void;
     renderProductCombobox: (line: DocumentLine, index: number, hasError: boolean) => React.ReactNode;
   };
-
-  onAdd?: () => void;
-  onEdit?: () => void;
-  onDelete?: () => void;
-  onConfirm?: () => void;
-  onPrint?: () => void;
-  onSave?: () => void;
-  onCancel?: () => void;
-  onExit?: () => void;
-  hideConfirm?: boolean;
-  isLoading?: boolean;
 }
 
+const lineAmount = (l: DocumentLine) => (Number(l.quantity) || 0) * (Number(l.unitPrice) || 0);
+
 export const GenericDocumentForm: React.FC<GenericDocumentFormProps> = ({
-  mode, docTitle, docCode, status, error, errors = {},
-  info, createdDate, onCreatedDateChange,
-  partner, summary, lines,
-  onAdd, onEdit, onDelete, onConfirm, onPrint, onSave, onCancel, onExit,
-  hideConfirm, isLoading
+  mode,
+  docTitle,
+  docCode,
+  status,
+  error,
+  errors = {},
+  info,
+  createdDate,
+  onCreatedDateChange,
+  partner,
+  summary,
+  lines,
 }) => {
   const isView = mode === 'VIEW';
-  
-  const renderBadge = () => {
-    if (!status) return null;
-    if (status === 'DRAFT') return <span className="badge-warning px-2">Nháp</span>;
-    if (status === 'CONFIRMED') return <span className="badge-success px-2">Đã xác nhận</span>;
-    if (status === 'CANCELLED') return <span className="badge-danger px-2">Đã hủy</span>;
-    return null;
+  const prefix = lines.testIdPrefix;
+  const [activeLineId, setActiveLineId] = useState<string | null>(null);
+
+  // Khi thêm dòng bằng nút "Dòng mới" hoặc Enter ở dòng cuối → focus ô sản phẩm của dòng mới.
+  const focusNewLineRef = useRef(false);
+  const prevCountRef = useRef(lines.items.length);
+  useEffect(() => {
+    const count = lines.items.length;
+    if (count > prevCountRef.current && focusNewLineRef.current) {
+      const last = lines.items[count - 1];
+      setActiveLineId(last.id);
+      focusLineCell(last.id, 'product');
+    }
+    focusNewLineRef.current = false;
+    prevCountRef.current = count;
+  }, [lines.items]);
+
+  const addLineAndFocus = () => {
+    focusNewLineRef.current = true;
+    lines.onAdd();
   };
 
-  const codeDisplay = docCode === 'AUTO-GENERATE' ? <span className="text-ink-subtle">(Tự động)</span> : docCode;
+  const handlePriceEnter = (index: number) => {
+    const next = lines.items[index + 1];
+    if (next) focusLineCell(next.id, 'product');
+    else addLineAndFocus();
+  };
+
+  const renderBadge = () => <StatusBadge status={status} />;
+
+  const codeDisplay = !docCode || docCode === 'AUTO-GENERATE' ? <span className="text-ink-subtle">(Tự động)</span> : docCode;
+  const totalQty = lines.items.reduce((s, l) => s + (Number(l.quantity) || 0), 0);
+  const grandTotal = lines.items.reduce((s, l) => s + lineAmount(l), 0);
+  const colCount = isView ? 7 : 8;
 
   return (
     <div className="flex flex-col h-full bg-surface">
@@ -82,57 +115,68 @@ export const GenericDocumentForm: React.FC<GenericDocumentFormProps> = ({
           Số: {codeDisplay}
         </div>
       </div>
-      
+
       {error && (
-        <div className="px-4 py-2 bg-danger-soft text-danger text-[13px] border-b border-danger/20 font-medium">
+        <div
+          data-testid={`${prefix}-error-msg`}
+          role="alert"
+          className="px-4 py-2 bg-danger-soft text-danger text-[13px] border-b border-danger/20 font-medium"
+        >
           {error}
         </div>
       )}
 
-      {/* 2. Header 3 khối */}
+      {/* 2. Header 3 khối — tỷ lệ 1 : 1.5 : 1 */}
       <div className="grid grid-cols-[1fr_1.5fr_1fr] gap-x-6 p-3 bg-surface border-b border-line shrink-0">
-        
-        {/* Khối trái: Thông tin chung */}
-        <div className="flex flex-col gap-1.5">
+        {/* Khối trái: thông tin chung (chỉ đọc) */}
+        <div className="flex flex-col gap-1.5 min-w-0">
           <div className="grid grid-cols-[96px_minmax(0,1fr)] gap-x-2 items-center h-7">
             <label className="erp-label text-right">Ngày</label>
             {isView || !onCreatedDateChange ? (
-              <div className="text-[13px] text-ink truncate px-2">{formatDate(createdDate)}</div>
+              <div className="text-[13px] text-ink truncate px-2" data-testid="doc-date">
+                {formatDate(createdDate)}
+              </div>
             ) : (
-              <input 
-                type="date" 
-                className="erp-input h-7" 
-                value={createdDate} 
-                onChange={e => onCreatedDateChange(e.target.value)} 
+              <input
+                type="date"
+                className="erp-input h-7"
+                value={createdDate}
+                onChange={(e) => onCreatedDateChange(e.target.value)}
+                data-testid="doc-date"
               />
             )}
           </div>
-          {info.map(f => (
+          {info.map((f) => (
             <div key={f.key} className="grid grid-cols-[96px_minmax(0,1fr)] gap-x-2 items-center h-7">
               <label className="erp-label text-right">{f.label}</label>
-              <div className="text-[13px] text-ink truncate px-2" data-testid={f.testId}>{f.value}</div>
+              <div className="text-[13px] text-ink truncate px-2" data-testid={f.testId}>
+                {f.value}
+              </div>
             </div>
           ))}
         </div>
 
-        {/* Khối giữa: Đối tác */}
-        <div className="flex flex-col gap-1.5">
+        {/* Khối giữa: đối tác */}
+        <div className="flex flex-col gap-1.5 min-w-0">
           <div className="grid grid-cols-[96px_minmax(0,1fr)] gap-x-2 items-center h-7">
             <label className="erp-label text-right">
-              {partner.label} {partner.required && <span className="text-danger">*</span>}
+              {partner.label} {partner.required && !isView && <span className="text-danger">*</span>}
             </label>
             {isView ? (
-              <div className="text-[13px] text-ink truncate px-2 font-medium">{partner.displayName}</div>
+              <div className="text-[13px] text-ink truncate px-2 font-medium" data-testid={`${prefix}-partner-name`}>
+                {partner.displayName}
+              </div>
             ) : (
-              <div className="flex gap-1 h-7">
-                <div className="flex-1 min-w-0">
-                  {partner.renderCombobox(!!errors['partner'])}
-                </div>
+              <div className="flex gap-1 h-7 min-w-0">
+                <div className="flex-1 min-w-0">{partner.renderCombobox(!!errors.partner)}</div>
                 {partner.onAdvancedSearch && (
-                  <button 
-                    type="button" 
+                  <button
+                    type="button"
                     onClick={partner.onAdvancedSearch}
-                    className="w-7 h-7 flex items-center justify-center border border-line rounded bg-surface hover:bg-slate-50 shrink-0 text-ink-muted"
+                    aria-label="Tìm kiếm nâng cao"
+                    title="Tìm kiếm nâng cao"
+                    data-testid={`${prefix}-partner-advanced`}
+                    className="btn btn-secondary w-7 px-0 shrink-0 text-ink-muted"
                   >
                     <Search size={14} />
                   </button>
@@ -140,19 +184,27 @@ export const GenericDocumentForm: React.FC<GenericDocumentFormProps> = ({
               </div>
             )}
           </div>
-          {partner.fields.map(f => (
+          {errors.partner && !isView && (
+            <div className="grid grid-cols-[96px_minmax(0,1fr)] gap-x-2 -mt-1">
+              <span />
+              <span className="text-[12px] text-danger px-1">{errors.partner}</span>
+            </div>
+          )}
+          {partner.fields.map((f) => (
             <div key={f.key} className="grid grid-cols-[96px_minmax(0,1fr)] gap-x-2 items-center h-7">
               <label className="erp-label text-right">
                 {f.label} {f.required && !isView && <span className="text-danger">*</span>}
               </label>
               {isView || !f.onChange ? (
-                <div className="text-[13px] text-ink truncate px-2" data-testid={f.testId}>{f.value}</div>
+                <div className="text-[13px] text-ink truncate px-2" data-testid={f.testId}>
+                  {f.value}
+                </div>
               ) : (
-                <input 
-                  type="text" 
-                  className="erp-input h-7" 
-                  value={f.value} 
-                  onChange={e => f.onChange!(e.target.value)}
+                <input
+                  type="text"
+                  className="erp-input h-7"
+                  value={f.value}
+                  onChange={(e) => f.onChange!(e.target.value)}
                   placeholder={f.placeholder}
                   data-testid={f.testId}
                 />
@@ -161,97 +213,155 @@ export const GenericDocumentForm: React.FC<GenericDocumentFormProps> = ({
           ))}
         </div>
 
-        {/* Khối phải: Summary */}
-        <div className="flex flex-col gap-1.5">
-          {summary.map(f => {
+        {/* Khối phải: tổng tiền */}
+        <div className="flex flex-col gap-1.5 min-w-0">
+          {summary.map((f) => {
             let toneClass = 'text-ink';
             if (f.tone === 'primary') toneClass = 'text-primary';
-            else if (f.tone === 'danger') toneClass = 'text-danger';
+            else if (f.tone === 'danger' && f.value > 0) toneClass = 'text-danger';
 
             return (
               <div key={f.key} className="grid grid-cols-[96px_minmax(0,1fr)] gap-x-2 items-center h-7">
-                <label className={`erp-label text-right ${f.strong ? 'font-semibold' : ''}`}>{f.label}</label>
+                <label className={`erp-label text-right ${f.strong ? 'font-semibold text-ink' : ''}`}>{f.label}</label>
                 {isView || !f.onChange ? (
-                  <div 
-                    className={`text-[13px] truncate px-2 text-right tabular-nums ${toneClass} ${f.strong ? 'font-semibold' : ''}`}
+                  <div
+                    className={`truncate px-2 text-right tabular-nums ${toneClass} ${f.strong ? 'text-[15px] font-semibold' : 'text-[13px]'}`}
                     data-testid={f.testId}
                   >
-                    {formatCurrency(f.value)}
+                    {f.isQuantity ? formatNumber(f.value, QTY_FRACTION_DIGITS) : formatCurrency(f.value)}
                   </div>
                 ) : (
                   <NumberInput
                     value={f.value}
                     onChange={f.onChange}
                     className="h-7"
-                    allowNegative={true}
+                    allowNegative={!!f.allowNegative}
                     data-testid={f.testId}
+                    aria-label={f.label}
                   />
                 )}
               </div>
             );
           })}
         </div>
-        
       </div>
 
-      {/* 3. Bảng hàng hóa */}
-      <div className="flex-1 overflow-auto bg-slate-50 min-h-0 relative">
-        <table className="w-full text-[13px] border-collapse relative">
-          <thead className="sticky top-0 z-20 bg-slate-100 border-b border-line shadow-sm">
-            <tr className="h-8">
-              <th className="font-semibold text-ink-muted px-2 border-r border-line w-12">STT</th>
-              <th className="font-semibold text-ink-muted px-2 border-r border-line text-left">Mã hàng</th>
-              <th className="font-semibold text-ink-muted px-2 border-r border-line text-left">Tên hàng</th>
-              <th className="font-semibold text-ink-muted px-2 border-r border-line text-left w-[80px]">ĐVT</th>
-              <th className="font-semibold text-ink-muted px-2 border-r border-line text-right w-[100px]">Số lượng</th>
-              <th className="font-semibold text-ink-muted px-2 border-r border-line text-right w-[120px]">{lines.priceLabel || 'Đơn giá'}</th>
-              <th className="font-semibold text-ink-muted px-2 border-r border-line text-right w-[120px]">Thành tiền</th>
-              {!isView && <th className="font-semibold text-ink-muted px-2 w-10"></th>}
+      {/* 3. Bảng hàng hóa — một <table> duy nhất để thead/tbody/tfoot thẳng cột */}
+      <div className="flex-1 overflow-auto bg-slate-50 min-h-0">
+        <table className="w-full min-w-[900px] table-fixed text-[13px] border-collapse">
+          <colgroup>
+            <col style={{ width: 44 }} />
+            <col style={{ width: 110 }} />
+            <col />
+            <col style={{ width: 70 }} />
+            <col style={{ width: 96 }} />
+            <col style={{ width: 128 }} />
+            <col style={{ width: 140 }} />
+            {!isView && <col style={{ width: 36 }} />}
+          </colgroup>
+          <thead className="sticky top-0 z-20 bg-slate-100">
+            <tr className="h-8 text-[12px] text-ink-muted">
+              <th className="font-semibold px-2 border-b border-r border-line text-center">STT</th>
+              <th className="font-semibold px-2 border-b border-r border-line text-left">Mã hàng</th>
+              <th className="font-semibold px-2 border-b border-r border-line text-left">Tên hàng</th>
+              <th className="font-semibold px-2 border-b border-r border-line text-center">ĐVT</th>
+              <th className="font-semibold px-2 border-b border-r border-line text-right">Số lượng</th>
+              <th className="font-semibold px-2 border-b border-r border-line text-right">{lines.priceLabel || 'Đơn giá'}</th>
+              <th className="font-semibold px-2 border-b border-r border-line text-right">Thành tiền</th>
+              {!isView && <th className="border-b border-line" aria-label="Xóa dòng" />}
             </tr>
           </thead>
           <tbody className="bg-surface">
             {lines.items.map((item, index) => {
-              const qtyError = !!errors[`line_${index}_quantity`];
+              const productError = !!errors[lineErrorKey(index, 'product')];
+              const qtyError = !!errors[lineErrorKey(index, 'quantity')];
+              const isSelected = activeLineId === item.id;
               return (
-                <tr key={item.id} className="h-8 border-b border-line last:border-0 hover:bg-slate-50 transition-colors" data-testid={`${lines.testIdPrefix}-line-row`}>
+                <tr
+                  key={item.id}
+                  data-testid={`${prefix}-line-row`}
+                  aria-selected={isSelected}
+                  onFocusCapture={() => setActiveLineId(item.id)}
+                  onMouseDown={() => setActiveLineId(item.id)}
+                  className={`h-7 border-b border-line ${
+                    isSelected ? 'bg-primary-soft shadow-[inset_3px_0_0_var(--color-primary)]' : 'hover:bg-slate-50'
+                  }`}
+                >
                   <td className="px-2 text-center text-ink-subtle border-r border-line">{index + 1}</td>
-                  <td className="px-2 border-r border-line">{item.productCode}</td>
-                  <td className="p-0 border-r border-line relative">
+                  <td className="px-2 border-r border-line truncate" data-testid={`${prefix}-line-code`}>
+                    {item.productCode}
+                  </td>
+                  <td
+                    className={`p-0 border-r border-line relative ${productError ? 'ring-1 ring-inset ring-danger bg-danger-soft' : ''}`}
+                  >
                     {isView ? (
                       <div className="px-2 truncate">{item.productName}</div>
                     ) : (
-                      <div className="absolute inset-0">
-                        {lines.renderProductCombobox(item, index, !!errors[`line_${index}_product`])}
+                      <div className="absolute inset-0" data-line-id={item.id} data-field="product">
+                        {lines.renderProductCombobox(item, index, productError)}
                       </div>
                     )}
                   </td>
-                  <td className="px-2 border-r border-line truncate">{item.unitOfMeasure}</td>
-                  <td className="p-0 border-r border-line relative">
+                  <td className="px-2 border-r border-line text-center truncate">{item.unitOfMeasure}</td>
+                  <td className={`p-0 border-r border-line relative ${qtyError ? 'ring-1 ring-inset ring-danger bg-danger-soft' : ''}`}>
                     {isView ? (
-                      <div className="px-2 text-right tabular-nums">{formatCurrency(item.quantity)}</div>
+                      <div className="px-2 text-right tabular-nums">{formatNumber(item.quantity, QTY_FRACTION_DIGITS)}</div>
                     ) : (
                       <div className="absolute inset-0">
                         <NumberInput
                           value={item.quantity}
                           onChange={(v) => lines.onUpdate(item.id, 'quantity', v)}
                           variant="cell"
-                          data-testid={`${lines.testIdPrefix}-line-quantity`}
-                          className={qtyError ? 'bg-danger-soft' : ''}
+                          maxFractionDigits={QTY_FRACTION_DIGITS}
+                          data-testid={`${prefix}-line-quantity`}
+                          aria-label={`Số lượng dòng ${index + 1}`}
+                          dataAttrs={{ 'data-line-id': item.id, 'data-field': 'quantity' }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              focusLineCell(item.id, 'price');
+                            }
+                          }}
                         />
                       </div>
                     )}
                   </td>
-                  <td className="px-2 border-r border-line text-right tabular-nums">{formatCurrency(item.unitPrice)}</td>
-                  <td className="px-2 border-r border-line text-right tabular-nums font-medium text-primary" data-testid={`${lines.testIdPrefix}-line-total`}>
-                    {formatCurrency(item.quantity * item.unitPrice)}
+                  <td className="p-0 border-r border-line relative">
+                    {isView ? (
+                      <div className="px-2 text-right tabular-nums">{formatNumber(item.unitPrice)}</div>
+                    ) : (
+                      <div className="absolute inset-0">
+                        <NumberInput
+                          value={item.unitPrice}
+                          onChange={(v) => lines.onUpdate(item.id, 'unitPrice', v)}
+                          variant="cell"
+                          data-testid={`${prefix}-line-price`}
+                          aria-label={`${lines.priceLabel || 'Đơn giá'} dòng ${index + 1}`}
+                          dataAttrs={{ 'data-line-id': item.id, 'data-field': 'price' }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handlePriceEnter(index);
+                            }
+                          }}
+                        />
+                      </div>
+                    )}
+                  </td>
+                  <td
+                    className="px-2 border-r border-line text-right tabular-nums font-medium text-ink"
+                    data-testid={`${prefix}-line-total`}
+                  >
+                    {formatNumber(lineAmount(item))}
                   </td>
                   {!isView && (
                     <td className="p-0 text-center">
-                      <button 
-                        type="button" 
+                      <button
+                        type="button"
                         onClick={() => lines.onRemove(item.id)}
-                        className="w-full h-full flex items-center justify-center text-danger hover:bg-danger-soft transition-colors"
-                        data-testid={`${lines.testIdPrefix}-line-delete`}
+                        aria-label={`Xóa dòng ${index + 1}`}
+                        className="w-full h-7 flex items-center justify-center text-ink-subtle hover:text-danger hover:bg-danger-soft transition-colors"
+                        data-testid={`${prefix}-line-delete`}
                       >
                         <Trash2 size={14} />
                       </button>
@@ -260,14 +370,21 @@ export const GenericDocumentForm: React.FC<GenericDocumentFormProps> = ({
                 </tr>
               );
             })}
+            {lines.items.length === 0 && (
+              <tr>
+                <td colSpan={colCount} className="px-2 py-4 text-center text-ink-subtle border-b border-line">
+                  {isView ? 'Phiếu chưa có hàng hóa.' : 'Chưa có hàng hóa. Bấm “Dòng mới” để thêm.'}
+                </td>
+              </tr>
+            )}
             {!isView && (
               <tr className="h-8 bg-surface border-b border-line">
-                <td colSpan={8} className="px-2">
-                  <button 
-                    type="button" 
-                    onClick={lines.onAdd}
-                    className="flex items-center gap-1 text-[13px] font-medium text-primary hover:underline"
-                    data-testid={`${lines.testIdPrefix}-add-line`}
+                <td colSpan={colCount} className="px-1">
+                  <button
+                    type="button"
+                    onClick={addLineAndFocus}
+                    className="btn btn-ghost h-7 text-primary"
+                    data-testid={`${prefix}-add-line`}
                   >
                     <Plus size={14} /> Dòng mới
                   </button>
@@ -275,60 +392,25 @@ export const GenericDocumentForm: React.FC<GenericDocumentFormProps> = ({
               </tr>
             )}
           </tbody>
-          <tfoot className="sticky bottom-0 z-20 bg-slate-100 border-t border-line font-semibold shadow-sm text-ink text-[13px]">
-            <tr className="h-8">
-              <td colSpan={6} className="px-2 text-right border-r border-line uppercase">Tổng cộng</td>
-              <td className="px-2 text-right text-primary tabular-nums" data-testid={`${lines.testIdPrefix}-grand-total`}>
-                {formatCurrency(lines.items.reduce((s, i) => s + i.quantity * i.unitPrice, 0))}
+          <tfoot className="sticky bottom-0 z-20 bg-slate-100 font-semibold text-ink">
+            <tr className="h-8 border-t-2 border-line-strong">
+              <td colSpan={4} className="px-2 text-right border-r border-line uppercase text-[12px]">
+                Tổng cộng
               </td>
-              {!isView && <td className=""></td>}
+              <td className="px-2 text-right tabular-nums border-r border-line" data-testid={`${prefix}-total-qty`}>
+                {formatNumber(totalQty, QTY_FRACTION_DIGITS)}
+              </td>
+              <td className="border-r border-line" />
+              <td
+                className="px-2 text-right tabular-nums text-primary text-[14px] border-r border-line"
+                data-testid={`${prefix}-grand-total`}
+              >
+                {formatNumber(grandTotal)}
+              </td>
+              {!isView && <td />}
             </tr>
           </tfoot>
         </table>
-      </div>
-
-      {/* 4. Thanh nút dưới cùng */}
-      <div className="h-[40px] px-4 border-t border-line bg-surface flex items-center justify-end gap-2 shrink-0">
-        {isView && onAdd && (
-          <button data-testid="btn-add" onClick={onAdd} className="btn btn-secondary flex items-center gap-1.5 px-3">
-            <Plus size={14} /> Thêm mới <kbd className="text-[11px] text-ink-subtle ml-1 font-sans">F2</kbd>
-          </button>
-        )}
-        {isView && onEdit && status !== 'CANCELLED' && (
-          <button data-testid="btn-edit" onClick={onEdit} className="btn btn-secondary flex items-center gap-1.5 px-3">
-            Sửa <kbd className="text-[11px] text-ink-subtle ml-1 font-sans">F3</kbd>
-          </button>
-        )}
-        {isView && onDelete && status !== 'CANCELLED' && (
-          <button data-testid="btn-delete" onClick={onDelete} className="btn btn-danger flex items-center gap-1.5 px-3">
-            Xóa
-          </button>
-        )}
-        {isView && onConfirm && !hideConfirm && status === 'DRAFT' && (
-          <button data-testid="btn-confirm" onClick={onConfirm} disabled={isLoading} className="btn btn-primary flex items-center gap-1.5 px-3">
-            {isLoading ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />} Xác nhận
-          </button>
-        )}
-        {isView && onPrint && status !== 'DRAFT' && (
-          <button data-testid="btn-print" onClick={onPrint} className="btn btn-secondary flex items-center gap-1.5 px-3">
-            <Printer size={14} /> In <kbd className="text-[11px] text-ink-subtle ml-1 font-sans">F7</kbd>
-          </button>
-        )}
-        {!isView && onSave && (
-          <button data-testid="btn-save" onClick={onSave} disabled={isLoading} className="btn btn-primary flex items-center gap-1.5 px-3">
-            {isLoading ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} Lưu <kbd className="text-[11px] text-primary/70 ml-1 font-sans">F4</kbd>
-          </button>
-        )}
-        {!isView && onCancel && (
-          <button data-testid="btn-cancel" onClick={onCancel} className="btn btn-secondary flex items-center gap-1.5 px-3">
-            <X size={14} /> Hủy <kbd className="text-[11px] text-ink-subtle ml-1 font-sans">Esc</kbd>
-          </button>
-        )}
-        {onExit && (
-          <button data-testid="btn-exit" onClick={onExit} className="btn btn-secondary flex items-center gap-1.5 px-3">
-            <LogOut size={14} /> Thoát <kbd className="text-[11px] text-ink-subtle ml-1 font-sans">F8</kbd>
-          </button>
-        )}
       </div>
     </div>
   );

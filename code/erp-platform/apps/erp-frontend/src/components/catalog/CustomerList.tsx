@@ -1,10 +1,12 @@
+import { normalizeSearch } from '../../shared/utils/format';
 import { PageHeader } from '../../shared/components/Page/PageHeader';
 import { PageContainer } from '../../shared/components/Page/PageContainer';
 import React, { useState } from 'react';
-import { Search, Plus, X, Edit, Trash2 } from 'lucide-react';
+import { Search, Plus, X, Edit2, Trash2 } from 'lucide-react';
+import { ApiService } from '../../api/ApiService';
 import type { Customer } from '../../types/catalog';
 import { useAuth, ROLES } from '../../context/AuthContext';
-import { DataState } from '../../shared/components/DataState/DataState';
+import { ListTable } from '../../shared/components/DataState/ListTable';
 import { ConfirmDialog } from '../../shared/components/Dialog/ConfirmDialog';
 import { useCustomers } from '../../hooks/useCustomers';
 
@@ -20,9 +22,7 @@ export const CustomerList: React.FC = () => {
   const [branches, setBranches] = useState<any[]>([]);
 
   React.useEffect(() => {
-    import('../../api/ApiService').then(({ ApiService }) => {
-      ApiService.Branch.getAll().then(setBranches).catch(console.error);
-    });
+    ApiService.Branch.getAll().then(setBranches).catch(console.error);
   }, []);
 
   const {
@@ -79,10 +79,17 @@ export const CustomerList: React.FC = () => {
 
   const submitting = isCreating || isUpdating;
 
-  const filtered = customers.filter((c) => !c.isDeleted && c.name?.toLowerCase().includes(searchTerm.toLowerCase()));
+  const term = normalizeSearch(searchTerm);
+  const filtered = customers.filter(
+    (c) =>
+      !c.isDeleted &&
+      (normalizeSearch(c.name).includes(term) ||
+        normalizeSearch(c.customerCode || c.code).includes(term) ||
+        (c.phone ?? '').includes(searchTerm.trim())),
+  );
 
   return (
-    <PageContainer>
+    <PageContainer data-testid="customer-page">
       <PageHeader 
         title="Danh Mục Khách Hàng"
         actions={
@@ -98,7 +105,7 @@ export const CustomerList: React.FC = () => {
               />
             </div>
             {isAdmin && (
-              <button data-testid="customer-create-button" onClick={() => handleOpenModal()} className="btn-primary h-8 px-3 flex items-center">
+              <button data-testid="customer-create-button" onClick={() => handleOpenModal()} className="btn btn-primary h-8">
                 <Plus size={16} className="mr-1" />
                 Thêm mới
               </button>
@@ -107,65 +114,48 @@ export const CustomerList: React.FC = () => {
         }
       />
 
-      <div className="card overflow-hidden">
-        <DataState
-          isLoading={loading}
-          isError={isError}
-          error={error}
-          isEmpty={filtered.length === 0} 
-          onRetry={refetch}
-          loadingType="table"
-        >
-          <table className="erp-table">
-          <thead>
-            <tr className="bg-app border-b border-line">
-              <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-ink-subtle">Mã KH</th>
-              <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-ink-subtle">Tên KH</th>
-              <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-ink-subtle">Số Điện Thoại</th>
-              <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-ink-subtle">Địa Chỉ</th>
-              {isAdmin && (
-                <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-ink-subtle text-right">
-                  Thao Tác
-                </th>
-              )}
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td colSpan={isAdmin ? 6 : 5} className="p-0">
-                <DataState
-                  isLoading={loading}
-                  isError={isError}
-                  error={error}
-                  isEmpty={customers.length === 0}
-                  onRetry={refetch}
-                  loadingType="table"
-                  emptyTitle="Chưa có khách hàng"
-                  emptyMessage="Hệ thống chưa ghi nhận khách hàng nào."
-                >
-                  {customers.length > 0 && filtered.length === 0 ? (
-                    <div className="p-8 text-center text-ink-subtle bg-surface">
-                      Không tìm thấy kết quả nào phù hợp với "{searchTerm}"
-                    </div>
-                  ) : null}
-                </DataState>
-              </td>
-            </tr>
-            {!loading && !isError && filtered.length > 0 && (
-              filtered.map((c, i) => (
-                <tr data-testid="customer-row" key={c.id || i} className="border-b border-slate-50 hover:bg-app transition-colors">
-                  <td className="px-4 py-1.5 text-sm text-ink">{c.customerCode || c.code || '-'}</td>
-                  <td className="px-4 py-1.5 text-sm font-medium text-ink">{c.name}</td>
-                  <td className="px-4 py-1.5 text-sm text-ink">{c.phone || '-'}</td>
-                  <td className="px-4 py-1.5 text-sm text-ink truncate max-w-xs">{c.address || '-'}</td>
-                  
-                </tr>
-              ))
+      <ListTable
+        colCount={isAdmin ? 5 : 4}
+        isLoading={loading}
+        isError={isError}
+        error={error}
+        onRetry={refetch}
+        totalCount={customers.filter((c) => !c.isDeleted).length}
+        filteredCount={filtered.length}
+        searchTerm={searchTerm}
+        emptyTitle="Chưa có khách hàng"
+        emptyMessage="Hệ thống chưa ghi nhận khách hàng nào."
+        header={
+          <tr>
+            <th className="w-32">Mã KH</th>
+            <th>Tên khách hàng</th>
+            <th className="w-36">Số điện thoại</th>
+            <th>Địa chỉ</th>
+            {isAdmin && <th className="w-24 text-right">Thao tác</th>}
+          </tr>
+        }
+      >
+        {filtered.map((c, i) => (
+          <tr data-testid="customer-row" key={c.id || i}>
+            <td>{c.customerCode || c.code || '—'}</td>
+            <td className="font-medium">{c.name}</td>
+            <td>{c.phone || '—'}</td>
+            <td className="truncate max-w-xs">{c.address || '—'}</td>
+            {isAdmin && (
+            <td className="text-right whitespace-nowrap">
+                  <button type="button" onClick={() => handleOpenModal(c)} className="btn btn-ghost h-7 w-7 px-0 hover:text-primary" title={isAdmin ? 'Sửa' : 'Xem chi tiết'} aria-label={isAdmin ? 'Sửa' : 'Xem chi tiết'}>
+                    <Edit2 size={15} />
+                  </button>
+                  {isAdmin && (
+                    <button type="button" onClick={() => handleDelete(String(c.id))} className="btn btn-ghost h-7 w-7 px-0 hover:text-danger" title="Xóa" aria-label="Xóa">
+                      <Trash2 size={15} />
+                    </button>
+                  )}
+                </td>
             )}
-          </tbody>
-        </table>
-        </DataState>
-      </div>
+          </tr>
+        ))}
+      </ListTable>
 
       {isModalOpen && (
         <div data-testid="customer-create-modal" className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
@@ -176,7 +166,7 @@ export const CustomerList: React.FC = () => {
               </h3>
               <button
                 onClick={handleCloseModal}
-                className="text-ink-lighter hover:text-ink-subtle hover:bg-slate-100 p-1 rounded-md transition-colors"
+                className="text-ink-subtle hover:text-ink-subtle hover:bg-slate-100 p-1 rounded-md transition-colors"
               >
                 <X size={20} />
               </button>
@@ -278,7 +268,7 @@ export const CustomerList: React.FC = () => {
                   data-testid="customer-save"
                   onClick={handleSave}
                   disabled={submitting || !formData.name}
-                  className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors disabled:opacity-50"
+                  className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors disabled:opacity-50"
                 >
                   {submitting ? 'Đang lưu...' : 'Lưu lại'}
                 </button>
@@ -287,6 +277,18 @@ export const CustomerList: React.FC = () => {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={confirmState.isOpen}
+        title="Xóa khách hàng"
+        message="Bạn có chắc chắn muốn xóa khách hàng này không? Hành động này không thể hoàn tác."
+        onConfirm={() =>
+          deleteCustomer(confirmState.id, {
+            onSuccess: () => setConfirmState({ isOpen: false, id: '' }),
+          })
+        }
+        onCancel={() => setConfirmState({ isOpen: false, id: '' })}
+      />
     </PageContainer>
   );
 };

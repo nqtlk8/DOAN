@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useCallback, useId } from 'react';
 import { createPortal } from 'react-dom';
 import { Search, X, Loader2 } from 'lucide-react';
+import { escapeRegExp } from '../../shared/utils/format';
 
 export interface ColumnDef {
   header: string;
@@ -59,9 +60,17 @@ export function SearchableCombobox<T extends Record<string, any>>({
   const listRef = useRef<HTMLDivElement>(null);
   
   const requestRef = useRef<number>(0);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const listboxId = useId();
 
-  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
+  // Giữ fetchData mới nhất trong ref: nơi gọi thường truyền arrow function inline,
+  // nếu đưa vào dependency thì mỗi lần component cha render lại sẽ gọi API lại và mất kết quả đang lọc.
+  const fetchDataRef = useRef(fetchData);
+  useLayoutEffect(() => {
+    fetchDataRef.current = fetchData;
+  }, [fetchData]);
+
+  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({ position: 'fixed', visibility: 'hidden' });
 
   const actualInputRef = (inputRef as React.RefObject<HTMLInputElement>) || localInputRef;
 
@@ -70,12 +79,12 @@ export function SearchableCombobox<T extends Record<string, any>>({
     setLoading(true);
     setFetchError(null);
     try {
-      const data = await fetchData(searchQuery);
+      const data = (await fetchDataRef.current(searchQuery)) ?? [];
       if (currentReq === requestRef.current) {
         setResults(data);
         setSelectedIndex(data.length > 0 ? 0 : -1);
       }
-    } catch (err: any) {
+    } catch {
       if (currentReq === requestRef.current) {
         setFetchError('Không tải được dữ liệu');
         setResults([]);
@@ -85,18 +94,26 @@ export function SearchableCombobox<T extends Record<string, any>>({
         setLoading(false);
       }
     }
-  }, [fetchData]);
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
       loadData('');
     } else {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      requestRef.current++; // bỏ qua kết quả của request đang chạy
       setQuery('');
       setResults([]);
       setSelectedIndex(-1);
       setFetchError(null);
+      setLoading(false);
+      setDropdownStyle({ position: 'fixed', visibility: 'hidden' });
     }
   }, [isOpen, loadData]);
+
+  useEffect(() => () => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+  }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
@@ -112,6 +129,11 @@ export function SearchableCombobox<T extends Record<string, any>>({
   const calculatePosition = useCallback(() => {
     if (!isOpen || !wrapperRef.current || !dropdownRef.current) return;
     const rect = wrapperRef.current.getBoundingClientRect();
+    // Ô nhập đã bị cuộn ra khỏi màn hình → đóng dropdown thay vì để nó "lơ lửng".
+    if (rect.bottom < 0 || rect.top > window.innerHeight) {
+      setIsOpen(false);
+      return;
+    }
     const minWidth = Math.max(rect.width, minDropdownWidth);
     
     let left = rect.left;
@@ -144,7 +166,7 @@ export function SearchableCombobox<T extends Record<string, any>>({
       top: top !== -1 ? `${top}px` : 'auto',
       bottom: bottom !== 'auto' ? `${bottom}px` : 'auto',
       width: `${minWidth}px`,
-      maxHeight: `${maxHeight}px`,
+      maxHeight: `${Math.max(maxHeight, 120)}px`,
       zIndex: 300,
     });
   }, [isOpen, minDropdownWidth]);
@@ -225,13 +247,17 @@ export function SearchableCombobox<T extends Record<string, any>>({
     }
   };
 
-  const highlightText = (text: string, search: string) => {
-    if (!search || !text) return text;
-    const parts = String(text).split(new RegExp(`(${search})`, 'gi'));
+  const highlightText = (text: unknown, search: string) => {
+    if (text === null || text === undefined || text === '') return '';
+    const str = String(text);
+    const term = search.trim();
+    if (!term) return str;
+    // Escape ký tự đặc biệt: gõ "(", "+", "[" không được làm sập app.
+    const parts = str.split(new RegExp(`(${escapeRegExp(term)})`, 'gi'));
     return (
       <>
-        {parts.map((part, i) => 
-          part.toLowerCase() === search.toLowerCase() ? (
+        {parts.map((part, i) =>
+          part.toLowerCase() === term.toLowerCase() ? (
             <mark key={i} className="bg-transparent font-semibold text-primary">{part}</mark>
           ) : (
             part
@@ -240,6 +266,12 @@ export function SearchableCombobox<T extends Record<string, any>>({
       </>
     );
   };
+
+  // Cột có width cố định (px/%) giữ nguyên; cột không có width (hoặc '1fr') giãn hết phần còn lại.
+  const columnStyle = (col: ColumnDef): React.CSSProperties =>
+    col.width && col.width !== '1fr'
+      ? { width: col.width, flex: '0 0 auto' }
+      : { flex: '1 1 0', minWidth: 0 };
 
   const displayValue = isOpen ? query : value;
 
@@ -263,7 +295,8 @@ export function SearchableCombobox<T extends Record<string, any>>({
           className={inputClass}
           data-testid={testId}
           aria-expanded={isOpen}
-          aria-controls={isOpen ? "combobox-dropdown" : undefined}
+          aria-controls={isOpen ? listboxId : undefined}
+          role="combobox"
           aria-autocomplete="list"
           autoFocus={autoFocus}
         />
@@ -288,10 +321,11 @@ export function SearchableCombobox<T extends Record<string, any>>({
       {isOpen && createPortal(
         <div
           ref={dropdownRef}
+          id={listboxId}
           data-testid="combobox-dropdown"
           role="listbox"
           style={dropdownStyle}
-          className="bg-surface border border-line rounded-[6px] shadow-sm flex flex-col overflow-hidden"
+          className="bg-surface border border-line rounded-[6px] shadow-[0_10px_30px_-8px_rgb(15_23_42/0.25)] flex flex-col overflow-hidden"
         >
           {loading && results.length === 0 ? (
             <div className="flex items-center justify-center p-4 text-ink-muted text-[13px] gap-2">
@@ -322,7 +356,7 @@ export function SearchableCombobox<T extends Record<string, any>>({
                   <div
                     key={idx}
                     className={`px-2 flex items-center text-[12px] font-semibold text-ink-muted ${col.align === 'right' ? 'justify-end' : 'justify-start'}`}
-                    style={{ width: col.width || `${100 / columns.length}%` }}
+                    style={columnStyle(col)}
                   >
                     {col.header}
                   </div>
@@ -345,8 +379,8 @@ export function SearchableCombobox<T extends Record<string, any>>({
                   {columns.map((col, colIdx) => (
                     <div
                       key={colIdx}
-                      className={`px-2 flex items-center overflow-hidden whitespace-nowrap text-ellipsis ${col.align === 'right' ? 'justify-end' : 'justify-start'}`}
-                      style={{ width: col.width || `${100 / columns.length}%` }}
+                      className={`px-2 flex items-center overflow-hidden whitespace-nowrap text-ellipsis ${col.align === 'right' ? 'justify-end tabular-nums' : 'justify-start'}`}
+                      style={columnStyle(col)}
                     >
                       {col.format
                         ? col.format(row[col.field], row)

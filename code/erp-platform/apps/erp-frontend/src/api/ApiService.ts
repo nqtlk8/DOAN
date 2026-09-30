@@ -1,6 +1,8 @@
 import axios from 'axios';
 import axiosInstance from './axiosInstance';
 import type { components } from '@erp/api-contract';
+import type { GoodsReturnCreatePayload, GoodsReturnResponse } from '../types/documents';
+import type { DashboardMetricsDto, StockAlertSummaryDto } from '../types/analytics';
 
 export const ApiService = {
   Auth: {
@@ -26,11 +28,12 @@ export const ApiService = {
       axiosInstance.post('/api/v1/inventory/inbound/' + id + '/confirm').then((res: any) => res.data.data),
   },
   GoodsReturn: {
-    getAll: (): Promise<any[]> => axiosInstance.get('/api/v1/goods-returns').then((res: any) => res.data.data),
-    getById: (id: string): Promise<any> => axiosInstance.get('/api/v1/goods-returns/' + id).then((res: any) => res.data.data),
-    create: (payload: any): Promise<any> =>
+    getAll: (): Promise<GoodsReturnResponse[]> => axiosInstance.get('/api/v1/goods-returns').then((res: any) => res.data.data),
+    getById: (id: string): Promise<GoodsReturnResponse> => axiosInstance.get('/api/v1/goods-returns/' + id).then((res: any) => res.data.data),
+    /** Backend trả về UUID (chuỗi) của phiếu vừa tạo trong `data`. */
+    create: (payload: GoodsReturnCreatePayload): Promise<string> =>
       axiosInstance.post('/api/v1/goods-returns', payload).then((res: any) => res.data.data),
-    confirm: (id: string): Promise<any> =>
+    confirm: (id: string): Promise<void> =>
       axiosInstance.post('/api/v1/goods-returns/' + id + '/confirm').then((res: any) => res.data.data),
   },
   Catalog: {
@@ -69,12 +72,17 @@ export const ApiService = {
       axiosInstance.get(`/api/v1/customer-prices/${customerId}/product/${productId}`).then((res: any) => res.data.data),
   },
   Analytics: {
-    getDashboardMetrics: (branchId?: number, startDateKey?: number, endDateKey?: number) => {
+    getDashboardMetrics: (branchId?: number, startDateKey?: number, endDateKey?: number): Promise<DashboardMetricsDto> => {
       const params = new URLSearchParams();
       if (branchId) params.append('branchId', branchId.toString());
       if (startDateKey) params.append('startDateKey', startDateKey.toString());
       if (endDateKey) params.append('endDateKey', endDateKey.toString());
       return axiosInstance.get(`/api/v1/analytics/dashboard?${params.toString()}`).then((res: any) => res.data.data);
+    },
+    getStockAlerts: (branchId?: number): Promise<StockAlertSummaryDto> => {
+      const params = new URLSearchParams();
+      if (branchId) params.append('branchId', branchId.toString());
+      return axiosInstance.get(`/api/v1/analytics/stock-alerts?${params.toString()}`).then((res: any) => res.data.data);
     },
     exportExcel: (branchId?: number, startDateKey?: number, endDateKey?: number) => {
       const params = new URLSearchParams();

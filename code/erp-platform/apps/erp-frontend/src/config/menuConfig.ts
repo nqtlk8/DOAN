@@ -1,4 +1,4 @@
-export const allTabs = [
+﻿export const allTabs = [
   { id: 'ChucNang', label: 'Chức năng', roles: ['STAFF'] },
   { id: 'DanhMuc', label: 'Danh mục', roles: ['ADMIN', 'STAFF'] },
   { id: 'CongNo', label: 'Công nợ', roles: ['ADMIN', 'STAFF'] },

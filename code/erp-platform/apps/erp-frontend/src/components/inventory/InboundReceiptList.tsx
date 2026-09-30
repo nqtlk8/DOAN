@@ -1,83 +1,80 @@
-import React, { useState } from 'react';
+import React, { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ApiService } from '../../api/ApiService';
 import { DataState } from '../../shared/components/DataState/DataState';
-import { formatCurrency } from '../../shared/utils/format';
+import { StatusBadge } from '../../shared/components/StatusBadge';
+import { formatDateTime, formatNumber } from '../../shared/utils/format';
+import type { InboundReceiptDto, SupplierDto } from '../../types/documents';
 
 interface InboundReceiptListProps {
   onRowDoubleClick?: (id: string) => void;
 }
 
+/**
+ * Danh sách phiếu nhập. API chỉ trả supplierId và lines (không có tên NCC, không có tổng tiền)
+ * → tra tên NCC từ danh mục và tự tính tổng = Σ số lượng × giá nhập.
+ */
 export const InboundReceiptList: React.FC<InboundReceiptListProps> = ({ onRowDoubleClick }) => {
-  const { data: response, isLoading, isError, error, refetch } = useQuery({
-    queryKey: ['inboundReceipts'],
+  const { data: receipts = [], isLoading, isError, error, refetch } = useQuery<InboundReceiptDto[]>({
+    queryKey: ['inbound-receipts'],
     queryFn: () => ApiService.InboundReceipt.getAll(),
   });
+  const { data: suppliers = [] } = useQuery<SupplierDto[]>({
+    queryKey: ['suppliers'],
+    queryFn: () => ApiService.Catalog.getSuppliers(),
+  });
 
-  const receipts = response || [];
+  const supplierName = useMemo(() => {
+    const map = new Map(suppliers.map((s) => [String(s.id), s.name ?? '']));
+    return (id?: string) => (id ? map.get(String(id)) ?? '—' : '—');
+  }, [suppliers]);
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'CONFIRMED':
-        return 'bg-primary/10 text-primary-dark border-primary-soft';
-      case 'DRAFT':
-        return 'bg-amber-50 text-amber-700 border-amber-200';
-      case 'CANCELLED':
-        return 'bg-danger-soft text-danger border-line';
-      default:
-        return 'bg-slate-50 text-slate-700 border-slate-200';
-    }
-  };
-
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'CONFIRMED': return 'Đã xác nhận';
-      case 'DRAFT': return 'Nháp';
-      case 'CANCELLED': return 'Đã hủy';
-      default: return status;
-    }
-  };
+  const total = (r: InboundReceiptDto) =>
+    (r.lines ?? []).reduce((s, l) => s + (Number(l.quantity) || 0) * (Number(l.unitCost) || 0), 0);
 
   return (
-    <div className="h-full bg-surface flex flex-col">
+    <div className="h-full bg-surface flex flex-col card overflow-hidden">
       <DataState
         isLoading={isLoading}
         isError={isError}
         error={error}
         onRetry={refetch}
-        
-        isEmpty={receipts.length === 0 && !isLoading}
+        loadingType="table"
+        isEmpty={receipts.length === 0}
+        emptyTitle="Chưa có phiếu nhập"
+        emptyMessage="Các phiếu nhập hàng đã lưu sẽ hiển thị ở đây."
       >
         <div className="flex-1 overflow-auto">
-          <table className="w-full erp-table">
-            <thead>
+          <table className="erp-table">
+            <thead className="sticky top-0">
               <tr>
                 <th className="w-12 text-center">STT</th>
                 <th>Số phiếu</th>
                 <th>Ngày tạo</th>
                 <th>Nhà cung cấp</th>
-                <th className="text-right">Tổng tiền</th>
-                <th className="text-center w-32">Trạng thái</th>
+                <th className="num">Tổng tiền</th>
+                <th className="w-32 text-center">Trạng thái</th>
+                <th>Ghi chú</th>
               </tr>
             </thead>
             <tbody>
-              {receipts.map((receipt: any, index: number) => (
+              {receipts.map((r, index) => (
                 <tr
-                  key={receipt.id}
-                  className="hover:bg-slate-50 cursor-pointer"
+                  key={r.id}
+                  className="cursor-pointer"
                   data-testid="inbound-list-row"
-                  onDoubleClick={() => onRowDoubleClick?.(receipt.id)}
+                  title="Nhấp đúp để xem phiếu"
+                  onDoubleClick={() => r.id && onRowDoubleClick?.(r.id)}
                 >
-                  <td className="text-center text-slate-500">{index + 1}</td>
-                  <td className="font-medium text-primary">{receipt.receiptCode}</td>
-                  <td>{new Date(receipt.createdAt).toLocaleString('vi-VN')}</td>
-                  <td>{receipt.supplierName}</td>
-                  <td className="text-right font-medium">{formatCurrency(receipt.totalAmount || 0)}</td>
+                  <td className="text-center text-ink-subtle">{index + 1}</td>
+                  <td className="font-medium text-primary">{r.receiptCode || '—'}</td>
+                  <td>{formatDateTime(r.createdAt)}</td>
+                  <td>{supplierName(r.supplierId)}</td>
+                  <td className="num font-medium">{formatNumber(total(r))}</td>
                   <td className="text-center">
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${getStatusColor(receipt.status)}`}>
-                      {getStatusText(receipt.status)}
-                    </span>
+                    <StatusBadge status={r.status} />
                   </td>
+                  <td className="text-ink-muted truncate max-w-[240px]">{r.note}</td>
                 </tr>
               ))}
             </tbody>
