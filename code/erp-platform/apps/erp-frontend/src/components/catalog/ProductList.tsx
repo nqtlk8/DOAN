@@ -7,6 +7,7 @@ import { useAuth, ROLES } from '../../context/AuthContext';
 import { ListTable } from '../../shared/components/DataState/ListTable';
 import { ConfirmDialog } from '../../shared/components/Dialog/ConfirmDialog';
 import { StockMovementList } from '../inventory/StockMovementList';
+import { CategorySelect } from './CategorySelect';
 import { useProducts } from '../../hooks/useProducts';
 import { formatNumber, normalizeSearch } from '../../shared/utils/format';
 
@@ -57,7 +58,7 @@ export const ProductList: React.FC = () => {
       createMutation.mutate({
         code: formData.code || `PRD-${Date.now()}`,
         name: formData.name,
-        categoryId: formData.categoryId || 1,
+        categoryId: formData.categoryId,
         baseUnit: formData.baseUnit || 'CAI',
         isActive: formData.isActive ?? true,
       }, { onSuccess: handleCloseModal });
@@ -99,7 +100,7 @@ export const ProductList: React.FC = () => {
       />
 
       <ListTable
-        colCount={6}
+        colCount={7}
         isLoading={loading}
         isError={isError}
         error={error}
@@ -114,6 +115,7 @@ export const ProductList: React.FC = () => {
             <th className="w-16">ID</th>
             <th className="w-36">Mã (SKU)</th>
             <th>Tên sản phẩm</th>
+            <th className="w-48">Danh mục</th>
             <th className="num w-36">Đơn giá</th>
             <th className="w-24">Đơn vị</th>
             <th className="w-24 text-right">Thao tác</th>
@@ -125,6 +127,7 @@ export const ProductList: React.FC = () => {
             <td className="text-ink-subtle">{p.id}</td>
             <td>{p.code || '—'}</td>
             <td className="font-medium">{p.name}</td>
+            <td className="text-ink-muted">{p.categoryName || '—'}</td>
             <td className="num">{formatNumber(p.price ?? 0)}</td>
             <td>{p.baseUnit || '—'}</td>
             <td className="text-right whitespace-nowrap">
@@ -194,13 +197,13 @@ export const ProductList: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-ink-subtle mb-1">Danh mục (Category ID)</label>
-                <input
-                  type="number"
-                  value={formData.categoryId || ''}
-                  onChange={(e) => setFormData({ ...formData, categoryId: Number(e.target.value) })}
+                <label htmlFor="product-category" className="block text-xs font-medium text-ink-subtle mb-1">Danh mục *</label>
+                <CategorySelect
+                  id="product-category"
+                  value={formData.categoryId}
+                  onChange={(categoryId) => setFormData({ ...formData, categoryId })}
                   disabled={!isAdmin}
-                  className="w-full px-3 py-2 border border-line-strong rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-ink disabled:bg-slate-100 disabled:text-ink-subtle"
+                  className="w-full px-3 py-2 border border-line-strong rounded-lg bg-surface focus:outline-none focus:ring-2 focus:ring-primary text-ink disabled:bg-slate-100 disabled:text-ink-subtle"
                 />
               </div>
               {isEditing && formData.id && (
@@ -219,7 +222,7 @@ export const ProductList: React.FC = () => {
               {isAdmin && (
                 <button
                   onClick={handleSave}
-                  disabled={submitting || !formData.name}
+                  disabled={submitting || !formData.name || !formData.categoryId}
                   className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors disabled:opacity-50"
                 >
                   {submitting ? 'Đang lưu...' : 'Lưu lại'}

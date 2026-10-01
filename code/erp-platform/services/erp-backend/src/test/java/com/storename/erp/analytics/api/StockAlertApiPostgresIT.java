@@ -1,6 +1,7 @@
 package com.storename.erp.analytics.api;
 
 import com.storename.erp.common.security.JwtAuthDetails;
+import com.storename.erp.test.MasterDataFixtures;
 import com.storename.erp.test.PostgresIntegrationTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,8 +26,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * Kiểm thử end-to-end {@code GET /api/v1/analytics/stock-alerts} trên PostgreSQL thật.
  *
- * <p>Fixture đặt trên chi nhánh riêng {@link #BRANCH_ID} (không có seed) và dùng product seed V2
- * (id 1..4) để kiểm tra luôn phần làm giàu mã/tên sản phẩm qua {@code CatalogFacade}.
+ * <p>Fixture đặt trên chi nhánh riêng {@link #BRANCH_ID} và dùng 4 sản phẩm của {@link MasterDataFixtures}
+ * (SP 1..4 = id 9001..9004) để kiểm tra luôn phần làm giàu mã/tên sản phẩm qua {@code CatalogFacade}.
  * Kịch bản bao phủ đủ các quy tắc trong {@code docs/fix-dashboard/business-rules.md}:</p>
  * <ul>
  *   <li>SP 1: tồn -1, không cấu hình ngưỡng → NEGATIVE_STOCK (D-05).</li>
@@ -55,14 +56,15 @@ public class StockAlertApiPostgresIT extends PostgresIntegrationTest {
         jdbcTemplate.update(
                 "INSERT INTO branch (id, code, name, is_active, created_at, updated_at) VALUES (?, 'IT902', 'Chi nhánh IT 902', true, now(), now())",
                 BRANCH_ID);
+        MasterDataFixtures.ensureProducts(jdbcTemplate);
 
-        insertStockMovement(1L, -1, "SALE");
-        insertStockMovement(2L, 5, "INBOUND");
-        insertStockMovement(3L, 20, "INBOUND");
+        insertStockMovement(MasterDataFixtures.PRODUCT_1, -1, "SALE");
+        insertStockMovement(MasterDataFixtures.PRODUCT_2, 5, "INBOUND");
+        insertStockMovement(MasterDataFixtures.PRODUCT_3, 20, "INBOUND");
 
-        insertAlertConfig(2L, 10);
-        insertAlertConfig(3L, 10);
-        insertAlertConfig(4L, 5);
+        insertAlertConfig(MasterDataFixtures.PRODUCT_2, 10);
+        insertAlertConfig(MasterDataFixtures.PRODUCT_3, 10);
+        insertAlertConfig(MasterDataFixtures.PRODUCT_4, 5);
 
         mockMvc.perform(get("/api/v1/analytics/stock-alerts")
                         .param("branchId", String.valueOf(BRANCH_ID))
@@ -72,16 +74,16 @@ public class StockAlertApiPostgresIT extends PostgresIntegrationTest {
                 .andExpect(jsonPath("$.data.negativeCount").value(1))
                 .andExpect(jsonPath("$.data.lowStockCount").value(2))
                 .andExpect(jsonPath("$.data.alerts.length()").value(3))
-                .andExpect(jsonPath("$.data.alerts[0].productId").value(1))
+                .andExpect(jsonPath("$.data.alerts[0].productId").value(MasterDataFixtures.PRODUCT_1))
                 .andExpect(jsonPath("$.data.alerts[0].alertType").value("NEGATIVE_STOCK"))
                 .andExpect(jsonPath("$.data.alerts[0].currentQuantity").value(-1))
                 .andExpect(jsonPath("$.data.alerts[0].minQuantityThreshold").value(nullValue()))
-                .andExpect(jsonPath("$.data.alerts[0].productCode").value("SP-G001"))
+                .andExpect(jsonPath("$.data.alerts[0].productCode").value(MasterDataFixtures.productCode(1)))
                 .andExpect(jsonPath("$.data.alerts[0].branchName").value("Chi nhánh IT 902"))
-                .andExpect(jsonPath("$.data.alerts[1].productId").value(4))
+                .andExpect(jsonPath("$.data.alerts[1].productId").value(MasterDataFixtures.PRODUCT_4))
                 .andExpect(jsonPath("$.data.alerts[1].alertType").value("LOW_STOCK"))
                 .andExpect(jsonPath("$.data.alerts[1].currentQuantity").value(0))
-                .andExpect(jsonPath("$.data.alerts[2].productId").value(2))
+                .andExpect(jsonPath("$.data.alerts[2].productId").value(MasterDataFixtures.PRODUCT_2))
                 .andExpect(jsonPath("$.data.alerts[2].alertType").value("LOW_STOCK"))
                 .andExpect(jsonPath("$.data.alerts[2].currentQuantity").value(5))
                 .andExpect(jsonPath("$.data.alerts[2].minQuantityThreshold").value(10));

@@ -3,6 +3,7 @@ package com.storename.erp.analytics.infrastructure;
 import com.storename.erp.analytics.api.dto.ProductPerformanceDto;
 import com.storename.erp.analytics.domain.SalesTotals;
 import com.storename.erp.analytics.domain.StockLevel;
+import com.storename.erp.test.MasterDataFixtures;
 import com.storename.erp.test.PostgresIntegrationTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -21,14 +22,14 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Kiểm thử {@link AnalyticsDataAdapter} trên PostgreSQL thật (Testcontainers + Flyway V1..V21).
+ * Kiểm thử {@link AnalyticsDataAdapter} trên PostgreSQL thật (Testcontainers + Flyway {@code db/migration}).
  *
  * <p>Vì sao không dùng H2: lỗi 500 của dashboard ("could not determine data type of parameter $1")
  * chỉ xảy ra trên PostgreSQL khi tham số {@code branchId} là null không có kiểu; H2 bỏ qua lỗi này.</p>
  *
- * <p>DB test đã có seed V2/V13 (branch 1, 2; product 1..6; customer KH-001..003). Để assert số tuyệt đối,
- * mỗi test tạo dữ liệu trên một chi nhánh riêng ({@link #BRANCH_ID}) không có dữ liệu seed.
- * Với truy vấn "tất cả chi nhánh" (branchId = null), test so sánh chênh lệch trước/sau khi thêm fixture.
+ * <p>Flyway chỉ tạo schema (không seed). Mỗi test tự tạo sản phẩm ({@link MasterDataFixtures}) và dữ liệu
+ * trên một chi nhánh riêng ({@link #BRANCH_ID}). Với truy vấn "tất cả chi nhánh" (branchId = null), test so
+ * sánh chênh lệch trước/sau khi thêm fixture vì các test khác dùng chung container có thể để lại dữ liệu.
  * Lớp chạy trong {@code @Transactional} nên mọi fixture được rollback sau mỗi test.</p>
  */
 @SpringBootTest
@@ -36,12 +37,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 @Transactional
 public class AnalyticsDataAdapterPostgresIT extends PostgresIntegrationTest {
 
-    /** Chi nhánh chỉ dùng cho test, không có dữ liệu seed. */
+    /** Chi nhánh chỉ dùng cho test. */
     private static final long BRANCH_ID = 901L;
-    /** Product seed V2 (SP-G001), dùng lại để không phải tạo category/product. */
-    private static final long PRODUCT_ID = 1L;
-    /** Customer seed V2 (KH-001). */
-    private static final String SEED_CUSTOMER_ID = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11";
+    /** Sản phẩm fixture (MasterDataFixtures). */
+    private static final long PRODUCT_ID = MasterDataFixtures.PRODUCT_1;
+    /** Khách hàng của hóa đơn fixture (sales_invoice.customer_id không có FK nên không cần chèn customer). */
+    private static final String INVOICE_CUSTOMER_ID = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11";
 
     private static final LocalDateTime FROM_TS = LocalDateTime.of(2026, 9, 1, 0, 0);
     private static final LocalDateTime TO_TS = LocalDateTime.of(2026, 9, 28, 0, 0);
@@ -54,6 +55,7 @@ public class AnalyticsDataAdapterPostgresIT extends PostgresIntegrationTest {
 
     @BeforeEach
     void createTestBranch() {
+        MasterDataFixtures.ensureProducts(jdbcTemplate);
         jdbcTemplate.update(
                 "INSERT INTO branch (id, code, name, is_active, created_at, updated_at) VALUES (?, 'IT901', 'Chi nhánh IT 901', true, now(), now())",
                 BRANCH_ID);
@@ -61,7 +63,7 @@ public class AnalyticsDataAdapterPostgresIT extends PostgresIntegrationTest {
 
     @Test
     void salesQueries_shouldCountOnlyConfirmedInvoicesInPeriod_forBranchAndForAllBranches() {
-        // Mốc "tất cả chi nhánh" trước khi thêm fixture (DB có sẵn seed V13).
+        // Mốc "tất cả chi nhánh" trước khi thêm fixture.
         SalesTotals allBefore = analyticsDataAdapter.getSalesTotals(null, FROM_TS, TO_TS);
 
         // Hóa đơn CONFIRMED trong kỳ: 2 x 100 = 200 doanh thu, giá vốn 2 x 60 = 120.
@@ -143,7 +145,7 @@ public class AnalyticsDataAdapterPostgresIT extends PostgresIntegrationTest {
                 INSERT INTO sales_invoice (id, invoice_code, customer_id, branch_id, total_amount, previous_debt,
                     remaining_debt, status, payment_method, version, is_deleted, created_at, updated_at, confirmed_at)
                 VALUES (?, ?, ?::uuid, ?, ?, 0, 0, ?, 'CASH', 0, false, now(), now(), ?)
-                """, invoiceId, code, SEED_CUSTOMER_ID, BRANCH_ID, lineTotal, status, Timestamp.valueOf(confirmedAt));
+                """, invoiceId, code, INVOICE_CUSTOMER_ID, BRANCH_ID, lineTotal, status, Timestamp.valueOf(confirmedAt));
         jdbcTemplate.update("""
                 INSERT INTO sales_invoice_line (id, invoice_id, product_id, product_name, quantity, unit_price,
                     unit_cost, line_total, unit_of_measure, version, is_deleted, created_at, updated_at)

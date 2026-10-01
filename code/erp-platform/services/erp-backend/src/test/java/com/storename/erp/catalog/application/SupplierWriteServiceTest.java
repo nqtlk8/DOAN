@@ -46,7 +46,6 @@ public class SupplierWriteServiceTest {
         SupplierCreateDto dto = new SupplierCreateDto();
         dto.setCode("SUP-02");
         dto.setName("Supplier B");
-        dto.setBranchId(1L);
 
         when(supplierRepository.save(any(Supplier.class))).thenAnswer(i -> {
             Supplier s = i.getArgument(0);
@@ -59,7 +58,7 @@ public class SupplierWriteServiceTest {
         assertNotNull(result);
         assertEquals("SUP-02", result.getCode());
         assertEquals("Supplier B", result.getName());
-        assertEquals(1L, result.getBranchId());
+        assertTrue(result.isActive(), "Supplier mới tạo mặc định đang hoạt động");
         verify(supplierRepository).save(any(Supplier.class));
     }
 

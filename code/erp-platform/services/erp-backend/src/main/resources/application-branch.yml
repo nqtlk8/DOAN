@@ -11,7 +11,11 @@ spring:
   flyway:
     user: ${SPRING_FLYWAY_USER:erp_user}
     password: ${SPRING_FLYWAY_PASSWORD:erp_password}
+    # db/migration: schema chung (giống hệt ở mọi instance)
+    # db/migration-branch: quyền "mặc định chỉ đọc" cho user ứng dụng ở DB chi nhánh
     locations: classpath:db/migration,classpath:db/migration-branch
+    placeholders:
+      app_db_user: ${spring.datasource.username}
   jpa:
     hibernate:
       ddl-auto: validate

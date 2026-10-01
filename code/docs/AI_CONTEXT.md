@@ -57,12 +57,9 @@ Hệ thống ERP cho cửa hàng VLXD & thiết bị thông minh nhà.
 
 - ERP frontend: host 80.
 - HQ app: host 8080 -> container 8080.
-- TP1 app: host 8081 -> container 8080.
-- TP2 app: host 8082 -> container 8080.
-- TP1 Nginx: 81 -> 80.
-- TP2 Nginx: 82 -> 80.
-- HQ DB 5432, TP1 DB 5433, TP2 DB 5434.
-- Redis HQ 6379.
+- HQ app: 127.0.0.1:8080 -> 8080. Branch apps: no host port (reach them through branch nginx).
+- TP1 Nginx: 81 -> 80. TP2 Nginx: 82 -> 80 (compose profile `tp2`, toggle with `scripts/branch.sh on|off tp2`).
+- DBs on 127.0.0.1 only: HQ 5432, TP1 5433, TP2 5434. Redis: no host port.
 
 ## Current security facts
 
@@ -71,14 +68,16 @@ Hệ thống ERP cho cửa hàng VLXD & thiết bị thông minh nhà.
 - Role system consists of ONLY `ADMIN` and `STAFF`.
 - Phân quyền theo Chi nhánh (`Branch-Level Security`) được thực hiện ngay tại lớp Controller/Service, sử dụng `AuthUtils.getBranchIdOrNull()`. Nhân viên chi nhánh A không thể truy vấn hoặc thao tác trên dữ liệu chi nhánh B.
 - HQ Analytics dynamically aggregates some metrics, but snapshot tables (`stock_on_hand`, `receivable_debt`) are replicated from Branch to HQ with a row filter (`branch_id = X`) to support reconciliation and reporting.
-- Branch master tables are restricted by `V9__branch_db_security.sql` for `erp_user` in Docker runtime.
+- Apps connect as `erp_app` (non-superuser). On branch DBs `db/migration-branch/R__branch_db_security.sql` makes every table read-only for `erp_app` except branch-owned tables. Flyway runs as `erp_user` (owner).
+- Supplier is shared master data (no `branch_id`): created only at HQ by ADMIN, replicated to every branch; staff see all active suppliers.
+- Flyway has no seed data. HQ-only reference data (branches TP1/TP2, roles, admin/staff accounts) is in `db/migration-hq/R__reference_data.sql`; master data reaches branches via replication with `copy_data = true`. Demo data: `scripts/seed-demo.py` (via API).
 
 ## Source of truth
 
 When answering questions about current behavior, inspect:
 
 1. Java source.
-2. SQL migrations (`V1` to `V9`).
-3. Sprints Documentation (`docs/sprints/sprint-1-to-23`).
+2. SQL migrations (`db/migration` V1..V8, `db/migration-hq`, `db/migration-branch`).
+3. Architecture docs (`docs/architecture/*`, `docs/testing/TEST_STRATEGY.md`). Old sprint notes are archived in `docs/to_remove/` (history only, not source of truth).
 4. Docker Compose / Nginx.
 5. Unit & Integration Tests (cực kỳ đầy đủ, bao gồm E2E flow).

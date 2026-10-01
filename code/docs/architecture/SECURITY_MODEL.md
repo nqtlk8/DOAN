@@ -86,19 +86,18 @@ Branch Nginx có whitelist IP nội bộ/VPN trước khi proxy vào Branch app.
 
 ### Tầng database
 
-Branch migration:
+Role database (tạo bởi `docker/postgres/init/01-roles.sh` khi volume mới tạo):
 
-```sql
-REVOKE INSERT, UPDATE, DELETE
-ON TABLE branch, category, product, price_list, customer
-FROM erp_user;
+| Role | Dùng cho | Ghi chú |
+|---|---|---|
+| `erp_user` (`POSTGRES_USER`) | Flyway, script replication | superuser, chủ sở hữu bảng |
+| `erp_app` (`APP_DB_USER`) | datasource của Spring Boot (HQ và chi nhánh) | không phải superuser; DML qua `ALTER DEFAULT PRIVILEGES` |
+| `erp_repl` (`REPL_DB_USER`) | chuỗi kết nối subscription | REPLICATION + SELECT |
 
-GRANT SELECT
-ON TABLE branch, category, product, price_list, customer
-TO erp_user;
-```
+Ở chi nhánh, `db/migration-branch/R__branch_db_security.sql` (chạy lại sau mỗi lần migrate) áp nguyên tắc **mặc định chỉ đọc**:
+REVOKE INSERT/UPDATE/DELETE/TRUNCATE trên mọi bảng khỏi `erp_app`, rồi chỉ GRANT lại cho bảng chi nhánh sở hữu (giao dịch, tồn, công nợ, idempotency). Bảng thêm sau này mặc định chỉ đọc. Nếu datasource là superuser/chủ bảng, migration in WARNING vì REVOKE không có tác dụng với role đó.
 
-Lưu ý: `docker-compose.yml` hiện chạy application datasource với `erp_user`, trong khi application YAML mặc định cho local đang ghi `app_user`; đây là một khác biệt môi trường, không được xem như cùng một cấu hình.
+Trước 2026-10-01, app chạy bằng `erp_user` (superuser) nên REVOKE trong `V9__branch_db_security.sql` cũ không có tác dụng.
 
 ## 7. Password
 

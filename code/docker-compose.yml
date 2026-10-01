@@ -1,77 +1,77 @@
+# ============================================================================
+# ERP — môi trường chạy HQ + chi nhánh (logical replication giữa các Postgres).
+#
+# Chạy HQ + TP1 (mặc định):        docker compose up -d --build
+# Bật thêm TP2:                    scripts/branch.sh on tp2      (= compose --profile tp2 up + bật subscription)
+# Tắt TP2:                         scripts/branch.sh off tp2     (= tắt subscription ở HQ + dừng container)
+# Khởi tạo từ đầu (DB trống):      scripts/bootstrap.sh          (xem docs/architecture/REPLICATION_RUNBOOK.md)
+#
+# Mật khẩu/user lấy từ file .env (mẫu: .env.example). Không có .env thì dùng giá trị mặc định bên dưới.
+# Role DB (docker/postgres/init/01-roles.sh, chạy khi volume mới tạo):
+#   POSTGRES_USER  — superuser, chủ bảng: Flyway + script replication
+#   APP_DB_USER    — role ứng dụng (không superuser). Ở chi nhánh chỉ được ghi bảng giao dịch.
+#   REPL_DB_USER   — role subscription dùng để đọc publisher
+# ============================================================================
+
+x-db-env: &db-env
+  POSTGRES_USER: ${POSTGRES_USER:-erp_user}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-erp_password}
+  APP_DB_USER: ${APP_DB_USER:-erp_app}
+  APP_DB_PASSWORD: ${APP_DB_PASSWORD:-erp_app_password}
+  REPL_DB_USER: ${REPL_DB_USER:-erp_repl}
+  REPL_DB_PASSWORD: ${REPL_DB_PASSWORD:-erp_repl_password}
+
+x-db-init: &db-init ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+
+# Backend build một lần, các service dùng chung image erp-backend:local.
+x-backend-build: &backend-build
+  context: ./erp-platform/services/erp-backend
+  dockerfile: Dockerfile
+
+x-frontend-build: &frontend-build
+  context: ./erp-platform
+  dockerfile: ./apps/erp-frontend/Dockerfile
+
+# Biến môi trường chung của app Spring Boot (role ứng dụng + role Flyway).
+x-app-db-env: &app-db-env
+  SPRING_DATASOURCE_USERNAME: ${APP_DB_USER:-erp_app}
+  SPRING_DATASOURCE_PASSWORD: ${APP_DB_PASSWORD:-erp_app_password}
+  SPRING_FLYWAY_USER: ${POSTGRES_USER:-erp_user}
+  SPRING_FLYWAY_PASSWORD: ${POSTGRES_PASSWORD:-erp_password}
 
 services:
+  # ---------------------------------------------------------------- HQ
   hq-db:
     image: postgres:15
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: erp_user
-      POSTGRES_PASSWORD: erp_password
+      <<: *db-env
       POSTGRES_DB: erp_hq
+    # HQ vừa là publisher (master data -> mọi chi nhánh) vừa là subscriber (giao dịch <- mọi chi nhánh):
+    #  - mỗi chi nhánh: 1 slot + 1 walsender ở HQ, 1 apply worker trên HQ (+ worker copy ban đầu)
+    #  - max_slot_wal_keep_size: chặn WAL phình vô hạn khi một chi nhánh tắt lâu ngày
+    command: >
+      postgres
+      -c wal_level=logical
+      -c max_replication_slots=16
+      -c max_wal_senders=16
+      -c max_logical_replication_workers=8
+      -c max_worker_processes=16
+      -c max_slot_wal_keep_size=2GB
     ports:
-      - "5432:5432"
-    command: postgres -c wal_level=logical -c max_replication_slots=10 -c max_wal_senders=10
+      - "127.0.0.1:5432:5432"
     volumes:
       - hq_db_data:/var/lib/postgresql/data
+      - *db-init
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U erp_user -d erp_hq"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d erp_hq"]
       interval: 5s
       timeout: 5s
-      retries: 5
-
-  branch-tp1-db:
-    image: postgres:15
-    environment:
-      POSTGRES_USER: erp_user
-      POSTGRES_PASSWORD: erp_password
-      POSTGRES_DB: erp_branch_tp1
-    ports:
-      - "5433:5432"
-    command: postgres -c wal_level=logical
-    volumes:
-      - branch_tp1_db_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U erp_user -d erp_branch_tp1"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
-  branch-tp2-db:
-    image: postgres:15
-    environment:
-      POSTGRES_USER: erp_user
-      POSTGRES_PASSWORD: erp_password
-      POSTGRES_DB: erp_branch_tp2
-    ports:
-      - "5434:5432"
-    command: postgres -c wal_level=logical
-    volumes:
-      - branch_tp2_db_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U erp_user -d erp_branch_tp2"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
-  branch-tp3-db:
-    image: postgres:15
-    environment:
-      POSTGRES_USER: erp_user
-      POSTGRES_PASSWORD: erp_password
-      POSTGRES_DB: erp_branch_tp3
-    ports:
-      - "5435:5432"
-    command: postgres -c wal_level=logical
-    volumes:
-      - branch_tp3_db_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U erp_user -d erp_branch_tp3"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
+      retries: 10
 
   redis-hq:
     image: redis:7-alpine
-    ports:
-      - "6379:6379"
+    restart: unless-stopped
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -79,20 +79,18 @@ services:
       retries: 5
 
   hq-app:
-    build:
-      context: ./erp-platform/services/erp-backend
-      dockerfile: Dockerfile
-    image: code-hq-app
+    build: *backend-build
+    image: erp-backend:local
+    restart: unless-stopped
     environment:
+      <<: *app-db-env
       SPRING_PROFILES_ACTIVE: hq
       SPRING_DATASOURCE_URL: jdbc:postgresql://hq-db:5432/erp_hq
-      SPRING_DATASOURCE_USERNAME: erp_user
-      SPRING_DATASOURCE_PASSWORD: erp_password
       REDIS_HOST: redis-hq
       JWT_PRIVATE_KEY_PATH: file:/app/secrets/private_key.pem
       JWT_PUBLIC_KEY_PATH: file:/app/secrets/public_key.pem
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     depends_on:
       hq-db:
         condition: service_healthy
@@ -101,72 +99,59 @@ services:
     volumes:
       - ./secrets:/app/secrets:ro
 
-  branch-tp1-app:
-    build:
-      context: ./erp-platform/services/erp-backend
-      dockerfile: Dockerfile
+  # Frontend HQ (ADMIN): mọi API -> hq-app
+  erp-frontend:
+    build: *frontend-build
+    image: erp-frontend:local
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - hq-app
+
+  # ---------------------------------------------------------------- Chi nhánh TP1 (luôn chạy)
+  branch-tp1-db:
+    image: postgres:15
+    restart: unless-stopped
     environment:
+      <<: *db-env
+      POSTGRES_DB: erp_branch_tp1
+    command: postgres -c wal_level=logical -c max_slot_wal_keep_size=1GB
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - branch_tp1_db_data:/var/lib/postgresql/data
+      - *db-init
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d erp_branch_tp1"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  branch-tp1-app:
+    build: *backend-build
+    image: erp-backend:local
+    restart: unless-stopped
+    environment:
+      <<: *app-db-env
       SPRING_PROFILES_ACTIVE: branch
       INSTANCE_ROLE: BRANCH
-      # Id SO cua branch trong bang branch (TP1 = 1), phai khop claim branchId cua JWT
+      # Id SỐ của chi nhánh trong bảng branch (TP1 = 1, xem db/migration-hq/R__reference_data.sql),
+      # phải khớp claim branchId của JWT.
       BRANCH_ID: "1"
       SPRING_DATASOURCE_URL: jdbc:postgresql://branch-tp1-db:5432/erp_branch_tp1
-      SPRING_DATASOURCE_USERNAME: erp_user
-      SPRING_DATASOURCE_PASSWORD: erp_password
-      SPRING_FLYWAY_USER: erp_user
-      SPRING_FLYWAY_PASSWORD: erp_password
       JWT_PUBLIC_KEY_PATH: file:/app/secrets/public_key.pem
-    ports:
-      - "8081:8080"
     depends_on:
       branch-tp1-db:
         condition: service_healthy
     volumes:
       - ./secrets/public_key.pem:/app/secrets/public_key.pem:ro
 
-  # No need for tp2-app right now, we can skip it or just configure db.
-
-
-  branch-tp2-app:
-    build: 
-      context: ./erp-platform/services/erp-backend
-      dockerfile: Dockerfile
-    # ports:
-    #   - "8082:8080"
-    environment:
-      - SPRING_PROFILES_ACTIVE=branch
-      - INSTANCE_ROLE=BRANCH
-      # Id SO cua branch trong bang branch (TP2 = 2), phai khop claim branchId cua JWT
-      - BRANCH_ID=2
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://branch-tp2-db:5432/erp_branch_tp2
-      - SPRING_DATASOURCE_USERNAME=erp_user
-      - SPRING_DATASOURCE_PASSWORD=erp_password
-      - SPRING_FLYWAY_USER=erp_user
-      - SPRING_FLYWAY_PASSWORD=erp_password
-      - JWT_PUBLIC_KEY_PATH=file:/app/secrets/public_key.pem
-    depends_on:
-      branch-tp2-db:
-        condition: service_healthy
-    volumes:
-      - ./secrets/public_key.pem:/app/secrets/public_key.pem:ro
-
-  # Frontend HQ (ADMIN): moi API -> hq-app
-  erp-frontend:
-    build: 
-      context: ./erp-platform
-      dockerfile: ./apps/erp-frontend/Dockerfile
-    image: code-erp-frontend
-    ports:
-      - "80:80"
-    depends_on:
-      - hq-app
-
-  # Frontend + gateway cua chi nhanh TP1 (STAFF): giao dich -> branch-tp1-app, auth/ghi master -> hq-app
+  # Frontend + gateway TP1 (STAFF): giao dịch + đọc master -> branch-tp1-app; đăng nhập/ghi master -> hq-app
   branch-tp1-nginx:
-    build:
-      context: ./erp-platform
-      dockerfile: ./apps/erp-frontend/Dockerfile
-    image: code-erp-frontend
+    build: *frontend-build
+    image: erp-frontend:local
+    restart: unless-stopped
     ports:
       - "81:80"
     volumes:
@@ -174,13 +159,53 @@ services:
     depends_on:
       - branch-tp1-app
       - hq-app
-      
-  # Frontend + gateway cua chi nhanh TP2 (STAFF): giao dich -> branch-tp2-app, auth/ghi master -> hq-app
+
+  # ---------------------------------------------------------------- Chi nhánh TP2 (chỉ bật khi cần)
+  # Bật/tắt bằng scripts/branch.sh on|off tp2 — script đồng thời bật/tắt subscription
+  # sub_hq_from_tp2 ở HQ, tránh lỗi "could not translate host name branch-tp2-db" khi TP2 tắt.
+  branch-tp2-db:
+    image: postgres:15
+    profiles: ["tp2"]
+    restart: unless-stopped
+    environment:
+      <<: *db-env
+      POSTGRES_DB: erp_branch_tp2
+    command: postgres -c wal_level=logical -c max_slot_wal_keep_size=1GB
+    ports:
+      - "127.0.0.1:5434:5432"
+    volumes:
+      - branch_tp2_db_data:/var/lib/postgresql/data
+      - *db-init
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d erp_branch_tp2"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  branch-tp2-app:
+    build: *backend-build
+    image: erp-backend:local
+    profiles: ["tp2"]
+    restart: unless-stopped
+    environment:
+      <<: *app-db-env
+      SPRING_PROFILES_ACTIVE: branch
+      INSTANCE_ROLE: BRANCH
+      # TP2 = 2 (db/migration-hq/R__reference_data.sql)
+      BRANCH_ID: "2"
+      SPRING_DATASOURCE_URL: jdbc:postgresql://branch-tp2-db:5432/erp_branch_tp2
+      JWT_PUBLIC_KEY_PATH: file:/app/secrets/public_key.pem
+    depends_on:
+      branch-tp2-db:
+        condition: service_healthy
+    volumes:
+      - ./secrets/public_key.pem:/app/secrets/public_key.pem:ro
+
   branch-tp2-nginx:
-    build:
-      context: ./erp-platform
-      dockerfile: ./apps/erp-frontend/Dockerfile
-    image: code-erp-frontend
+    build: *frontend-build
+    image: erp-frontend:local
+    profiles: ["tp2"]
+    restart: unless-stopped
     ports:
       - "82:80"
     volumes:
@@ -189,10 +214,12 @@ services:
       - branch-tp2-app
       - hq-app
 
+  # ---------------------------------------------------------------- Web công khai
   web-public:
     build:
       context: ./erp-platform
       dockerfile: ./apps/web-public/Dockerfile
+    restart: unless-stopped
     ports:
       - "3000:3000"
     depends_on:
@@ -202,4 +229,3 @@ volumes:
   hq_db_data:
   branch_tp1_db_data:
   branch_tp2_db_data:
-  branch_tp3_db_data:

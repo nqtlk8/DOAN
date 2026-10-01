@@ -164,3 +164,32 @@ Thêm một ràng buộc: seed V2/V13 chèn dữ liệu `branch_id = 1` (cùng U
 - Tăng lượng WAL do 2 bảng snapshot được UPDATE thường xuyên; chấp nhận ở quy mô hiện tại.
 - Dữ liệu ở HQ là nhất quán cuối (eventual consistency) theo độ trễ replication.
 - ⚠️ BREAKING so với Sprint 6: quy trình bật replication cho chi nhánh có thêm bước chạy `enable-snapshot-replication.sh`.
+
+## ADR-14 - Flyway không seed, master data copy từ HQ, khóa ghi ở DB chi nhánh (2026-10-01)
+
+### Context
+- Nhân viên chi nhánh không thấy nhà cung cấp do admin tạo: API đọc ở chi nhánh lọc `supplier.branch_id = <chi nhánh>`, trong khi supplier do HQ tạo có `branch_id = NULL`.
+- Chuỗi Flyway V1..V21 trộn schema, seed (V2, V13) và vá dữ liệu. Seed chạy ở mọi instance nên master data ở chi nhánh "có sẵn" nhờ seed, replication HQ → chi nhánh dùng `copy_data = false`, và DB TP2 chứa giao dịch của TP1.
+- App và Flyway dùng `erp_user` (superuser) nên REVOKE trong `V9__branch_db_security.sql` không có tác dụng.
+- Tắt container chi nhánh làm HQ log lỗi `could not translate host name "branch-tp2-db"` liên tục vì subscription ở HQ vẫn bật.
+
+### Decision
+- Supplier là master data dùng chung: bỏ `supplier.branch_id`; STAFF thấy mọi supplier đang hoạt động, ADMIN thấy tất cả.
+- Gộp Flyway thành `db/migration` V1..V8 (mỗi module một file, chỉ DDL), `db/migration-hq/R__reference_data.sql` (chi nhánh, vai trò, tài khoản mặc định; chỉ HQ), `db/migration-branch/R__branch_db_security.sql` (quyền; chỉ chi nhánh). Không seed. Dữ liệu demo: `scripts/seed-demo.py` qua API.
+- Replication master data dùng `copy_data = true`; một publication `pub_hq_master` cho mọi chi nhánh; danh sách bảng ở `scripts/replication-tables.conf`; `setup-replication.sh` idempotent (`SET TABLE` + `REFRESH`). Thêm `receivable_debt_movement` vào chiều chi nhánh → HQ.
+- Role DB tách: `erp_user` (owner, Flyway), `erp_app` (app, không superuser), `erp_repl` (subscription). Chi nhánh áp "mặc định chỉ đọc" cho `erp_app` trừ bảng do chi nhánh sở hữu; repeatable migration chạy lại mỗi lần migrate (`${flyway:timestamp}`) nên bảng mới cũng bị khóa.
+- TP2 nằm trong compose profile; `scripts/branch.sh on|off` bật/tắt subscription ở HQ cùng với container.
+
+### Rejected alternatives
+- **Giữ `branch_id` và đọc `branch_id IS NULL OR = :b` (như customer):** bỏ, vì không có nghiệp vụ NCC riêng chi nhánh và người dùng chốt dùng chung.
+- **Giữ seed nhưng tách thành migration riêng:** bỏ, vì seed chạy ở mọi instance vẫn xung đột với `copy_data = true`; người dùng không cần seed.
+- **Baseline Flyway trên DB cũ thay vì tạo lại volume:** bỏ, dữ liệu hiện có chỉ là dữ liệu test; baseline dễ để lệch schema.
+- **Reference data chèn ở cả HQ và chi nhánh:** bỏ, vì lần copy đầu sẽ lỗi trùng khóa.
+- **Hard-code danh sách bảng master cần REVOKE:** bỏ, bảng thêm sau sẽ quên khóa; dùng "mặc định chỉ đọc" + danh sách bảng được ghi.
+
+### Trade-off
+- ⚠️ BREAKING: DB cũ không dùng tiếp được (Flyway lệch version/checksum) — phải `docker compose down -v` và `scripts/bootstrap.sh`. Cần `mvn clean` khi chạy trong IDE.
+- ⚠️ BREAKING: API supplier bỏ trường `branchId`; trường `active` trong response đổi thành `isActive` (khớp kiểu frontend).
+- Thêm bảng do chi nhánh ghi phải cập nhật danh sách trong `R__branch_db_security.sql`, nếu không app chi nhánh báo `permission denied`.
+- Chi nhánh tắt lâu: WAL ở HQ bị giữ tới `max_slot_wal_keep_size` (2GB); vượt ngưỡng phải thiết lập lại chi nhánh (`--resync-master`).
+

@@ -49,7 +49,7 @@
 
 # DANH MỤC HÌNH
 
-> Danh mục dưới đây được sinh trực tiếp (đối chiếu tự động bằng script) từ toàn bộ caption "*Hình X-Y: …*" xuất hiện trong Chương 1–5, đảm bảo khớp 100% với tiêu đề tương ứng trong file `diagram-mermaid.md` — xem xác nhận tại Mục 3.7.1, tiêu chí 6.
+> Danh mục dưới đây được sinh trực tiếp (đối chiếu tự động bằng script) từ toàn bộ caption "*Hình X-Y: …*" xuất hiện trong Chương 1–5 — xem xác nhận tại Mục 3.7.1, tiêu chí 6. Danh mục gồm **hai nhóm**: (1) **Hình 2-1 → 3-32** (37 hình) là sơ đồ Mermaid, khớp 100% với tiêu đề tương ứng trong file `diagram-mermaid.md` và đã qua kiểm chứng cú pháp tự động bằng `mmdc`; (2) **Hình 4-1 → 4-14** (14 hình, Mục 4.10) là ảnh chụp màn hình thực tế của giao diện đang chạy, do người thực hiện đề tài tự bổ sung — không phải mã Mermaid nên không xuất hiện trong `diagram-mermaid.md` và không thuộc phạm vi kiểm chứng bằng `mmdc` (xem ghi chú phạm vi đầu Mục 4.10).
 
 - Hình 2-1: Kiến trúc tổng thể HQ + Branch
 - Hình 2-2: Kiến trúc Module Backend
@@ -88,6 +88,20 @@
 - Hình 3-30: Class Diagram mức Design-Level — Cụm Identity & CRM
 - Hình 3-31: Class Diagram mức Design-Level — Cụm Catalog & Inventory
 - Hình 3-32: Class Diagram mức Design-Level — Cụm Order
+- Hình 4-1: Giao diện đăng nhập (UC01)
+- Hình 4-2: Giao diện quản lý tài khoản và phân quyền (UC02)
+- Hình 4-3: Giao diện quản lý chi nhánh (UC03)
+- Hình 4-4: Giao diện quản lý sản phẩm và danh mục (UC04)
+- Hình 4-5: Giao diện quản lý nhà cung cấp (UC05)
+- Hình 4-6: Giao diện quản lý bảng giá (UC06)
+- Hình 4-7: Giao diện Dashboard báo cáo tổng hợp (UC07)
+- Hình 4-8: Giao diện quản lý khách hàng (UC08)
+- Hình 4-9: Giao diện tra cứu giá riêng theo khách hàng (UC09)
+- Hình 4-10: Giao diện lập hóa đơn bán hàng (UC10)
+- Hình 4-11: Giao diện lập phiếu trả hàng (UC11)
+- Hình 4-12: Giao diện lập phiếu nhập kho (UC12)
+- Hình 4-13: Giao diện tra cứu tồn kho (UC13)
+- Hình 4-14: Giao diện theo dõi công nợ (UC14)
 
 ---
 
@@ -1677,7 +1691,7 @@ Mục này rà soát tường minh toàn bộ Chương 2–3 theo đúng 6 tiêu
 | 3 | Tên lớp/thuộc tính/thực thể/field nhất quán xuyên suốt List of Object Classes → Detailed Class Description → Analysis/Design Class Diagram → Entity/Attribute table → ERD → Physical DB | ✅ Đạt | Bảng rà soát tên gọi, Mục 3.7.4 |
 | 4 | Đánh số lớp/thực thể nhất quán qua các sơ đồ (VD "6. Customer" phải là số 6 ở mọi sơ đồ có đánh số) | ✅ Đạt | Alias `class X["N. X"]` áp dụng thống nhất theo STT Bảng 3-22 trên Hình 3-20, 3-29, 3-30, 3-31, 3-32 |
 | 5 | Tiêu đề chương khớp Mục 1.6; số mục không trùng lặp | ✅ Đạt | Đối chiếu trực tiếp, Mục 3.7.5 |
-| 6 | Mỗi hình có caption "Hình X-Y: …", mỗi bảng có caption "Bảng X-Y: …", đồng bộ với Danh mục Hình/Danh mục Bảng ở đầu báo cáo | ✅ Đạt | Danh mục Hình và Danh mục Bảng (đầu báo cáo) được sinh trực tiếp từ toàn bộ caption trong Chương 1–5 bằng đối chiếu chéo (grep) — xem ghi chú cuối Danh mục |
+| 6 | Mỗi hình có caption "Hình X-Y: …", mỗi bảng có caption "Bảng X-Y: …", đồng bộ với Danh mục Hình/Danh mục Bảng ở đầu báo cáo | ✅ Đạt | Danh mục Hình và Danh mục Bảng (đầu báo cáo) được sinh trực tiếp từ toàn bộ caption trong Chương 1–5 bằng đối chiếu chéo (grep) — xem ghi chú cuối Danh mục. Riêng nhóm Hình 4-1 → 4-14 (Mục 4.10, ảnh chụp giao diện thực tế) đồng bộ tên/caption với Danh mục Hình như mọi Hình khác, nhưng — do là ảnh thật, không phải mã Mermaid — nằm ngoài phạm vi đối chiếu bằng `mmdc` áp dụng cho 37 Hình còn lại; đã ghi chú rõ ràng, minh bạch ngay đầu Mục 4.10, không gộp lẫn hai loại bằng chứng khác bản chất |
 
 *Bảng 3-28: Checklist nhất quán tổng quan*
 
@@ -2002,6 +2016,121 @@ Hệ thống được kiểm thử theo mô hình kim tự tháp 4 cấp độ, 
 **Quy tắc "Circuit Breaker" khi gỡ lỗi:** nếu một lỗi test lặp lại 2 lần liên tiếp, phải dừng ngay để tiến hành phân tích nguyên nhân gốc (Root Cause Analysis), xác định lỗi thuộc lớp `syntax`, `logic`, `config-env` hay `data-state` — cấm "try and error" mù quáng.
 
 **Tình trạng bao phủ hiện tại** (theo `TEST_STRATEGY.md` và `coverage-matrix.md`): cả 4 cấp độ đều đã được thiết lập đầy đủ cho toàn bộ các module nghiệp vụ chính — Identity & Auth, Catalog, CRM, Inventory, Order, Analytics — bao gồm cả việc kiểm thử riêng biệt Conditional Bean Context giữa hai vai trò HQ và Branch (`ArchitectureV3HqTest`, `ArchitectureV3BranchTest`).
+
+---
+
+## 4.10. Minh họa giao diện hệ thống (ảnh chụp thực tế)
+
+> **Ghi chú phạm vi:** Đề tài tập trung phân tích – thiết kế – triển khai ở tầng **backend** (xem Mục 1.4.2); kiến trúc, component và state management của front-end **không** thuộc phạm vi trình bày chi tiết của báo cáo này. Mục này chỉ bổ sung **ảnh chụp màn hình thực tế** của giao diện đang chạy trên hệ thống, nhằm minh chứng trực quan rằng các nghiệp vụ đã đặc tả ở Use Case Specification (Mục 3.3) và triển khai ở Mục 4.5–4.8 hoạt động đúng trên sản phẩm hoàn chỉnh — không đi sâu phân tích thiết kế giao diện.
+>
+> **Khác biệt với các Hình khác trong báo cáo:** toàn bộ Hình từ Chương 2 đến hết Mục 3.6 (Hình 2-1 → 3-32, tổng cộng 37 hình) là sơ đồ Mermaid, được sinh và kiểm chứng cú pháp tự động bằng `mmdc` (xem Mục 3.7.1, tiêu chí 6). Các Hình 4-1 → 4-14 dưới đây là **ảnh chụp màn hình thật** (`.png`/`.jpg`), không phải mã Mermaid, nên nằm ngoài phạm vi kiểm chứng bằng `mmdc` — do đó **không xuất hiện trong file `diagram-mermaid.md`** đi kèm. Placeholder dùng nhãn riêng `[ẢNH THỰC TẾ — Hình 4-X: …]` (thay vì `[DIAGRAM — Hình X-Y: …]`) để phân biệt rõ hai loại, tránh nhầm lẫn khi rà soát tính nhất quán.
+
+**Thư mục lưu ảnh:** tạo thư mục con `images/chuong4/` ngay cạnh 2 file báo cáo đã giao (`noi-dung-bao-cao-final.md`, `diagram-mermaid.md`), theo cấu trúc:
+
+```
+docs/khoaluan-draft/
+├── noi-dung-bao-cao-final.md
+├── diagram-mermaid.md
+└── images/
+    └── chuong4/
+        ├── hinh-4-01-dang-nhap.png
+        ├── hinh-4-02-quan-ly-tai-khoan.png
+        ├── hinh-4-03-quan-ly-chi-nhanh.png
+        ├── hinh-4-04-quan-ly-san-pham.png
+        ├── hinh-4-05-quan-ly-nha-cung-cap.png
+        ├── hinh-4-06-quan-ly-bang-gia.png
+        ├── hinh-4-07-dashboard-bao-cao.png
+        ├── hinh-4-08-quan-ly-khach-hang.png
+        ├── hinh-4-09-tra-cuu-gia-rieng.png
+        ├── hinh-4-10-lap-hoa-don-ban-hang.png
+        ├── hinh-4-11-lap-phieu-tra-hang.png
+        ├── hinh-4-12-lap-phieu-nhap-kho.png
+        ├── hinh-4-13-tra-cuu-ton-kho.png
+        └── hinh-4-14-theo-doi-cong-no.png
+```
+
+Quy ước đặt tên: `hinh-4-<STT 2 chữ số>-<slug không dấu>.png`, đúng theo thứ tự UC trong Bảng 3-1 (Mục 3.2.3) để dễ đối chiếu. Khi hoàn thiện file Word/PDF cuối cùng, thay từng placeholder `[ẢNH THỰC TẾ — Hình 4-X: …]` bằng ảnh tương ứng và giữ nguyên dòng caption *"Hình 4-X: …"* ngay bên dưới, đúng quy ước áp dụng thống nhất cho mọi Hình trong báo cáo.
+
+### 4.10.1. Nhóm màn hình quản trị dữ liệu nền tảng (UC01–UC08)
+
+> **[ẢNH THỰC TẾ — Hình 4-1: Giao diện đăng nhập]**
+>
+> *Hình 4-1: Giao diện đăng nhập (UC01)*
+
+> **[ẢNH THỰC TẾ — Hình 4-2: Giao diện quản lý tài khoản và phân quyền]**
+>
+> *Hình 4-2: Giao diện quản lý tài khoản và phân quyền (UC02)*
+
+> **[ẢNH THỰC TẾ — Hình 4-3: Giao diện quản lý chi nhánh]**
+>
+> *Hình 4-3: Giao diện quản lý chi nhánh (UC03)*
+
+> **[ẢNH THỰC TẾ — Hình 4-4: Giao diện quản lý sản phẩm và danh mục]**
+>
+> *Hình 4-4: Giao diện quản lý sản phẩm và danh mục (UC04)*
+
+> **[ẢNH THỰC TẾ — Hình 4-5: Giao diện quản lý nhà cung cấp]**
+>
+> *Hình 4-5: Giao diện quản lý nhà cung cấp (UC05)*
+
+> **[ẢNH THỰC TẾ — Hình 4-6: Giao diện quản lý bảng giá]**
+>
+> *Hình 4-6: Giao diện quản lý bảng giá (UC06)*
+
+> **[ẢNH THỰC TẾ — Hình 4-7: Giao diện Dashboard báo cáo tổng hợp]**
+>
+> *Hình 4-7: Giao diện Dashboard báo cáo tổng hợp (UC07)*
+
+> **[ẢNH THỰC TẾ — Hình 4-8: Giao diện quản lý khách hàng]**
+>
+> *Hình 4-8: Giao diện quản lý khách hàng (UC08)*
+
+### 4.10.2. Nhóm màn hình nghiệp vụ giao dịch (UC09–UC14)
+
+> **[ẢNH THỰC TẾ — Hình 4-9: Giao diện tra cứu giá riêng theo khách hàng]**
+>
+> *Hình 4-9: Giao diện tra cứu giá riêng theo khách hàng (UC09)*
+
+> **[ẢNH THỰC TẾ — Hình 4-10: Giao diện lập hóa đơn bán hàng]**
+>
+> *Hình 4-10: Giao diện lập hóa đơn bán hàng (UC10)*
+
+> **[ẢNH THỰC TẾ — Hình 4-11: Giao diện lập phiếu trả hàng]**
+>
+> *Hình 4-11: Giao diện lập phiếu trả hàng (UC11)*
+
+> **[ẢNH THỰC TẾ — Hình 4-12: Giao diện lập phiếu nhập kho]**
+>
+> *Hình 4-12: Giao diện lập phiếu nhập kho (UC12)*
+
+> **[ẢNH THỰC TẾ — Hình 4-13: Giao diện tra cứu tồn kho]**
+>
+> *Hình 4-13: Giao diện tra cứu tồn kho (UC13)*
+
+> **[ẢNH THỰC TẾ — Hình 4-14: Giao diện theo dõi công nợ]**
+>
+> *Hình 4-14: Giao diện theo dõi công nợ (UC14)*
+
+> **Ghi chú:** UC15 (Đồng bộ dữ liệu tự động) không có giao diện tương ứng vì Actor là **Hệ thống**, không có tương tác người dùng trực tiếp (xem đặc tả UC15, Mục 3.3) — do đó không có Hình minh họa nào cho UC này ở đây, tương tự cách UC15 không xuất hiện trong hai Sơ đồ phân cấp chức năng ở Mục 3.1.
+
+| **Hình** | **Use Case** | **Nội dung cần chụp (gợi ý)** |
+|---|---|---|
+| Hình 4-1 | UC01 | Form đăng nhập (username/password) và trạng thái sau khi đăng nhập thành công (hiển thị role, chi nhánh). |
+| Hình 4-2 | UC02 | Danh sách tài khoản, form tạo/sửa tài khoản kèm gán Role và phạm vi chi nhánh. |
+| Hình 4-3 | UC03 | Danh sách chi nhánh, form tạo/sửa/vô hiệu hóa chi nhánh (chỉ hiển thị tại instance HQ). |
+| Hình 4-4 | UC04 | Cây danh mục phân cấp và danh sách/form sản phẩm. |
+| Hình 4-5 | UC05 | Danh sách và form quản lý nhà cung cấp theo phạm vi chi nhánh. |
+| Hình 4-6 | UC06 | Giao diện thiết lập bảng giá theo sản phẩm × chi nhánh × thời gian hiệu lực. |
+| Hình 4-7 | UC07 | Dashboard doanh thu, lợi nhuận gộp, cảnh báo tồn kho thấp. |
+| Hình 4-8 | UC08 | Danh sách và form hồ sơ khách hàng dùng chung toàn hệ thống. |
+| Hình 4-9 | UC09 | Gợi ý giá riêng hiển thị khi thêm sản phẩm vào hóa đơn cho một khách hàng cụ thể. |
+| Hình 4-10 | UC10 | Form lập hóa đơn bán hàng (chọn khách hàng, thêm dòng sản phẩm, xác nhận `createAndConfirm`). |
+| Hình 4-11 | UC11 | Form lập phiếu trả hàng, có/không liên kết hóa đơn gốc. |
+| Hình 4-12 | UC12 | Form lập phiếu nhập kho từ nhà cung cấp. |
+| Hình 4-13 | UC13 | Màn hình tồn kho hiện tại và lịch sử biến động kho theo sản phẩm. |
+| Hình 4-14 | UC14 | Màn hình số dư và lịch sử biến động công nợ theo khách hàng. |
+
+*(Bảng đối chiếu Hình minh họa giao diện ↔ Use Case liên quan — bảng phụ trợ tra cứu nhanh, không đánh số theo dãy Bảng X-Y cốt lõi, cùng quy ước với các bảng khác trong Chương 4 — xem ghi chú cuối Danh mục Bảng.)*
 # CHƯƠNG 5. KẾT LUẬN VÀ HƯỚNG PHÁT TRIỂN
 
 ## 5.1. Kết quả đạt được

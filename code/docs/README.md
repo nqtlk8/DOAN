@@ -4,8 +4,8 @@
 
 Đây là **bộ tài liệu chuẩn hiện hành (source of truth)** của hệ thống ERP. Bộ tài liệu này được tổng hợp từ mã nguồn thực tế, Docker Compose, migration SQL, cấu hình Spring Boot và tài liệu kỹ thuật hiện tại.
 
-**Phiên bản:** v5  
-**Ngày rà soát:** 2026-08-29
+**Phiên bản:** v6  
+**Ngày rà soát:** 2026-10-01
 
 ## 1. Thứ tự ưu tiên khi có khác biệt
 
@@ -29,10 +29,12 @@ Khi tài liệu mâu thuẫn với implementation, ưu tiên theo thứ tự:
 | `architecture/ARCHITECTURE_DECISIONS.md` | Các quyết định kiến trúc và trade-off |
 | `development/BACKEND_STRUCTURE.md` | Cấu trúc source và module Java |
 | `development/RUNTIME_CONFIG.md` | Docker, Spring Profiles, port và kết nối |
-| `testing/TEST_STRATEGY.md` | Test hiện hành và phạm vi xác minh |
-| `operations/CURRENT_STATE.md` | Trạng thái hiện tại, điểm lệch cần xử lý |
+| `architecture/DATABASE_REPLICATION.md` | Logical replication HQ ↔ chi nhánh, role DB, bật/tắt chi nhánh, hạn chế đã biết |
+| `architecture/REPLICATION_RUNBOOK.md` | Lệnh vận hành: dựng từ đầu, bật/tắt TP2, dữ liệu demo, xử lý sự cố |
+| `architecture/DATA_OWNERSHIP_MATRIX.md` | Bảng nào do ai ghi, replicate chiều nào |
+| `testing/TEST_STRATEGY.md` | Test hiện hành, quy tắc viết test tích hợp, kết quả chạy gần nhất |
 | `AI_CONTEXT.md` | Context ngắn gọn dành cho AI Agent |
-| `CHANGELOG.md` | Lịch sử thay đổi của bộ tài liệu chuẩn |
+| `fix-replication/00-PLAN.md` | Hiện trạng trước khi sửa và các quyết định đợt fix-replication (2026-10-01) |
 
 ## 3. Quy tắc cập nhật
 

@@ -36,13 +36,16 @@ public class ReceivableDebtFinancialPostgresIT extends PostgresIntegrationTest {
     @BeforeEach
     void setUp() {
         customerId = UUID.randomUUID();
-        // Insert dummy customer directly to bypass JPA mandatory field checks in unit tests
+        // Fixture chèn thẳng bằng SQL, phải đủ cột NOT NULL của schema (db/migration V1, V3).
+        // Lớp test @Transactional nên mọi dòng được rollback sau test.
         jdbcTemplate.update(
-                "INSERT INTO customer (id, full_name, phone) VALUES (?, 'Fin Customer', '0999888777')",
+                "INSERT INTO customer (id, customer_code, name, phone, version, is_deleted) "
+                        + "VALUES (?, 'IT-FIN-KH', 'Fin Customer', '0999888777', 0, false)",
                 customerId
         );
         jdbcTemplate.update(
-                "INSERT INTO branch (id, name, code) VALUES (?, 'Fin Branch', 'FB1')",
+                "INSERT INTO branch (id, code, name, is_active, created_at, updated_at) "
+                        + "VALUES (?, 'IT-FIN', 'Fin Branch', true, now(), now())",
                 branchId
         );
     }

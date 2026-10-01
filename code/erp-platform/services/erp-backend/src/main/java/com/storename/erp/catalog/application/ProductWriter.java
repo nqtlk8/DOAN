@@ -35,6 +35,7 @@ public class ProductWriter {
 
         Category category = categoryRepository.findById(dto.getCategoryId())
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
+        requireLeafCategory(category);
 
         boolean isActive = dto.getIsActive() != null ? dto.getIsActive() : true;
 
@@ -69,6 +70,7 @@ public class ProductWriter {
         if (dto.getCategoryId() != null) {
             category = categoryRepository.findById(dto.getCategoryId())
                     .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
+            requireLeafCategory(category);
         }
 
         product.updateDetails(category, dto.getName(), dto.getBaseUnit());
@@ -84,6 +86,17 @@ public class ProductWriter {
         product = productRepository.save(product);
 
         return mapToResponse(product);
+    }
+
+    /**
+     * Sản phẩm chỉ được gắn vào danh mục con (danh mục không có danh mục con nào).
+     * Danh mục gốc (vd. "VẬT LIỆU XÂY DỰNG") chỉ dùng để nhóm. Vi phạm -> HTTP 400.
+     */
+    private void requireLeafCategory(Category category) {
+        if (category.getChildren() != null && !category.getChildren().isEmpty()) {
+            throw new IllegalArgumentException("Danh mục '" + category.getName()
+                    + "' là danh mục nhóm, hãy chọn một danh mục con");
+        }
     }
 
     private void updateAttributes(Product product, Map<String, Object> attributes) {

@@ -19,9 +19,6 @@ public class Supplier {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(name = "branch_id")
-    private Long branchId;
-
     @Column(nullable = false, length = 50, unique = true)
     private String code;
 

@@ -20,7 +20,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest
 @ActiveProfiles("postgres-it")
-@Transactional // To rollback changes after test, but wait, DB constraint testing might need manual flush if transaction caches
+@Transactional // rollback toàn bộ fixture sau mỗi test
 public class ReceivableDebtMovementRepositoryIT extends PostgresIntegrationTest {
 
     @Autowired
@@ -32,8 +32,12 @@ public class ReceivableDebtMovementRepositoryIT extends PostgresIntegrationTest 
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
-    @Autowired
-    private org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager entityManager;
+    /**
+     * Repository là append-only (chỉ có save), không có saveAndFlush — dùng EntityManager để flush
+     * xuống DB ngay trong test, nhờ đó lỗi ràng buộc lộ ra tại đúng chỗ.
+     */
+    @jakarta.persistence.PersistenceContext
+    private jakarta.persistence.EntityManager entityManager;
 
     private Customer testCustomer;
 
@@ -44,10 +48,11 @@ public class ReceivableDebtMovementRepositoryIT extends PostgresIntegrationTest 
         testCustomer.setId(UUID.randomUUID());
         testCustomer.setName("IT Customer");
         testCustomer.setPhone("0999999999");
-        // Use raw SQL to insert to bypass potential other mandatory fields in Customer entity
+        // Chèn bằng SQL, đủ cột NOT NULL của bảng customer (db/migration/V3__crm.sql).
         jdbcTemplate.update(
-                "INSERT INTO customer (id, name, phone, branch_id) VALUES (?, ?, ?, ?)",
-                testCustomer.getId(), testCustomer.getName(), testCustomer.getPhone(), 1L
+                "INSERT INTO customer (id, customer_code, name, phone, branch_id, version, is_deleted) VALUES (?, ?, ?, ?, ?, 0, false)",
+                testCustomer.getId(), "IT-MOV-" + testCustomer.getId().toString().substring(0, 8),
+                testCustomer.getName(), testCustomer.getPhone(), 1L
         );
     }
 
@@ -92,9 +97,15 @@ public class ReceivableDebtMovementRepositoryIT extends PostgresIntegrationTest 
                 BigDecimal.ZERO, new BigDecimal("100"), "PAYMENT", "PAY-001", null, null, key
         );
 
-        assertThrows(org.springframework.dao.DataIntegrityViolationException.class, () -> {
+        // EntityManager.flush() ném exception của JPA/Hibernate (không qua lớp dịch exception của Spring),
+        // nên kiểm tra nguyên nhân gốc: đúng ràng buộc uk_debt_movement_idempotency của DB đã chặn.
+        Exception ex = assertThrows(jakarta.persistence.PersistenceException.class, () -> {
             movementRepository.save(movement2);
             entityManager.flush();
         });
+        Throwable root = ex;
+        while (root.getCause() != null) root = root.getCause();
+        org.junit.jupiter.api.Assertions.assertTrue(root.getMessage().contains("uk_debt_movement_idempotency"),
+                "Phải bị chặn bởi uk_debt_movement_idempotency, thực tế: " + root.getMessage());
     }
 }

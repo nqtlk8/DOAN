@@ -1,36 +1,25 @@
 #!/bin/bash
-# check-schema-version.sh
-# Compare Flyway schema versions between HQ and a Branch
+# ============================================================================
+# check-schema-version.sh <chi nhánh>   vd: scripts/check-schema-version.sh tp1
+#
+# So sánh DANH SÁCH version Flyway (migration V__ trong db/migration) giữa HQ và chi nhánh.
+# Hai bên phải giống hệt nhau trước khi thiết lập/chạy replication (DDL không được replicate).
+# Migration lặp lại (R__) khác nhau giữa HQ và chi nhánh nên không được so.
+# ============================================================================
+set -euo pipefail
+. "$(dirname "$0")/lib/common.sh"
 
-BRANCH_NAME=$1
-if [ -z "$BRANCH_NAME" ]; then
-  echo "Usage: $0 <branch_name> (e.g. tp1, tp2, tp3)"
-  exit 1
-fi
-
-HQ_DOCKER="code-hq-db-1"
-HQ_DB="erp_hq"
-HQ_USER="erp_user"
-
-BRANCH_DOCKER="code-branch-${BRANCH_NAME}-db-1"
-BRANCH_DB="erp_branch_${BRANCH_NAME}"
-BRANCH_USER="erp_user"
-
-echo "Checking HQ Schema Version..."
-HQ_VERSION=$(docker exec "$HQ_DOCKER" psql -U "$HQ_USER" -d "$HQ_DB" -t -c "SELECT version FROM flyway_schema_history ORDER BY installed_rank DESC LIMIT 1;" | xargs)
-
-echo "Checking Branch ($BRANCH_NAME) Schema Version..."
-BRANCH_VERSION=$(docker exec "$BRANCH_DOCKER" psql -U "$BRANCH_USER" -d "$BRANCH_DB" -t -c "SELECT version FROM flyway_schema_history ORDER BY installed_rank DESC LIMIT 1;" | xargs)
+B=$(branch_key "${1:-}")
+HQ_V=$(flyway_versions "$HQ_SERVICE" "$HQ_DB")
+BR_V=$(flyway_versions "$(branch_service "$B")" "$(branch_db "$B")")
 
 echo "------------------------------------------------"
-echo "HQ Version:     $HQ_VERSION"
-echo "Branch Version: $BRANCH_VERSION"
+echo "HQ:              [$HQ_V]"
+echo "$(branch_code "$B"):             [$BR_V]"
 echo "------------------------------------------------"
-
-if [ "$HQ_VERSION" == "$BRANCH_VERSION" ]; then
-    echo "PASS: Schema versions match."
-    exit 0
+if [ -n "$HQ_V" ] && [ "$HQ_V" = "$BR_V" ]; then
+  echo "PASS: version Flyway khớp."
 else
-    echo "FAIL: Schema versions mismatch!"
-    exit 1
+  echo "FAIL: version Flyway lệch hoặc chưa migrate."
+  exit 1
 fi

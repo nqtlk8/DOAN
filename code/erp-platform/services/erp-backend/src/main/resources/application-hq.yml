@@ -11,6 +11,12 @@ spring:
     password: ${SPRING_DATASOURCE_PASSWORD:app_password}
   flyway:
     enabled: true
+    # Flyway chạy bằng user sở hữu bảng (tạo schema); app chạy bằng SPRING_DATASOURCE_USERNAME (erp_app).
+    user: ${SPRING_FLYWAY_USER:erp_user}
+    password: ${SPRING_FLYWAY_PASSWORD:erp_password}
+    # db/migration: schema chung (giống hệt ở mọi instance)
+    # db/migration-hq: dữ liệu hệ thống chỉ chèn ở HQ rồi replicate xuống chi nhánh
+    locations: classpath:db/migration,classpath:db/migration-hq
   jpa:
     hibernate:
       ddl-auto: validate

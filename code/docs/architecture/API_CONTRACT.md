@@ -36,8 +36,9 @@ Tất cả các REST API đều được bọc trong `ApiResponse<T>`:
 | Method | Path | Ghi chú |
 |---|---|---|
 | GET | `/api/v1/branches` | HQ-only controller |
-| GET/POST/PUT | `/api/v1/catalog/products` | POST/PUT bị giới hạn `HQ + ADMIN` |
-| GET/POST | `/api/v1/suppliers` | Response bọc `ApiResponse<SupplierResponseDto>` |
+| GET | `/api/v1/catalog/categories` | STAFF/ADMIN, chạy ở HQ và Branch. Trả danh mục đang hoạt động: `id, code, name, parentId, parentName, isActive`; danh mục gốc trước, rồi theo `id`. Frontend dùng cho dropdown chọn danh mục |
+| GET/POST/PUT | `/api/v1/catalog/products` | POST/PUT bị giới hạn `HQ + ADMIN`. `categoryId` phải là danh mục **con** (không có danh mục con nào); chọn danh mục gốc → HTTP 400 `INVALID_ARGUMENT` |
+| GET/POST/PUT/DELETE | `/api/v1/suppliers` | Response bọc `ApiResponse<SupplierResponseDto>`. Ghi (POST/PUT/DELETE) chỉ ở HQ + ADMIN. Supplier dùng chung toàn hệ thống: không có `branchId`; GET của STAFF trả mọi supplier đang hoạt động, của ADMIN trả tất cả. Field trạng thái là `isActive` |
 | GET/POST/PUT | `/api/v1/customers` | HQ-only, ADMIN cho thao tác POST/PUT |
 
 ### 4.3. Inventory (Tồn Kho & Phiếu Nhập)

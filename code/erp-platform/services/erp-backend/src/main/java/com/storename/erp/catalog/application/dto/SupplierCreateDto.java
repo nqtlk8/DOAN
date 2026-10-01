@@ -15,5 +15,4 @@ public class SupplierCreateDto {
     private String email;
     private String address;
     private String taxCode;
-    private Long branchId;
 }

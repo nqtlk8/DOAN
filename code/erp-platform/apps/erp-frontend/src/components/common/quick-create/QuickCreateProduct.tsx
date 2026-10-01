@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { QuickCreateDialog } from './QuickCreateDialog';
 import { ApiService } from '../../../api/ApiService';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { CategorySelect } from '../../catalog/CategorySelect';
 
 interface QuickCreateProductProps {
   isOpen: boolean;
@@ -18,6 +19,7 @@ export const QuickCreateProduct: React.FC<QuickCreateProductProps> = ({
 }) => {
   const [name, setName] = useState('');
   const [baseUnit, setBaseUnit] = useState('CAI');
+  const [categoryId, setCategoryId] = useState<number | undefined>(undefined);
   const [error, setError] = useState('');
   
   const queryClient = useQueryClient();
@@ -27,6 +29,7 @@ export const QuickCreateProduct: React.FC<QuickCreateProductProps> = ({
     if (isOpen) {
       setName(initialName);
       setBaseUnit('CAI');
+      setCategoryId(undefined);
       setError('');
       setTimeout(() => inputRef.current?.focus(), 100);
     }
@@ -49,10 +52,14 @@ export const QuickCreateProduct: React.FC<QuickCreateProductProps> = ({
       setError('Tên sản phẩm là bắt buộc');
       return;
     }
+    if (!categoryId) {
+      setError('Danh mục là bắt buộc');
+      return;
+    }
     createMutation.mutate({
       code: 'PRD-' + Date.now(),
       name: name.trim(),
-      categoryId: 1, // Default category
+      categoryId,
       baseUnit,
       isActive: true
     });
@@ -79,6 +86,10 @@ export const QuickCreateProduct: React.FC<QuickCreateProductProps> = ({
             onChange={e => setName(e.target.value)}
             placeholder="Nhập tên sản phẩm"
           />
+        </div>
+        <div>
+          <label htmlFor="quick-product-category" className="erp-label mb-1 block">Danh mục <span className="text-danger">*</span></label>
+          <CategorySelect id="quick-product-category" value={categoryId} onChange={setCategoryId} />
         </div>
         <div>
           <label className="erp-label mb-1 block">Đơn vị tính</label>

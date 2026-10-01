@@ -27,8 +27,10 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Kiểm thử replicate bảng snapshot {@code stock_on_hand}, {@code receivable_debt} từ Branch lên HQ
  * bằng publication có row filter {@code WHERE (branch_id = N)} (ADR-13, sprint FD-2).
  *
- * <p>Dựng 2 container PostgreSQL 15 (cùng major version với docker-compose), chạy Flyway V1..V21 trên cả hai.
- * Cả hai DB đều có seed V2/V13 với dữ liệu {@code branch_id = 1} — đúng tình huống thực tế khiến phải lọc dòng.
+ * <p>Dựng 2 container PostgreSQL 15 (cùng major version với docker-compose), chạy Flyway {@code db/migration}
+ * (schema chung, không có seed) trên cả hai. Fixture tự chèn: một khách hàng có ở cả hai DB (giả lập master data
+ * đã replicate từ HQ) và một dòng tồn của chi nhánh KHÁC ({@code branch_id = 1}) ở cả hai DB — để chứng minh
+ * row filter không bao giờ đẩy dòng không thuộc chi nhánh lên HQ.
  * Container "branch" đóng vai chi nhánh TP2 ({@code branch_id = 2}).</p>
  *
  * <p>Điều được khẳng định:</p>
@@ -36,7 +38,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  *   <li>Dữ liệu có sẵn của chi nhánh được copy ban đầu ({@code copy_data = true}).</li>
  *   <li>INSERT/UPDATE dòng {@code branch_id = 2} được đẩy lên HQ (UPDATE chỉ chạy được nhờ V21
  *       đặt {@code REPLICA IDENTITY USING INDEX}).</li>
- *   <li>Dòng {@code branch_id = 1} (seed) ở chi nhánh KHÔNG được đẩy lên HQ — kể cả INSERT lẫn UPDATE.</li>
+ *   <li>Dòng {@code branch_id = 1} (của chi nhánh khác) ở chi nhánh KHÔNG được đẩy lên HQ — kể cả INSERT lẫn UPDATE.</li>
  * </ol>
  */
 @Testcontainers
@@ -45,10 +47,12 @@ public class SnapshotReplicationPostgresIT {
     private static final Logger log = LoggerFactory.getLogger(SnapshotReplicationPostgresIT.class);
     private static final Network NETWORK = Network.newNetwork();
 
-    /** Chi nhánh giả lập (TP2 trong seed V2). */
+    /** Chi nhánh giả lập (TP2). */
     private static final long BRANCH_ID = 2L;
-    /** Customer seed V2 (KH-002) — có ở cả hai DB vì seed master chạy trên mọi instance. */
-    private static final String SEED_CUSTOMER_ID = "b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22";
+    /** Khách hàng fixture, chèn vào cả hai DB (giả lập master data đã replicate HQ -> Branch). */
+    private static final String FIXTURE_CUSTOMER_ID = "7d1c5f0e-2a4b-4c6d-8e9f-0a1b2c3d4e5f";
+    /** Chi nhánh khác (TP1) — dòng của chi nhánh này không được đi qua publication của TP2. */
+    private static final long OTHER_BRANCH_ID = 1L;
 
     @Container
     private static final PostgreSQLContainer<?> HQ_DB = newDb("hq-db", "erp_hq");
@@ -70,6 +74,13 @@ public class SnapshotReplicationPostgresIT {
     static void setUpReplication() throws Exception {
         migrate(HQ_DB);
         migrate(BRANCH_DB);
+
+        for (PostgreSQLContainer<?> db : new PostgreSQLContainer<?>[]{HQ_DB, BRANCH_DB}) {
+            executeOn(db, "INSERT INTO customer (id, customer_code, name, version, is_deleted, created_at, updated_at) "
+                    + "VALUES ('" + FIXTURE_CUSTOMER_ID + "', 'IT-REPL-KH', 'Khách IT replication', 0, false, now(), now())");
+            // Dòng tồn của chi nhánh khác: HQ đã có (từ chính TP1), chi nhánh TP2 cũng có một bản (dữ liệu lạc).
+            executeOn(db, insertStockSql(1, OTHER_BRANCH_ID, 100));
+        }
 
         // Dữ liệu có sẵn ở chi nhánh TRƯỚC khi bật replication -> phải được copy ban đầu.
         executeOn(BRANCH_DB, insertStockSql(6, BRANCH_ID, 42));
@@ -122,30 +133,30 @@ public class SnapshotReplicationPostgresIT {
         executeOn(BRANCH_DB, "UPDATE stock_on_hand SET quantity = -3 WHERE product_id = 2 AND branch_id = " + BRANCH_ID);
         awaitDecimal(HQ_DB, String.format(hqStockSql, 2, BRANCH_ID), new BigDecimal("-3"));
 
-        // 4. Dòng seed branch_id = 1 ở chi nhánh: UPDATE và INSERT đều không được lên HQ
-        BigDecimal hqSeedBefore = queryDecimal(HQ_DB, String.format(hqStockSql, 1, 1));
-        assertThat(hqSeedBefore).as("HQ phải có dòng seed V2 (product 1, branch 1)").isNotNull();
-        executeOn(BRANCH_DB, "UPDATE stock_on_hand SET quantity = 9999 WHERE product_id = 1 AND branch_id = 1");
-        executeOn(BRANCH_DB, insertStockSql(3, 1, 55));
+        // 4. Dòng của chi nhánh khác (branch_id = 1) nằm ở DB TP2: UPDATE và INSERT đều không được lên HQ
+        BigDecimal hqOtherBefore = queryDecimal(HQ_DB, String.format(hqStockSql, 1, OTHER_BRANCH_ID));
+        assertThat(hqOtherBefore).as("HQ phải có dòng fixture (product 1, branch 1)").isNotNull();
+        executeOn(BRANCH_DB, "UPDATE stock_on_hand SET quantity = 9999 WHERE product_id = 1 AND branch_id = " + OTHER_BRANCH_ID);
+        executeOn(BRANCH_DB, insertStockSql(3, OTHER_BRANCH_ID, 55));
 
         // Chờ một thay đổi của branch 2 đi qua sau đó -> mọi thay đổi trước nó đã được xử lý
         executeOn(BRANCH_DB, "UPDATE stock_on_hand SET quantity = -4 WHERE product_id = 2 AND branch_id = " + BRANCH_ID);
         awaitDecimal(HQ_DB, String.format(hqStockSql, 2, BRANCH_ID), new BigDecimal("-4"));
 
-        assertThat(queryDecimal(HQ_DB, String.format(hqStockSql, 1, 1))).isEqualByComparingTo(hqSeedBefore);
-        assertThat(queryDecimal(HQ_DB, String.format(hqStockSql, 3, 1))).isNull();
+        assertThat(queryDecimal(HQ_DB, String.format(hqStockSql, 1, OTHER_BRANCH_ID))).isEqualByComparingTo(hqOtherBefore);
+        assertThat(queryDecimal(HQ_DB, String.format(hqStockSql, 3, OTHER_BRANCH_ID))).isNull();
     }
 
     @Test
     void receivableDebt_shouldReplicateInsertAndUpdate() throws Exception {
-        String hqDebtSql = "SELECT total_debt FROM receivable_debt WHERE customer_id = '" + SEED_CUSTOMER_ID
+        String hqDebtSql = "SELECT total_debt FROM receivable_debt WHERE customer_id = '" + FIXTURE_CUSTOMER_ID
                 + "' AND branch_id = " + BRANCH_ID;
 
         executeOn(BRANCH_DB, "INSERT INTO receivable_debt (id, customer_id, branch_id, total_debt, version, is_deleted, created_at, updated_at) "
-                + "VALUES (gen_random_uuid(), '" + SEED_CUSTOMER_ID + "', " + BRANCH_ID + ", 5000, 0, false, now(), now())");
+                + "VALUES (gen_random_uuid(), '" + FIXTURE_CUSTOMER_ID + "', " + BRANCH_ID + ", 5000, 0, false, now(), now())");
         awaitDecimal(HQ_DB, hqDebtSql, new BigDecimal("5000"));
 
-        executeOn(BRANCH_DB, "UPDATE receivable_debt SET total_debt = 2000 WHERE customer_id = '" + SEED_CUSTOMER_ID
+        executeOn(BRANCH_DB, "UPDATE receivable_debt SET total_debt = 2000 WHERE customer_id = '" + FIXTURE_CUSTOMER_ID
                 + "' AND branch_id = " + BRANCH_ID);
         awaitDecimal(HQ_DB, hqDebtSql, new BigDecimal("2000"));
     }
@@ -158,7 +169,8 @@ public class SnapshotReplicationPostgresIT {
     }
 
     private static void migrate(PostgreSQLContainer<?> db) {
-        // Chỉ dùng db/migration: V9 trong db/migration-branch cần role erp_user có sẵn quyền theo docker-compose.
+        // Chỉ dùng db/migration (schema chung). migration-hq (dữ liệu hệ thống) và migration-branch (quyền)
+        // không liên quan tới hành vi replication đang kiểm tra.
         Flyway.configure()
                 .dataSource(db.getJdbcUrl(), db.getUsername(), db.getPassword())
                 .locations("classpath:db/migration")

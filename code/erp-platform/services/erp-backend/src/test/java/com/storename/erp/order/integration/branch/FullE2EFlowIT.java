@@ -33,6 +33,13 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+/*
+ * DB H2 dùng chung giữa các lớp test có cùng cấu hình (Spring cache ApplicationContext), và lớp này
+ * ghi dữ liệu không rollback (luồng đồng thời cần commit thật). @DirtiesContext bỏ context sau lớp
+ * để lớp sau có DB H2 mới (application-test.yml: testdb_${random.uuid}) — tránh trùng
+ * uk_stock_product_branch / mã chứng từ giữa các lớp test.
+ */
+@org.springframework.test.annotation.DirtiesContext(classMode = org.springframework.test.annotation.DirtiesContext.ClassMode.AFTER_CLASS)
 @SpringBootTest(properties = { "instance.role=ALL" })
 @ActiveProfiles("test")
 public class FullE2EFlowIT {
@@ -60,6 +67,7 @@ public class FullE2EFlowIT {
         Long branchId = branch.getId();
 
         Category category = Category.builder()
+            .code("CAT-E2E")
             .name("Electronics")
             .build();
         categoryRepository.save(category);

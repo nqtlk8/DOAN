@@ -16,6 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SpringBootTest
 @ActiveProfiles("postgres-it")
+@org.springframework.transaction.annotation.Transactional
 public class ReceivableDebtLedgerPostgresIT extends PostgresIntegrationTest {
 
     @Autowired
@@ -48,39 +49,31 @@ public class ReceivableDebtLedgerPostgresIT extends PostgresIntegrationTest {
         }
     }
 
+    /**
+     * Ràng buộc uk_debt_movement_idempotency phải chặn ghi trùng cùng một nghiệp vụ ở mức DB.
+     * receivable_debt_movement có FK sang customer (không có FK sang branch) nên chỉ cần chèn khách hàng.
+     */
     @Test
     void testIdempotencyKeyUniqueConstraint() {
-        String idempotencyKey = "KEY-A-" + UUID.randomUUID().toString();
-        
-        // Setup parent foreign keys (dummy data may fail if foreign keys are enforced, so we might need to insert them or assume tests handle it via full JPA test. We'll use raw SQL).
-        // If there are foreign key constraints, we might need to insert dummy customer and branch first.
-        // For the sake of schema testing idempotency, we will just try to insert and catch the specific unique constraint exception.
-        
-        String sql = "INSERT INTO receivable_debt_movement (id, customer_id, branch_id, movement_type, amount, balance_before, balance_after, ref_type, ref_id, idempotency_key) " +
-                     "VALUES (?, ?, ?, 'PAYMENT', 100, 0, 100, 'INVOICE', ?, ?)";
-                     
-        UUID movementId1 = UUID.randomUUID();
+        String idempotencyKey = "KEY-A-" + UUID.randomUUID();
         UUID customerId = UUID.randomUUID();
-        UUID branchId = UUID.randomUUID();
-        UUID refId = UUID.randomUUID();
+        long branchId = 903L;
+        String refId = UUID.randomUUID().toString();
 
-        try {
-            // First insert might fail due to FK constraints if the DB is empty. Assuming we can insert for testing.
-            // In a real environment, we should insert the Customer and Branch first to avoid FK violations.
-            jdbcTemplate.update("INSERT INTO branch (id, name, code) VALUES (?, 'Test Branch', 'TB1')", branchId);
-            jdbcTemplate.update("INSERT INTO customer (id, full_name, phone) VALUES (?, 'Test Customer', '0123')", customerId);
-            
-            // First Insert: SUCCESS
-            jdbcTemplate.update(sql, movementId1, customerId, branchId, refId, idempotencyKey);
-            
-            // Second Insert with same Idempotency Key: MUST FAIL with Unique Constraint Violation
-            UUID movementId2 = UUID.randomUUID();
-            assertThrows(DataIntegrityViolationException.class, () -> {
-                jdbcTemplate.update(sql, movementId2, customerId, branchId, refId, idempotencyKey);
-            }, "Expected unique constraint violation on idempotency_key");
-            
-        } catch (Exception e) {
-            // If FK fails or structure is slightly different, the test will appropriately fail needing adjustment.
-        }
+        jdbcTemplate.update(
+                "INSERT INTO customer (id, customer_code, name, phone, version, is_deleted) VALUES (?, ?, 'Test Customer', '0123', 0, false)",
+                customerId, "IT-LEDGER-" + customerId.toString().substring(0, 8));
+
+        String sql = "INSERT INTO receivable_debt_movement (id, customer_id, branch_id, movement_type, amount, balance_before, "
+                + "balance_after, ref_type, ref_id, idempotency_key, created_at) "
+                + "VALUES (?, ?, ?, 'PAYMENT', 100, 0, 100, 'INVOICE', ?, ?, now())";
+
+        // Lần 1: thành công
+        jdbcTemplate.update(sql, UUID.randomUUID(), customerId, branchId, refId, idempotencyKey);
+
+        // Lần 2 cùng idempotency_key: phải bị DB từ chối
+        assertThrows(DataIntegrityViolationException.class,
+                () -> jdbcTemplate.update(sql, UUID.randomUUID(), customerId, branchId, refId, idempotencyKey),
+                "Expected unique constraint violation on idempotency_key");
     }
 }

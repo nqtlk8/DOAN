@@ -52,7 +52,7 @@ export const QuickCreateSupplier: React.FC<QuickCreateSupplierProps> = ({
       return;
     }
     createMutation.mutate({
-      code: 'NCC-' + Date.now(),
+      code: 'SUP-' + Date.now(),
       name: name.trim(),
       phone: phone.trim(),
       address: address.trim()

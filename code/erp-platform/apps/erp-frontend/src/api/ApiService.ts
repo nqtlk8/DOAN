@@ -37,6 +37,8 @@ export const ApiService = {
       axiosInstance.post('/api/v1/goods-returns/' + id + '/confirm').then((res: any) => res.data.data),
   },
   Catalog: {
+    getCategories: (): Promise<components['schemas']['CategoryResponseDto'][]> =>
+      axiosInstance.get('/api/v1/catalog/categories').then((res: any) => res.data.data),
     getProducts: (): Promise<components['schemas']['ProductResponseDto'][]> => axiosInstance.get('/api/v1/catalog/products').then((res: any) => res.data.data),
     createProduct: (payload: components['schemas']['ProductCreateDto']): Promise<components['schemas']['ProductResponseDto']> =>
       axiosInstance.post('/api/v1/catalog/products', payload).then((res: any) => res.data.data),

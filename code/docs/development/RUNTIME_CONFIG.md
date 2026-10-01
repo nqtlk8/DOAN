@@ -49,19 +49,23 @@ Branch cấu hình:
 
 - PostgreSQL riêng;
 - Khóa `JWT_PUBLIC_KEY_PATH` để xác minh Token (không giữ private key);
-- Flyway branch migrations;
+- Flyway `db/migration` + `db/migration-branch` (placeholder `app_db_user` = datasource username);
 - loại Redis auto-configuration.
 
-## 5. Docker credential reality
+## 5. Docker credential
 
-Trong `docker-compose.yml`, các app containers hiện ghi đè:
+User/mật khẩu lấy từ `.env` (mẫu `.env.example`); không có `.env` thì dùng mặc định trong `docker-compose.yml`:
 
 ```text
-SPRING_DATASOURCE_USERNAME=erp_user
-SPRING_DATASOURCE_PASSWORD=erp_password
+SPRING_DATASOURCE_USERNAME=${APP_DB_USER:-erp_app}      # role ứng dụng, không superuser
+SPRING_FLYWAY_USER=${POSTGRES_USER:-erp_user}           # chủ bảng, chạy migration
 ```
 
-Do đó runtime Docker khác default credentials trong YAML (`app_user` / `app_password`).
+HQ Flyway: `db/migration` + `db/migration-hq`. Chi nhánh: `db/migration` + `db/migration-branch`.
+
+Compose profile: HQ + TP1 chạy mặc định; TP2 nằm trong profile `tp2` — bật/tắt bằng `scripts/branch.sh on|off tp2` (xem `docs/architecture/REPLICATION_RUNBOOK.md`).
+
+Cổng mở ra host: HQ app `127.0.0.1:8080`; app chi nhánh không mở cổng (đi qua nginx 81/82 để giữ whitelist IP); DB chỉ mở trên `127.0.0.1` (5432/5433/5434); Redis không mở.
 
 ## 6. Database ports
 

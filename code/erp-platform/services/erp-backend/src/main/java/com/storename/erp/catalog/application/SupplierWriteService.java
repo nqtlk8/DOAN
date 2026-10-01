@@ -32,7 +32,6 @@ public class SupplierWriteService {
         supplier.setEmail(dto.getEmail());
         supplier.setAddress(dto.getAddress());
         supplier.setTaxCode(dto.getTaxCode());
-        supplier.setBranchId(dto.getBranchId());
         
         Supplier saved = supplierRepository.save(supplier);
         return mapToResponse(saved);
@@ -75,7 +74,6 @@ public class SupplierWriteService {
                 .address(supplier.getAddress())
                 .taxCode(supplier.getTaxCode())
                 .isActive(supplier.getIsActive())
-                .branchId(supplier.getBranchId())
                 .build();
     }
 }

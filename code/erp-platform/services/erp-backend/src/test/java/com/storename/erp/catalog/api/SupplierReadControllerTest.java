@@ -51,10 +51,9 @@ public class SupplierReadControllerTest {
         supplier.setId(UUID.randomUUID());
         supplier.setCode("SUP-01");
         supplier.setName("Supplier A");
-        supplier.setBranchId(1L);
         supplier.setIsActive(true);
 
-        when(supplierRepository.findByBranchId(1L)).thenReturn(List.of(supplier));
+        when(supplierRepository.findByIsActiveTrueOrderByNameAsc()).thenReturn(List.of(supplier));
 
         // Inject AuthDetails manually for AuthUtils.getBranchId()
         JwtAuthDetails details = new JwtAuthDetails("1", "token-123");
