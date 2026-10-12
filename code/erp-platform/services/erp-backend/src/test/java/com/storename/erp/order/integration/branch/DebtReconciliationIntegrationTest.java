@@ -47,6 +47,9 @@ public class DebtReconciliationIntegrationTest {
     @Autowired
     private StockOnHandRepository stockRepo;
 
+    @Autowired
+    private com.storename.erp.inventory.infrastructure.CostLayerRepository costLayerRepo;
+
     private Long branchId;
     private Customer customer;
     private Long productId;
@@ -78,6 +81,7 @@ public class DebtReconciliationIntegrationTest {
         StockOnHand stock = new StockOnHand(productId, branchId);
         stock.increase(new BigDecimal("100"), "Init");
         stockRepo.save(stock);
+        costLayerRepo.save(com.storename.erp.inventory.domain.CostLayer.fromInbound(productId, branchId, new BigDecimal("100"), new BigDecimal("500"), null));
     }
 
     @Test

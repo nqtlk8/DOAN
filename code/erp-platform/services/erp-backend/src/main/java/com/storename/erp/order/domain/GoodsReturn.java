@@ -34,8 +34,15 @@ public class GoodsReturn extends BaseEntity {
     @Column(nullable = false)
     private GoodsReturnStatus status = GoodsReturnStatus.DRAFT;
 
-    @Column(name = "total_amount", nullable = false)
+    @Column(name = "total_amount", nullable = false, precision = 19, scale = 4)
     private BigDecimal totalAmount = BigDecimal.ZERO;
+
+    /**
+     * Phần tiền trả hàng hoàn lại cho khách vì công nợ không đủ để trừ (khách đã trả trước).
+     * totalAmount = phần đã trừ vào công nợ + refundAmount.
+     */
+    @Column(name = "refund_amount", nullable = false, precision = 19, scale = 4)
+    private BigDecimal refundAmount = BigDecimal.ZERO;
 
     @Column(name = "reason")
     private String reason;
@@ -65,7 +72,8 @@ public class GoodsReturn extends BaseEntity {
 
     public void confirm(UUID userId) {
         if (this.status != GoodsReturnStatus.DRAFT) {
-            throw new IllegalStateException("Only DRAFT return can be confirmed");
+            throw new com.storename.erp.common.exception.BusinessConflictException(SalesInvoice.INVALID_STATUS,
+                    "Phiếu trả " + returnCode + " đã được xác nhận trước đó");
         }
         this.status = GoodsReturnStatus.CONFIRMED;
         this.confirmedAt = LocalDateTime.now();

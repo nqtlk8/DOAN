@@ -35,7 +35,7 @@ public class GoodsReturnResponseDto {
         private Long productId;
         private String productCode; // Needs lookup
         private String productName; // Needs lookup
-        private Integer quantity;
+        private BigDecimal quantity;
         private String unitOfMeasure;
         private BigDecimal unitPrice;
         private BigDecimal lineAmount;
@@ -50,7 +50,7 @@ public class GoodsReturnResponseDto {
                     .map(line -> GoodsReturnLineResponseDto.builder()
                             .id(line.getId())
                             .productId(line.getProductId())
-                            .quantity(line.getQuantity().intValue())
+                            .quantity(line.getQuantity())
                             .unitOfMeasure(line.getUnitOfMeasure())
                             .unitPrice(line.getUnitPrice())
                             .lineAmount(line.getUnitPrice().multiply(line.getQuantity()))
@@ -67,7 +67,8 @@ public class GoodsReturnResponseDto {
                 .invoiceId(entity.getInvoiceId())
                 .status(entity.getStatus() != null ? entity.getStatus().name() : null)
                 .totalAmount(entity.getTotalAmount())
-                .refundAmount(entity.getTotalAmount()) // Refund amount is technically totalAmount in this context
+                // Tiền hoàn lại cho khách (phần không trừ được vào công nợ khi xác nhận); 0 khi còn nháp.
+                .refundAmount(entity.getRefundAmount())
                 .reason(entity.getReason())
                 .createdAt(entity.getCreatedAt())
                 .createdBy(entity.getCreatedBy())

@@ -1,6 +1,7 @@
 package com.storename.erp.crm.application;
 
 import lombok.extern.slf4j.Slf4j;
+import com.storename.erp.common.exception.BusinessConflictException;
 import com.storename.erp.crm.domain.Customer;
 import com.storename.erp.crm.domain.ReceivableDebt;
 import com.storename.erp.crm.infrastructure.CustomerRepository;
@@ -18,6 +19,13 @@ import com.storename.erp.crm.infrastructure.ReceivableDebtMovementRepository;
 @Service
 @Slf4j
 public class ReceivableDebtService {
+
+    /** Mã lỗi (HTTP 409): thao tác làm công nợ âm, ví dụ thu nợ vượt số nợ hiện có. */
+    public static final String DEBT_NEGATIVE = "DEBT_NEGATIVE";
+    /** Mã lỗi (HTTP 409): đặt số dư đầu kỳ khi khách đã có biến động công nợ. */
+    public static final String OPENING_BALANCE_EXISTS = "OPENING_BALANCE_EXISTS";
+    /** refType của biến động thu nợ độc lập (không gắn với hóa đơn). */
+    public static final String REF_DEBT_PAYMENT = "DEBT_PAYMENT";
 
     private final ReceivableDebtRepository debtRepository;
     private final CustomerRepository customerRepository;
@@ -50,18 +58,59 @@ public class ReceivableDebtService {
         BigDecimal signedAmount = amount.negate();
         return processDebtChange(customerId, branchId, signedAmount, type, refType, refId, userId, note);
     }
-    
+
+    /**
+     * Giảm công nợ tối đa bằng số dư hiện có (không làm công nợ âm) và trả về số tiền đã trừ thật.
+     * Dùng cho trả hàng: khách đã trả đủ (công nợ 0) vẫn trả hàng được, phần không trừ được vào
+     * công nợ là tiền phải hoàn lại cho khách. Không ghi biến động khi số tiền trừ được bằng 0.
+     */
+    @Transactional
+    public BigDecimal decreaseDebtUpToBalance(UUID customerId, Long branchId, BigDecimal amount,
+                                              ReceivableDebtMovementType type, String refType, String refId,
+                                              UUID userId, String note) {
+        if (amount.compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("decreaseDebtUpToBalance requires a positive amount");
+        }
+        BigDecimal balance = debtRepository.findForUpdate(customerId, branchId)
+                .map(ReceivableDebt::getTotalDebt)
+                .orElse(BigDecimal.ZERO);
+        BigDecimal applied = amount.min(balance.max(BigDecimal.ZERO));
+        if (applied.compareTo(BigDecimal.ZERO) > 0) {
+            processDebtChange(customerId, branchId, applied.negate(), type, refType, refId, userId, note);
+        }
+        return applied;
+    }
+
+    /**
+     * Thu nợ độc lập: khách trả tiền cho khoản nợ đã có, không gắn với hóa đơn mới.
+     * Ghi biến động PAYMENT (refType {@value #REF_DEBT_PAYMENT}, refId sinh mới cho mỗi lần thu).
+     * Thu vượt số nợ hiện có bị từ chối (HTTP 409, mã {@value #DEBT_NEGATIVE}).
+     */
+    @Transactional
+    public ReceivableDebt recordPayment(UUID customerId, Long branchId, BigDecimal amount, UUID userId, String note) {
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Số tiền thu nợ phải lớn hơn 0");
+        }
+        String paymentRef = UUID.randomUUID().toString();
+        String text = (note == null || note.isBlank()) ? "Thu nợ" : note;
+        return decreaseDebt(customerId, branchId, amount, ReceivableDebtMovementType.PAYMENT,
+                REF_DEBT_PAYMENT, paymentRef, userId, text);
+    }
+
     private ReceivableDebt processDebtChange(UUID customerId, Long branchId, BigDecimal signedAmount,
                                              ReceivableDebtMovementType type, String refType, String refId, 
                                              UUID userId, String note) {
-        ReceivableDebt debt = debtRepository.findByCustomerIdAndBranchId(customerId, branchId)
+        ReceivableDebt debt = debtRepository.findForUpdate(customerId, branchId)
                 .orElseGet(() -> createDebtRecord(customerId, branchId));
                 
         BigDecimal balanceBefore = debt.getTotalDebt();
         BigDecimal balanceAfter = balanceBefore.add(signedAmount);
         
         if (balanceAfter.compareTo(BigDecimal.ZERO) < 0) {
-            throw new IllegalStateException("Receivable debt cannot become negative");
+            throw new BusinessConflictException(DEBT_NEGATIVE, String.format(
+                    "Công nợ không được âm: số dư hiện tại %s, số tiền giảm %s",
+                    balanceBefore.stripTrailingZeros().toPlainString(),
+                    signedAmount.negate().stripTrailingZeros().toPlainString()));
         }
         
         debt.setTotalDebt(balanceAfter);
@@ -74,17 +123,18 @@ public class ReceivableDebtService {
     @Transactional
     public ReceivableDebt setOpeningBalance(UUID customerId, Long branchId, BigDecimal amount, UUID userId, String note) {
         if (movementRepository.existsByCustomerIdAndBranchId(customerId, branchId)) {
-            throw new RuntimeException("Cannot set opening balance because movements already exist for this customer.");
+            throw new BusinessConflictException(OPENING_BALANCE_EXISTS,
+                    "Cannot set opening balance because movements already exist for this customer.");
         }
 
-        ReceivableDebt debt = debtRepository.findByCustomerIdAndBranchId(customerId, branchId)
+        ReceivableDebt debt = debtRepository.findForUpdate(customerId, branchId)
                 .orElseGet(() -> createDebtRecord(customerId, branchId));
         
         BigDecimal balanceBefore = BigDecimal.ZERO;
         BigDecimal balanceAfter = amount;
         
         if (balanceAfter.compareTo(BigDecimal.ZERO) < 0) {
-            throw new IllegalStateException("Receivable debt cannot become negative");
+            throw new IllegalArgumentException("Số dư đầu kỳ không được âm");
         }
 
         debt.setTotalDebt(balanceAfter);

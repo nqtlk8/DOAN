@@ -19,4 +19,12 @@ public interface SupplierRepository extends JpaRepository<Supplier, UUID> {
 
     /** Toàn bộ supplier kể cả đã ngừng hoạt động — dùng cho ADMIN tại HQ. */
     List<Supplier> findAllByOrderByNameAsc();
+
+    boolean existsByCode(String code);
+
+    boolean existsByCodeAndIdNot(String code, UUID id);
+
+    boolean existsByTaxCode(String taxCode);
+
+    boolean existsByTaxCodeAndIdNot(String taxCode, UUID id);
 }

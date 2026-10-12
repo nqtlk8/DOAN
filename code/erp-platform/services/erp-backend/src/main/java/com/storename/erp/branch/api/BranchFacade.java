@@ -18,4 +18,9 @@ public class BranchFacade {
         return branchRepository.findAllById(branchIds).stream()
                 .collect(Collectors.toMap(com.storename.erp.branch.domain.Branch::getId, com.storename.erp.branch.domain.Branch::getName));
     }
+
+    /** Chi nhánh có tồn tại không (dùng để kiểm tra branchId do client gửi lên). */
+    public boolean branchExists(Long branchId) {
+        return branchId != null && branchRepository.existsById(branchId);
+    }
 }

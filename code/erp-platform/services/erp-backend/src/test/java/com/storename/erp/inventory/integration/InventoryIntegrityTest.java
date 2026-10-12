@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SpringBootTest
 @Transactional
@@ -135,22 +136,54 @@ public class InventoryIntegrityTest {
         assertThat(layers.get(1).getRemainingQty()).isEqualByComparingTo("50");
     }
 
+    private void inbound(String qty, String unitCost) {
+        InboundReceiptCreateDto dto = new InboundReceiptCreateDto();
+        InboundReceiptCreateDto.LineDto line = new InboundReceiptCreateDto.LineDto();
+        line.setProductId(productId);
+        line.setQuantity(new BigDecimal(qty));
+        line.setUnitCost(new BigDecimal(unitCost));
+        line.setUnitOfMeasure("Cai");
+        dto.setLines(List.of(line));
+        inboundService.confirmReceipt(inboundService.createDraft(branchId, dto), branchId, userId);
+    }
+
     @Test
-    public void negativeStock_createsMovementWithNoLayer() {
-        InventoryFacade.SaleCostResult costResult = inventoryFacade.recordSaleAndGetCost(productId, branchId, new BigDecimal("50"), UUID.randomUUID().toString(), UUID.randomUUID(), userId);
+    public void sale_withoutStock_throwsAndChangesNothing() {
+        assertThatThrownBy(() -> inventoryFacade.recordSaleAndGetCost(productId, branchId, new BigDecimal("50"),
+                UUID.randomUUID().toString(), UUID.randomUUID(), userId))
+                .isInstanceOf(com.storename.erp.inventory.domain.StockInsufficientException.class)
+                .hasMessageContaining("tồn kho còn 0, cần 50");
 
-        assertThat(costResult.costBasis()).isEqualTo("NO_LAYER");
-        assertThat(costResult.unitCostSnapshot()).isEqualByComparingTo("0");
+        assertThat(movementRepo.findByProductIdAndBranchIdOrderByCreatedAtAsc(productId, branchId)).isEmpty();
+        assertThat(costLayerRepo.findAvailableForFifoWithLock(productId, branchId)).isEmpty();
+    }
 
-        StockOnHand stock = stockRepo.findByBranchId(branchId).get(0);
-        assertThat(stock.getQuantity()).isEqualByComparingTo("-50");
+    @Test
+    public void sale_moreThanStock_throwsAndKeepsStockAndLayers() {
+        inbound("20", "10000");
 
-        List<StockMovement> movements = movementRepo.findByProductIdAndBranchIdOrderByCreatedAtAsc(productId, branchId);
-        assertThat(movements.get(movements.size() - 1).getQuantity()).isEqualByComparingTo("-50");
+        assertThatThrownBy(() -> inventoryFacade.recordSaleAndGetCost(productId, branchId, new BigDecimal("25"),
+                UUID.randomUUID().toString(), UUID.randomUUID(), userId))
+                .isInstanceOf(com.storename.erp.inventory.domain.StockInsufficientException.class)
+                .hasMessageContaining("tồn kho còn 20, cần 25");
+
+        assertThat(stockRepo.findByBranchId(branchId).get(0).getQuantity()).isEqualByComparingTo("20");
+        assertThat(costLayerRepo.findAvailableForFifoWithLock(productId, branchId).get(0).getRemainingQty()).isEqualByComparingTo("20");
+        assertThat(movementRepo.findByProductIdAndBranchIdOrderByCreatedAtAsc(productId, branchId)).hasSize(1); // chỉ INBOUND
+    }
+
+    @Test
+    public void sale_exactlyAllStock_ok() {
+        inbound("20", "10000");
+        InventoryFacade.SaleCostResult r = inventoryFacade.recordSaleAndGetCost(productId, branchId, new BigDecimal("20"),
+                UUID.randomUUID().toString(), UUID.randomUUID(), userId);
+        assertThat(r.costBasis()).isEqualTo("NORMAL");
+        assertThat(stockRepo.findByBranchId(branchId).get(0).getQuantity()).isEqualByComparingTo("0");
     }
 
     @Test
     public void return_createsMovementAndCostLayer() {
+        inbound("10", "8000");
         inventoryFacade.recordSaleAndGetCost(productId, branchId, new BigDecimal("10"), UUID.randomUUID().toString(), UUID.randomUUID(), userId);
         
         inventoryFacade.recordReturn(productId, branchId, new BigDecimal("3"), new BigDecimal("8000"), UUID.randomUUID().toString(), UUID.randomUUID(), userId);

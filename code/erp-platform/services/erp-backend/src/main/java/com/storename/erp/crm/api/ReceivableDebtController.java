@@ -120,6 +120,9 @@ public class ReceivableDebtController {
                                 dto.setReferenceCode(invoiceCodeMap.get(refUuid));
                             } else if ("GOODS_RETURN".equals(m.getRefType())) {
                                 dto.setReferenceCode(returnCodeMap.get(refUuid));
+                            } else if (com.storename.erp.crm.application.ReceivableDebtService.REF_DEBT_PAYMENT.equals(m.getRefType())) {
+                                // Thu nợ độc lập không có chứng từ riêng: mã hiển thị TN + 8 ký tự đầu của refId.
+                                dto.setReferenceCode("TN" + m.getRefId().substring(0, 8).toUpperCase());
                             }
                         } catch (Exception e) {}
                     }

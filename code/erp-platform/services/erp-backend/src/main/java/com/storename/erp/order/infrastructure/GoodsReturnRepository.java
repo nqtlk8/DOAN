@@ -16,9 +16,11 @@ public interface GoodsReturnRepository extends JpaRepository<GoodsReturn, UUID> 
         "SELECT COALESCE(SUM(grl.quantity), 0) FROM GoodsReturnLine grl " +
         "WHERE grl.goodsReturn.invoiceId = :invoiceId " +
         "AND grl.goodsReturn.status = 'CONFIRMED' " +
-        "AND grl.productId = :productId"
+        "AND grl.productId = :productId " +
+        "AND grl.unitOfMeasure = :unitOfMeasure"
     )
-    java.math.BigDecimal getTotalReturnedQuantity(@org.springframework.data.repository.query.Param("invoiceId") UUID invoiceId, 
-                                                  @org.springframework.data.repository.query.Param("productId") Long productId);
+    java.math.BigDecimal getTotalReturnedQuantity(@org.springframework.data.repository.query.Param("invoiceId") UUID invoiceId,
+                                                  @org.springframework.data.repository.query.Param("productId") Long productId,
+                                                  @org.springframework.data.repository.query.Param("unitOfMeasure") String unitOfMeasure);
     java.util.List<GoodsReturn> findByBranchId(Long branchId);
 }

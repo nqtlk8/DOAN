@@ -48,6 +48,9 @@ public class GoodsReturnConcurrencyIT {
     @Autowired
     private com.storename.erp.inventory.infrastructure.StockOnHandRepository stockOnHandRepository;
 
+    @Autowired
+    private com.storename.erp.inventory.infrastructure.CostLayerRepository costLayerRepository;
+
     // Test that concurrent confirm return requests on the same invoice
     // for the maximum amount only succeed once due to pessimistic lock.
     @Test
@@ -60,13 +63,15 @@ public class GoodsReturnConcurrencyIT {
         dto.setEmail("test@test.com");
         dto.setAddress("Test Address");
         dto.setTaxCode("123");
-        dto.setBranchId(1L);
+        // Khách dùng chung (branch_id NULL): CustomerWriteService yêu cầu chi nhánh tồn tại, mà test không tạo dòng branch nào.
+        dto.setBranchId(null);
         com.storename.erp.crm.application.dto.CustomerResponseDto customerResp = customerWriteService.createCustomer(dto);
         final UUID customerId = customerResp.getId();
         
         com.storename.erp.inventory.domain.StockOnHand soh = new com.storename.erp.inventory.domain.StockOnHand(1L, 1L);
         soh.increase(new BigDecimal("100"), "INIT");
         stockOnHandRepository.save(soh);
+        costLayerRepository.save(com.storename.erp.inventory.domain.CostLayer.fromInbound(1L, 1L, new BigDecimal("100"), new BigDecimal("500"), null));
         
         // 2. Create and confirm an invoice of 5 items
         SalesInvoice invoice = new SalesInvoice();

@@ -68,8 +68,8 @@ public class AnalyticsDataAdapterPostgresIT extends PostgresIntegrationTest {
 
         // Hóa đơn CONFIRMED trong kỳ: 2 x 100 = 200 doanh thu, giá vốn 2 x 60 = 120.
         insertInvoiceWithLine("IT-HD-001", "CONFIRMED", LocalDateTime.of(2026, 9, 10, 9, 0), 2, 100, 60);
-        // Hóa đơn CANCELLED trong kỳ -> không được tính.
-        insertInvoiceWithLine("IT-HD-002", "CANCELLED", LocalDateTime.of(2026, 9, 11, 9, 0), 5, 100, 60);
+        // Hóa đơn chưa xác nhận (DRAFT) trong kỳ -> không được tính.
+        insertInvoiceWithLine("IT-HD-002", "DRAFT", LocalDateTime.of(2026, 9, 11, 9, 0), 5, 100, 60);
         // Hóa đơn CONFIRMED ngoài kỳ (đúng mốc toTs, khoảng mở bên phải) -> không được tính.
         insertInvoiceWithLine("IT-HD-003", "CONFIRMED", TO_TS, 7, 100, 60);
 
@@ -92,6 +92,47 @@ public class AnalyticsDataAdapterPostgresIT extends PostgresIntegrationTest {
         assertThat(allAfter.getCogs().subtract(allBefore.getCogs())).isEqualByComparingTo("120");
         assertThat(analyticsDataAdapter.getTopProductsByRevenue(null, FROM_TS, TO_TS, 10)).isNotEmpty();
         assertThat(analyticsDataAdapter.getProductIdsSoldInPeriod(null, FROM_TS, TO_TS)).contains(PRODUCT_ID);
+    }
+
+    @Test
+    void salesQueries_shouldBeNetOfConfirmedReturns_inReturnPeriod() {
+        SalesTotals allBefore = analyticsDataAdapter.getSalesTotals(null, FROM_TS, TO_TS);
+        UUID customerId = insertCustomer("IT-KH-RET");
+
+        // Bán 5 x 100 (giá vốn 60) trong kỳ
+        insertInvoiceWithLine("IT-HD-101", "CONFIRMED", LocalDateTime.of(2026, 9, 5, 9, 0), 5, 100, 60);
+        // Trả 2 x 100 (giá vốn 60) xác nhận trong kỳ -> bị trừ
+        insertReturnWithLine("IT-TH-1", customerId, "CONFIRMED", LocalDateTime.of(2026, 9, 15, 9, 0), 2, 100, 60);
+        // Phiếu trả nháp -> không trừ
+        insertReturnWithLine("IT-TH-2", customerId, "DRAFT", null, 1, 100, 60);
+        // Phiếu trả xác nhận ngoài kỳ (đúng mốc toTs) -> không trừ
+        insertReturnWithLine("IT-TH-3", customerId, "CONFIRMED", TO_TS, 1, 100, 60);
+
+        SalesTotals branchTotals = analyticsDataAdapter.getSalesTotals(BRANCH_ID, FROM_TS, TO_TS);
+        assertThat(branchTotals.getRevenue()).isEqualByComparingTo("300"); // 500 - 200
+        assertThat(branchTotals.getCogs()).isEqualByComparingTo("180");    // 300 - 120
+
+        List<ProductPerformanceDto> top = analyticsDataAdapter.getTopProductsByRevenue(BRANCH_ID, FROM_TS, TO_TS, 10);
+        assertThat(top).hasSize(1);
+        assertThat(top.get(0).getProductName()).isEqualTo("SP test");
+        assertThat(top.get(0).getQuantitySold()).isEqualByComparingTo("3");
+        assertThat(top.get(0).getRevenue()).isEqualByComparingTo("300");
+
+        SalesTotals allAfter = analyticsDataAdapter.getSalesTotals(null, FROM_TS, TO_TS);
+        assertThat(allAfter.getRevenue().subtract(allBefore.getRevenue())).isEqualByComparingTo("300");
+        assertThat(allAfter.getCogs().subtract(allBefore.getCogs())).isEqualByComparingTo("180");
+    }
+
+    @Test
+    void topProducts_shouldDropProductsFullyReturnedInPeriod() {
+        UUID customerId = insertCustomer("IT-KH-RET2");
+        insertInvoiceWithLine("IT-HD-201", "CONFIRMED", LocalDateTime.of(2026, 9, 5, 9, 0), 1, 100, 60);
+        insertReturnWithLine("IT-TH-201", customerId, "CONFIRMED", LocalDateTime.of(2026, 9, 6, 9, 0), 1, 100, 60);
+
+        assertThat(analyticsDataAdapter.getTopProductsByRevenue(BRANCH_ID, FROM_TS, TO_TS, 10)).isEmpty();
+        SalesTotals totals = analyticsDataAdapter.getSalesTotals(BRANCH_ID, FROM_TS, TO_TS);
+        assertThat(totals.getRevenue()).isEqualByComparingTo("0");
+        assertThat(totals.getCogs()).isEqualByComparingTo("0");
     }
 
     @Test
@@ -151,6 +192,22 @@ public class AnalyticsDataAdapterPostgresIT extends PostgresIntegrationTest {
                     unit_cost, line_total, unit_of_measure, version, is_deleted, created_at, updated_at)
                 VALUES (?, ?, ?, 'SP test', ?, ?, ?, ?, 'Hộp', 0, false, now(), now())
                 """, UUID.randomUUID(), invoiceId, PRODUCT_ID, qty, unitPrice, unitCost, lineTotal);
+    }
+
+    private void insertReturnWithLine(String code, UUID customerId, String status, LocalDateTime confirmedAt,
+                                      int qty, int unitPrice, int unitCost) {
+        UUID returnId = UUID.randomUUID();
+        jdbcTemplate.update("""
+                INSERT INTO goods_return (id, return_code, branch_id, customer_id, status, total_amount,
+                    version, is_deleted, created_at, updated_at, confirmed_at)
+                VALUES (?, ?, ?, ?, ?, ?, 0, false, now(), now(), ?)
+                """, returnId, code, BRANCH_ID, customerId, status, (long) qty * unitPrice,
+                confirmedAt == null ? null : Timestamp.valueOf(confirmedAt));
+        jdbcTemplate.update("""
+                INSERT INTO goods_return_line (id, return_id, product_id, quantity, unit_price, unit_cost,
+                    unit_of_measure, version, is_deleted, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, 'Hộp', 0, false, now(), now())
+                """, UUID.randomUUID(), returnId, PRODUCT_ID, qty, unitPrice, unitCost);
     }
 
     private void insertCostLayer(int remainingQty, int unitCost) {

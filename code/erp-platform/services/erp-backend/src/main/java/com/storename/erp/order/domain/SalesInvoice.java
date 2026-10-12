@@ -17,6 +17,9 @@ import java.util.UUID;
 @Setter
 public class SalesInvoice extends BaseEntity {
 
+    /** Mã lỗi (HTTP 409) khi thao tác không hợp lệ với trạng thái hiện tại của chứng từ. */
+    public static final String INVALID_STATUS = "INVALID_STATUS";
+
     @Column(name = "branch_id", nullable = false)
     private Long branchId;
 
@@ -65,7 +68,8 @@ public class SalesInvoice extends BaseEntity {
 
     public void confirm(UUID userId) {
         if (this.status != SalesInvoiceStatus.DRAFT)
-            throw new IllegalStateException("Only DRAFT can be confirmed");
+            throw new com.storename.erp.common.exception.BusinessConflictException(INVALID_STATUS,
+                    "Chỉ hóa đơn DRAFT mới được xác nhận (hiện tại: " + this.status + ")");
         this.status = SalesInvoiceStatus.CONFIRMED;
         this.confirmedAt = LocalDateTime.now();
         this.confirmedBy = userId;

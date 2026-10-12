@@ -84,7 +84,8 @@ public class InboundReceiptServiceTest {
         when(inboundRepo.findById(receiptId)).thenReturn(Optional.of(receipt));
         
         StockOnHand stock = new StockOnHand(10L, branchId);
-        when(stockRepo.findByProductIdAndBranchId(10L, branchId)).thenReturn(Optional.of(stock));
+        // Dòng tồn được khóa ghi (findForUpdate) trước khi cộng.
+        when(stockRepo.findForUpdate(10L, branchId)).thenReturn(Optional.of(stock));
         
         when(movementRepo.save(any(StockMovement.class))).thenAnswer(i -> {
             StockMovement m = i.getArgument(0);

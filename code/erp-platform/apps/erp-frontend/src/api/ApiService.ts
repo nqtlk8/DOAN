@@ -1,7 +1,7 @@
 import axios from 'axios';
 import axiosInstance from './axiosInstance';
 import type { components } from '@erp/api-contract';
-import type { GoodsReturnCreatePayload, GoodsReturnResponse } from '../types/documents';
+import type { GoodsReturnCreatePayload, GoodsReturnResponse, ResolvedPriceDto } from '../types/documents';
 import type { DashboardMetricsDto, StockAlertSummaryDto } from '../types/analytics';
 
 export const ApiService = {
@@ -72,6 +72,11 @@ export const ApiService = {
   CustomerPrice: {
     get: (customerId: string, productId: string) =>
       axiosInstance.get(`/api/v1/customer-prices/${customerId}/product/${productId}`).then((res: any) => res.data.data),
+    /** Giá áp dụng cho khách tại chi nhánh hiện tại: giá riêng của khách > giá niêm yết. */
+    resolve: (customerId: string, productIds: Array<string | number>): Promise<ResolvedPriceDto[]> =>
+      axiosInstance
+        .get(`/api/v1/customer-prices/${customerId}/resolve`, { params: { productIds: productIds.join(',') } })
+        .then((res: any) => res.data.data ?? []),
   },
   Analytics: {
     getDashboardMetrics: (branchId?: number, startDateKey?: number, endDateKey?: number): Promise<DashboardMetricsDto> => {

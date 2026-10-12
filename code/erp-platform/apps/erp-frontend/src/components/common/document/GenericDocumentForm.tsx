@@ -5,6 +5,7 @@ import type {
   DocumentLine,
   FormMode,
   InfoField,
+  LinePriceInfo,
   PartnerField,
   SummaryField,
 } from '../../../types/documents';
@@ -48,8 +49,21 @@ export interface GenericDocumentFormProps {
     onRemove: (id: string) => void;
     onUpdate: (id: string, field: keyof DocumentLine, value: unknown) => void;
     renderProductCombobox: (line: DocumentLine, index: number, hasError: boolean) => React.ReactNode;
+    /**
+     * Nhãn nguồn giá cạnh ô đơn giá (vd "Giá KH" / "Niêm yết") + tô nổi dòng đã sửa giá.
+     * Không truyền => bảng giữ nguyên như cũ (phiếu nhập, phiếu trả).
+     */
+    priceInfo?: (line: DocumentLine) => LinePriceInfo | null | undefined;
+    /** Ghi chú hiển thị dưới danh sách dòng (vd cảnh báo giá sẽ được lưu cho khách). */
+    footerNote?: React.ReactNode;
   };
 }
+
+const PRICE_BADGE_CLASS: Record<LinePriceInfo['tone'], string> = {
+  customer: 'badge bg-primary-soft text-primary',
+  list: 'badge-neutral',
+  none: 'badge-warning',
+};
 
 const lineAmount = (l: DocumentLine) => (Number(l.quantity) || 0) * (Number(l.unitPrice) || 0);
 
@@ -255,7 +269,7 @@ export const GenericDocumentForm: React.FC<GenericDocumentFormProps> = ({
             <col />
             <col style={{ width: 70 }} />
             <col style={{ width: 96 }} />
-            <col style={{ width: 128 }} />
+            <col style={{ width: lines.priceInfo ? 188 : 128 }} />
             <col style={{ width: 140 }} />
             {!isView && <col style={{ width: 36 }} />}
           </colgroup>
@@ -276,6 +290,8 @@ export const GenericDocumentForm: React.FC<GenericDocumentFormProps> = ({
               const productError = !!errors[lineErrorKey(index, 'product')];
               const qtyError = !!errors[lineErrorKey(index, 'quantity')];
               const isSelected = activeLineId === item.id;
+              const priceInfo = lines.priceInfo?.(item) ?? null;
+              const priceEdited = !!priceInfo?.edited;
               return (
                 <tr
                   key={item.id}
@@ -283,8 +299,14 @@ export const GenericDocumentForm: React.FC<GenericDocumentFormProps> = ({
                   aria-selected={isSelected}
                   onFocusCapture={() => setActiveLineId(item.id)}
                   onMouseDown={() => setActiveLineId(item.id)}
+                  data-price-edited={priceEdited || undefined}
+                  title={priceEdited ? priceInfo?.title : undefined}
                   className={`h-7 border-b border-line ${
-                    isSelected ? 'bg-primary-soft shadow-[inset_3px_0_0_var(--color-primary)]' : 'hover:bg-slate-50'
+                    isSelected
+                      ? 'bg-primary-soft shadow-[inset_3px_0_0_var(--color-primary)]'
+                      : priceEdited
+                        ? 'bg-warning-soft shadow-[inset_3px_0_0_var(--color-warning)]'
+                        : 'hover:bg-slate-50'
                   }`}
                 >
                   <td className="px-2 text-center text-ink-subtle border-r border-line">{index + 1}</td>
@@ -326,25 +348,38 @@ export const GenericDocumentForm: React.FC<GenericDocumentFormProps> = ({
                       </div>
                     )}
                   </td>
-                  <td className="p-0 border-r border-line relative">
+                  <td
+                    className={`p-0 border-r border-line relative ${priceEdited ? 'ring-1 ring-inset ring-warning' : ''}`}
+                    title={priceInfo?.title}
+                  >
                     {isView ? (
                       <div className="px-2 text-right tabular-nums">{formatNumber(item.unitPrice)}</div>
                     ) : (
-                      <div className="absolute inset-0">
-                        <NumberInput
-                          value={item.unitPrice}
-                          onChange={(v) => lines.onUpdate(item.id, 'unitPrice', v)}
-                          variant="cell"
-                          data-testid={`${prefix}-line-price`}
-                          aria-label={`${lines.priceLabel || 'Đơn giá'} dòng ${index + 1}`}
-                          dataAttrs={{ 'data-line-id': item.id, 'data-field': 'price' }}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault();
-                              handlePriceEnter(index);
-                            }
-                          }}
-                        />
+                      <div className="absolute inset-0 flex items-center">
+                        {priceInfo && (
+                          <span
+                            className={`${PRICE_BADGE_CLASS[priceInfo.tone]} ml-1 shrink-0 whitespace-nowrap pointer-events-none`}
+                            data-testid={`${prefix}-line-price-source`}
+                          >
+                            {priceInfo.label}
+                          </span>
+                        )}
+                        <div className="relative flex-1 h-full min-w-0">
+                          <NumberInput
+                            value={item.unitPrice}
+                            onChange={(v) => lines.onUpdate(item.id, 'unitPrice', v)}
+                            variant="cell"
+                            data-testid={`${prefix}-line-price`}
+                            aria-label={`${lines.priceLabel || 'Đơn giá'} dòng ${index + 1}`}
+                            dataAttrs={{ 'data-line-id': item.id, 'data-field': 'price' }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handlePriceEnter(index);
+                              }
+                            }}
+                          />
+                        </div>
                       </div>
                     )}
                   </td>
@@ -374,6 +409,13 @@ export const GenericDocumentForm: React.FC<GenericDocumentFormProps> = ({
               <tr>
                 <td colSpan={colCount} className="px-2 py-4 text-center text-ink-subtle border-b border-line">
                   {isView ? 'Phiếu chưa có hàng hóa.' : 'Chưa có hàng hóa. Bấm “Dòng mới” để thêm.'}
+                </td>
+              </tr>
+            )}
+            {!isView && lines.footerNote && (
+              <tr className="bg-warning-soft border-b border-line">
+                <td colSpan={colCount} className="px-2 py-1.5 text-[12px] text-ink" data-testid={`${prefix}-price-note`}>
+                  {lines.footerNote}
                 </td>
               </tr>
             )}

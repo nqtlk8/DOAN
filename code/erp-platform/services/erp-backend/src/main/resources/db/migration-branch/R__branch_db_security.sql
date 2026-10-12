@@ -27,8 +27,9 @@ DECLARE
         'inbound_receipt', 'inbound_receipt_line',
         'stock_movement', 'cost_layer',
         'stock_on_hand', 'receivable_debt', 'receivable_debt_movement',
+        'customer_product_price', 'customer_product_price_history',
         -- cục bộ, không replicate
-        'idempotency_record', 'customer_product_price',
+        'idempotency_record',
         'fact_sales', 'fact_stock_movement'
     ];
     t text;

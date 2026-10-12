@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.HashMap;
 import java.util.Map;
 
+import com.storename.erp.common.exception.BusinessConflictException;
 import com.storename.erp.common.exception.ResourceNotFoundException;
 import org.springframework.cache.annotation.CacheEvict;
 
@@ -32,6 +33,12 @@ public class ProductWriter {
     @CacheEvict(value = "products", allEntries = true)
     public ProductResponseDto createProduct(ProductCreateDto dto) {
         log.info("Creating new product with code: {}", dto.getCode());
+
+        // Mã sản phẩm là duy nhất kể cả với sản phẩm đã ngừng bán (xóa mềm) -> 409 thay vì lỗi CSDL.
+        if (productRepository.findByCode(dto.getCode()).isPresent()) {
+            throw new BusinessConflictException("PRODUCT_CODE_EXISTS",
+                    "Mã sản phẩm '" + dto.getCode() + "' đã tồn tại");
+        }
 
         Category category = categoryRepository.findById(dto.getCategoryId())
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found"));

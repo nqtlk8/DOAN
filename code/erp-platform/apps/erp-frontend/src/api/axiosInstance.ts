@@ -104,11 +104,21 @@ axiosInstance.interceptors.response.use(
           }
         }
         throw new Error('Refresh failed');
-      } catch (err) {
+      } catch (err: any) {
         processQueue(err, null);
-        
+
+        // Chi xoa phien khi may chu xac thuc TU CHOI refresh (401/400) hoac khong co refresh token.
+        // Loi mang / 5xx (HQ hoac Redis tam thoi khong truy cap duoc) -> giu phien, bao loi de thu lai.
+        const refreshStatus = err?.response?.status;
+        const sessionRejected = refreshStatus === 401 || refreshStatus === 400 || !err?.response;
+        const transientFailure = !!err?.request && !err?.response || (refreshStatus !== undefined && refreshStatus >= 500);
+        if (transientFailure) {
+          notify.error('Không kết nối được máy chủ xác thực. Vui lòng thử lại sau.');
+          return Promise.reject(new ApiError(normalizeApiError(error)));
+        }
+
         // Clear session and notify
-        if (typeof window !== 'undefined') {
+        if (sessionRejected && typeof window !== 'undefined') {
           localStorage.removeItem('access_token');
           localStorage.removeItem('refresh_token');
           localStorage.removeItem('user');

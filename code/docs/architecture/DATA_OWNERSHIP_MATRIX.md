@@ -1,6 +1,6 @@
 # Data Ownership Matrix
 
-Cập nhật: 2026-10-01. Danh sách bảng replicate được cấu hình ở `scripts/replication-tables.conf`. Khi đổi bảng nào ở đây phải sửa cả file đó và danh sách bảng chi nhánh được ghi trong `db/migration-branch/R__branch_db_security.sql`.
+Cập nhật: 2026-10-10. Danh sách bảng replicate được cấu hình ở `scripts/replication-tables.conf`. Khi đổi bảng nào ở đây phải sửa cả file đó và danh sách bảng chi nhánh được ghi trong `db/migration-branch/R__branch_db_security.sql`.
 
 "Branch Write = No" được ép ở mức DB: role ứng dụng `erp_app` ở chi nhánh chỉ có SELECT trên các bảng này.
 
@@ -15,7 +15,7 @@ Cập nhật: 2026-10-01. Danh sách bảng replicate được cấu hình ở `
 | category | HQ | Yes | No | HQ -> Branch | Cây 2 cấp có sẵn từ `R__reference_data.sql` (giống web-public) |
 | product | HQ | Yes | No | HQ -> Branch | |
 | supplier | HQ | Yes | No | HQ -> Branch | **Dùng chung toàn hệ thống** (không có `branch_id`) |
-| price_list | HQ | Yes | No | HQ -> Branch | 1 giá cho mỗi (sản phẩm, chi nhánh) |
+| price_list | HQ | Yes | No | HQ -> Branch | Giá niêm yết theo (sản phẩm, chi nhánh); app lấy dòng `effective_date <= now` mới nhất. Giá bán ưu tiên `customer_product_price` trước |
 | customer | HQ | Yes | No | HQ -> Branch | `branch_id` NULL = dùng chung, có giá trị = khách riêng của chi nhánh |
 | inventory_alert_config | HQ | Yes | No | HQ -> Branch | |
 | dim_date | HQ | Yes | No | HQ -> Branch | |
@@ -28,9 +28,10 @@ Cập nhật: 2026-10-01. Danh sách bảng replicate được cấu hình ở `
 | stock_movement | Branch | No | Yes | Branch -> HQ | |
 | cost_layer | Branch | No | Yes | Branch -> HQ | |
 | receivable_debt_movement | Branch | No | Yes | Branch -> HQ | Sổ cái công nợ. Thêm vào replication 2026-10-01 |
+| customer_product_price | Branch | No | Yes | Branch -> HQ | Giá riêng theo khách (giá hiện hành). Ghi tự động khi xác nhận hóa đơn có giá khác giá đang áp dụng (`CustomerProductPriceService.applyFromInvoice`). Thêm vào replication 2026-10-10 (V9) |
+| customer_product_price_history | Branch | No | Yes | Branch -> HQ | Lịch sử thay đổi giá riêng theo khách, append-only. Thêm 2026-10-10 (V9) |
 | stock_on_hand | Branch | No | Yes | Branch -> HQ (row filter branch_id) | |
 | receivable_debt | Branch | No | Yes | Branch -> HQ (row filter branch_id) | |
-| customer_product_price | Local | Yes | Yes | None | Chưa có luồng ghi trong code (chỉ đọc) |
 | idempotency_record | Local | Yes | Yes | None | Khóa Idempotency-Key của từng instance |
 | fact_sales | HQ | Yes | No* | None (DW only) | *Chi nhánh được ghi cục bộ nhưng không dùng |
 | fact_stock_movement | HQ | Yes | No* | None (DW only) | như trên |

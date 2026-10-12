@@ -45,6 +45,9 @@ public class IdempotencyConcurrencyIT {
 
     @Autowired
     private com.storename.erp.inventory.infrastructure.StockOnHandRepository stockOnHandRepository;
+
+    @Autowired
+    private com.storename.erp.inventory.infrastructure.CostLayerRepository costLayerRepository;
     
     // Test that concurrent confirm requests on the same DRAFT invoice
     // only result in ONE success, and the others fail gracefully with IllegalStateException
@@ -62,11 +65,14 @@ public class IdempotencyConcurrencyIT {
         dto.setEmail("test@test.com");
         dto.setAddress("Test Address");
         dto.setTaxCode("123");
-        dto.setBranchId(1L);
+        // Khách dùng chung (branch_id NULL): CustomerWriteService yêu cầu chi nhánh tồn tại, mà test không tạo dòng branch nào.
+        dto.setBranchId(null);
         com.storename.erp.crm.application.dto.CustomerResponseDto customerResp = customerWriteService.createCustomer(dto);
         final UUID customerId = customerResp.getId();
         com.storename.erp.inventory.domain.StockOnHand soh = new com.storename.erp.inventory.domain.StockOnHand(1L, 1L);
+        soh.increase(new BigDecimal("100"), "INIT"); // không cho tồn âm: phải có hàng mới xác nhận bán được
         stockOnHandRepository.save(soh);
+        costLayerRepository.save(com.storename.erp.inventory.domain.CostLayer.fromInbound(1L, 1L, new BigDecimal("100"), new BigDecimal("500"), null));
         
         SalesInvoice invoice = new SalesInvoice();
         invoice.setBranchId(1L);
@@ -100,9 +106,9 @@ public class IdempotencyConcurrencyIT {
                     // Attempt to confirm the invoice
                     salesInvoiceService.confirmInvoice(invoiceId, UUID.randomUUID(), 1L);
                     successCount.incrementAndGet();
-                } catch (IllegalStateException e) {
-                    // Expected for all but one thread because of Retry and check status
-                    if ("Only DRAFT can be confirmed".equals(e.getMessage()) || e.getMessage().contains("Invoice is not DRAFT")) {
+                } catch (com.storename.erp.common.exception.BusinessConflictException e) {
+                    // Expected for all but one thread because of Retry and check status (HTTP 409 INVALID_STATUS)
+                    if ("INVALID_STATUS".equals(e.getCode())) {
                         exceptionCount.incrementAndGet();
                     } else {
                         e.printStackTrace();
@@ -121,7 +127,7 @@ public class IdempotencyConcurrencyIT {
         
         // Assertions
         Assertions.assertEquals(1, successCount.get(), "Only one thread should successfully confirm the invoice");
-        Assertions.assertEquals(4, exceptionCount.get(), "The other threads should throw IllegalStateException");
+        Assertions.assertEquals(4, exceptionCount.get(), "The other threads should be rejected with INVALID_STATUS (409)");
         
         SalesInvoice updatedInvoice = invoiceRepository.findById(invoiceId).orElseThrow();
         Assertions.assertEquals(1, updatedInvoice.getVersion(), "Version should be 1 after one successful confirmation");

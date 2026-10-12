@@ -22,6 +22,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
@@ -64,7 +65,7 @@ class AuthServiceTest {
 
     @Test
     void login_shouldUsePublicIdUuidAsJwtSubject_notNumericId() {
-        // BUG-1: subject phai la UUID (public_id), khong phai id BIGINT ("1")
+        // subject phai la UUID (public_id), khong phai id BIGINT ("1")
         java.util.UUID publicId = java.util.UUID.randomUUID();
         mockUser.setPublicId(publicId);
 
@@ -76,12 +77,12 @@ class AuthServiceTest {
         when(userRepository.findByUsername("testuser")).thenReturn(Optional.of(mockUser));
         when(passwordEncoder.matches("password", "encoded_password")).thenReturn(true);
         when(userBranchRoleRepository.findByUserId(1L)).thenReturn(java.util.List.of(ubr));
-        when(tokenProvider.generateToken(anyString(), anyString(), any(), anyString())).thenReturn("access");
-        when(tokenProvider.generateRefreshToken(anyString(), anyString(), any(), anyString())).thenReturn("refresh");
+        when(tokenProvider.generateToken(anyString(), anyString(), any(), anyString(), anyInt())).thenReturn("access");
+        when(tokenProvider.generateRefreshToken(anyString(), anyString(), any(), anyString(), anyInt())).thenReturn("refresh");
 
         authService.login("testuser", "password");
 
-        verify(tokenProvider).generateToken(eq(publicId.toString()), eq("STAFF"), any(), anyString());
-        verify(tokenProvider).generateRefreshToken(eq(publicId.toString()), eq("STAFF"), any(), anyString());
+        verify(tokenProvider).generateToken(eq(publicId.toString()), eq("STAFF"), any(), anyString(), anyInt());
+        verify(tokenProvider).generateRefreshToken(eq(publicId.toString()), eq("STAFF"), any(), anyString(), anyInt());
     }
 }

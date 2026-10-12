@@ -35,6 +35,8 @@ public class SalesInvoiceServiceTest {
     private InventoryFacade inventoryFacade;
     @Mock
     private com.storename.erp.crm.api.CrmFacade crmFacade;
+    @Mock
+    private CustomerProductPriceService customerPriceService;
 
     @InjectMocks
     private SalesInvoiceService salesInvoiceService;
@@ -147,6 +149,7 @@ public class SalesInvoiceServiceTest {
         assertEquals("FIFO", confirmed.getLines().get(0).getCostBasis());
         
         verify(debtService).increaseDebt(eq(customerId), eq(branchId), eq(new BigDecimal("200.0")), any(), anyString(), anyString(), any(), anyString());
+        verify(customerPriceService).applyFromInvoice(invoice, userId);
         verify(invoiceRepository).save(invoice);
     }
 
@@ -186,7 +189,8 @@ public class SalesInvoiceServiceTest {
         when(inventoryFacade.recordSaleAndGetCost(eq(1L), eq(branchId), eq(new BigDecimal("2.0")), anyString(), any(), eq(userId)))
                 .thenReturn(mockResult);
         when(crmFacade.customerExists(customerId)).thenReturn(true);
-        when(debtService.getCurrentDebt(customerId, branchId)).thenReturn(new BigDecimal("500.0"));
+        // Số dư đọc sau khi đã ghi INVOICE (đã khóa dòng công nợ): 500 nợ cũ + 200 hóa đơn.
+        when(debtService.getCurrentDebt(customerId, branchId)).thenReturn(new BigDecimal("700.0"));
 
         SalesInvoice result = salesInvoiceService.createAndConfirm(dto, branchId, userId);
 
@@ -200,6 +204,7 @@ public class SalesInvoiceServiceTest {
         // Persisted exactly twice: once to obtain ids, once with the confirmed state.
         // No intermediate DRAFT row is ever visible outside this transaction.
         verify(invoiceRepository, org.mockito.Mockito.times(2)).save(any(SalesInvoice.class));
+        verify(customerPriceService).applyFromInvoice(result, userId);
     }
 
     @Test
@@ -213,6 +218,7 @@ public class SalesInvoiceServiceTest {
             () -> salesInvoiceService.createAndConfirm(dto, branchId, userId));
             
         verify(inventoryFacade, never()).recordSaleAndGetCost(any(), any(), any(), any(), any(), any());
+        verify(customerPriceService, never()).applyFromInvoice(any(), any());
     }
 
     @Test
@@ -223,6 +229,6 @@ public class SalesInvoiceServiceTest {
         invoice.setStatus(SalesInvoiceStatus.CONFIRMED);
         when(invoiceRepository.findById(invoiceId)).thenReturn(Optional.of(invoice));
 
-        assertThrows(IllegalStateException.class, () -> salesInvoiceService.confirmInvoice(invoiceId, UUID.randomUUID(), branchId));
+        assertThrows(com.storename.erp.common.exception.BusinessConflictException.class, () -> salesInvoiceService.confirmInvoice(invoiceId, UUID.randomUUID(), branchId));
     }
 }

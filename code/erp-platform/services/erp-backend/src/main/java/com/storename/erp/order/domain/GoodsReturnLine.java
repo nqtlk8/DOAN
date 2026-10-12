@@ -21,11 +21,15 @@ public class GoodsReturnLine extends BaseEntity {
     @Column(name = "product_id", nullable = false)
     private Long productId;
 
-    @Column(nullable = false)
+    @Column(nullable = false, precision = 19, scale = 4)
     private BigDecimal quantity;
 
-    @Column(name = "unit_price", nullable = false)
+    @Column(name = "unit_price", nullable = false, precision = 19, scale = 4)
     private BigDecimal unitPrice;
+
+    /** Giá vốn của hàng trả (snapshot lúc xác nhận phiếu trả) — không phải giá bán. */
+    @Column(name = "unit_cost", precision = 19, scale = 4)
+    private BigDecimal unitCost;
 
     @Column(name = "unit_of_measure", nullable = false)
     private String unitOfMeasure;

@@ -51,6 +51,9 @@ public class GoodsReturnWithInvoiceTest {
     @Autowired
     private StockOnHandRepository stockRepository;
 
+    @Autowired
+    private com.storename.erp.inventory.infrastructure.CostLayerRepository costLayerRepository;
+
     private Long branchId;
     private UUID userId;
     private UUID invoiceId;
@@ -82,6 +85,7 @@ public class GoodsReturnWithInvoiceTest {
         invLine.setUnitPrice(new BigDecimal("100000"));
         invLine.setLineTotal(invLine.getQuantity().multiply(invLine.getUnitPrice()));
         invLine.setUnitOfMeasure("Cái");
+        invLine.setUnitCost(new BigDecimal("60000")); // giá vốn snapshot lúc bán
         invoice.addLine(invLine);
         invoice.confirm(userId); // set status CONFIRMED
         invoice = invoiceRepository.save(invoice);
@@ -124,5 +128,12 @@ public class GoodsReturnWithInvoiceTest {
 
         BigDecimal debt = debtService.getCurrentDebt(customer.getId(), branchId);
         assertThat(debt).isEqualByComparingTo("800000"); // 1000000 - (2 * 100000)
+
+        // Giá vốn hàng trả = giá vốn snapshot trên dòng hóa đơn gốc (60.000), không phải giá bán (100.000)
+        assertThat(gr.getLines().get(0).getUnitCost()).isEqualByComparingTo("60000");
+        java.util.List<com.storename.erp.inventory.domain.CostLayer> layers = costLayerRepository.findAvailableForFifoWithLock(productId, branchId);
+        assertThat(layers).hasSize(1);
+        assertThat(layers.get(0).getCostBasis()).isEqualTo("RETURN");
+        assertThat(layers.get(0).getUnitCost()).isEqualByComparingTo("60000");
     }
 }

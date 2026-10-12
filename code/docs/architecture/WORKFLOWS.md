@@ -198,8 +198,10 @@ SalesInvoiceService.confirmInvoice()
         |
         +--> load invoice
         +--> load stock
-        +--> snapshot unit cost
+        +--> lock stock row, check quantity (không đủ -> 409 INSUFFICIENT_STOCK, rollback cả hóa đơn)
+        +--> snapshot unit cost (FIFO)
         +--> decrease stock
+        +--> save customer price (CustomerProductPriceService.applyFromInvoice)
         +--> update receivable debt
         +--> snapshot previous/remaining debt
         |
@@ -208,6 +210,13 @@ PostgreSQL transaction commit
 ```
 
 Nếu idempotency key đã tồn tại và request hash giống nhau, hệ thống có thể trả lại response snapshot thay vì chạy lại nghiệp vụ.
+
+### 7.1. Giá bán theo khách (từ 2026-10-10, migration V9)
+
+- **Xác định giá khi lập phiếu** (`GET /api/v1/customer-prices/{customerId}/resolve`): giá riêng của khách còn hiệu lực (`customer_product_price`) > giá niêm yết chi nhánh (`price_list`, `effective_date <= now` mới nhất) > nhân viên nhập tay. Form bán hàng tra giá khi chọn khách và khi chọn sản phẩm; dòng đã sửa giá tay được giữ nguyên khi đổi khách.
+- **Nhân viên được sửa giá.** Dòng có giá khác giá đang áp dụng được tô nổi kèm ghi chú "Giá này sẽ được lưu làm giá riêng cho khách khi lưu đơn".
+- **Khi xác nhận hóa đơn**, trong cùng transaction với trừ kho và công nợ: với mỗi sản phẩm (lặp nhiều dòng thì lấy dòng cuối), nếu giá khác giá đang áp dụng thì upsert `customer_product_price` theo (`customer_id`, `product_id`, `branch_id`) và ghi 1 dòng `customer_product_price_history`. Khách chưa có giá riêng mà giá bằng giá niêm yết thì không ghi.
+- `sales_invoice_line.unit_price` vẫn là **snapshot bất biến** của hóa đơn; đổi giá niêm yết hay giá riêng sau đó không ảnh hưởng hóa đơn cũ.
 
 ## 8. Inbound Receipt
 
@@ -232,17 +241,36 @@ Create Return Draft
 Confirm Return
       |
       +--> validate original invoice / quantity
+      +--> resolve return unit cost (goods_return_line.unit_cost, V10):
+      |      có hóa đơn gốc -> sales_invoice_line.unit_cost của dòng khớp
+      |      không có       -> unit_cost lần bán gần nhất SP đó cho khách đó; không có -> lớp gần nhất; không có -> 0
       +--> create internal inbound movement
-      +--> increase stock
+      +--> increase stock + cost layer RETURN theo GIÁ VỐN trên (không theo giá bán)
       +--> adjust customer debt
       |
       v
 Commit
 ```
 
-## 10. Negative stock
+## 10. Không cho tồn âm (từ 2026-10-11)
 
-Bán hàng có thể sử dụng `decreaseAllowNegative()` nên tồn kho có thể xuống âm theo chính sách hiện hành.
+Nhập trước, bán sau. Khi xác nhận hóa đơn (`InventoryFacadeImpl.recordSaleAndGetCost`), với từng dòng:
+
+1. Khóa ghi dòng `stock_on_hand` (`StockOnHandRepository.findForUpdate`) để hai hóa đơn đồng thời không cùng vượt qua bước kiểm tra.
+2. Tồn < số lượng bán -> `StockInsufficientException` -> HTTP **409**, `errors = ["INSUFFICIENT_STOCK"]`, message hiển thị thẳng cho nhân viên:
+   `Không đủ hàng: [Mã] Tên SP — tồn kho còn X, cần Y. Vui lòng nhập hàng trước khi bán.`
+   Toàn bộ hóa đơn rollback (không trừ kho, không ghi công nợ, không lưu giá riêng).
+3. `FifoCostService.consume` cũng từ chối khi tổng `remaining_qty` của các lớp giá vốn không đủ (tồn kho và lớp lệch nhau). Không còn sinh `cost_basis = NO_LAYER`.
+
+Hóa đơn nháp (`createDraft`) không kiểm tra tồn; kiểm tra chạy lúc xác nhận. Form bán hàng tạo + xác nhận trong một bước.
+
+### 10.1. Giá vốn trên dashboard
+
+`AnalyticsDataAdapter` tính số **thuần**, mỗi chứng từ theo `confirmed_at` của chính nó (hàng trả trừ vào kỳ xác nhận phiếu trả):
+
+- Doanh thu = `SUM(sales_invoice_line.line_total)` − `SUM(goods_return_line.quantity × unit_price)`
+- Giá vốn = `SUM(sales_invoice_line.quantity × unit_cost)` − `SUM(goods_return_line.quantity × unit_cost)`
+- Top sản phẩm: số lượng và doanh thu thuần; sản phẩm có số lượng thuần ≤ 0 bị bỏ.
 
 ## 11. Error path
 

@@ -1,6 +1,6 @@
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Printer, X } from 'lucide-react';
+import { Printer, TriangleAlert, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { errorMessage } from '../../shared/errors/errorMessage';
 import { ApiService } from '../../api/ApiService';
@@ -25,7 +25,14 @@ import { SearchableCombobox } from '../common/SearchableCombobox';
 import { ConfirmDialog } from '../../shared/components/Dialog/ConfirmDialog';
 import { formatCurrency, toInputDate } from '../../shared/utils/format';
 import { useSalesInvoice } from '../../hooks/useSalesInvoice';
-import type { DocStatus, FormMode, ProductDto, SalesInvoiceDto } from '../../types/documents';
+import type { DocStatus, DocumentLine, FormMode, ProductDto, SalesInvoiceDto } from '../../types/documents';
+import {
+  applyResolvedPrice,
+  isLinePriceEdited,
+  linePriceInfo,
+  listPricePatch,
+  SAVE_PRICE_NOTE,
+} from './customerPricing';
 import type { components } from '@erp/api-contract';
 
 export type { FormMode };
@@ -115,6 +122,7 @@ const normalizeInitialData = (data?: SalesInvoiceDto | null): NormalizedInvoice 
 
 type DialogState = null | 'CANCEL' | 'EXIT';
 
+
 export const SalesOrderForm = forwardRef<SalesOrderFormRef, SalesOrderFormProps>(
   ({ mode: initialMode = 'VIEW', initialData: rawInitialData, onStateChange }, ref) => {
     const initialData = useMemo(() => normalizeInitialData(rawInitialData), [rawInitialData]);
@@ -137,6 +145,8 @@ export const SalesOrderForm = forwardRef<SalesOrderFormRef, SalesOrderFormProps>
     // Khối giữa: khách hàng
     const [customerCode, setCustomerCode] = useState<string>(initialData?.customerCode || '');
     const [customerId, setCustomerId] = useState<string>(initialData?.customerId || '');
+    // Khách đang chọn — dùng để bỏ qua kết quả tra giá đã cũ khi nhân viên đổi khách liên tục.
+    const customerIdRef = useRef<string>(initialData?.customerId || '');
     const [customerName, setCustomerName] = useState<string>(initialData?.customerName || '');
     const [address, setAddress] = useState<string>(initialData?.address || '');
     const [phone, setPhone] = useState<string>(initialData?.phone || '');
@@ -186,6 +196,35 @@ export const SalesOrderForm = forwardRef<SalesOrderFormRef, SalesOrderFormProps>
       [items, products],
     );
 
+    const itemsRef = useRef(items);
+    useEffect(() => {
+      itemsRef.current = items;
+    }, [items]);
+
+    /** Tra giá theo khách cho các sản phẩm rồi cập nhật dòng (chỉ dòng onlyLineId nếu truyền). */
+    const refreshCustomerPrices = async (custId: string, productIds: string[], onlyLineId?: string) => {
+      const ids = Array.from(new Set(productIds.filter(Boolean)));
+      if (!custId || ids.length === 0) return;
+      try {
+        const resolved = await ApiService.CustomerPrice.resolve(custId, ids);
+        if (customerIdRef.current !== custId) return; // đã đổi khách trong lúc chờ
+        const byProduct = new Map(resolved.map((r) => [String(r.productId), r]));
+        setItems((prev) =>
+          prev.map((l) => {
+            if (onlyLineId && l.id !== onlyLineId) return l;
+            const r = byProduct.get(l.productId);
+            return r ? applyResolvedPrice(l, r) : l;
+          }),
+        );
+      } catch (e) {
+        console.error('Failed to resolve customer prices', e);
+        toast.error('Không lấy được giá theo khách hàng — đang dùng giá niêm yết.');
+      }
+    };
+
+    const hasCustomer = !!customerId;
+    const editedPriceCount = isView ? 0 : displayItems.filter((l) => isLinePriceEdited(l, hasCustomer)).length;
+
     const { createMutation, confirmMutation } = useSalesInvoice();
 
     const statusForUi: DocStatus | undefined = currentInvoiceId ? invoiceStatus : undefined;
@@ -216,6 +255,7 @@ export const SalesOrderForm = forwardRef<SalesOrderFormRef, SalesOrderFormProps>
       setOrderCode('AUTO-GENERATE');
       setCustomerCode('');
       setCustomerId('');
+      customerIdRef.current = '';
       setCustomerName('');
       setAddress('');
       setPhone('');
@@ -226,12 +266,18 @@ export const SalesOrderForm = forwardRef<SalesOrderFormRef, SalesOrderFormProps>
     const selectCustomer = async (c: CustomerLike) => {
       setCustomerCode(c.customerCode || '');
       setCustomerId(c.id || '');
+      customerIdRef.current = c.id || '';
       setCustomerName(c.name || '');
       setAddress(c.address || '');
       setPhone(c.phone || '');
       setContactPerson(c.contactPerson || '');
       setFieldErrors((prev) => omitKey(prev, 'partner'));
       if (!c.id) return;
+      // Đổi khách -> áp lại giá theo khách mới cho các dòng chưa sửa giá tay.
+      void refreshCustomerPrices(
+        c.id,
+        itemsRef.current.map((l) => l.productId),
+      );
       try {
         const debt = await ApiService.Debt.getBalance(c.id);
         setOldDebt(Number(debt) || 0);
@@ -242,8 +288,13 @@ export const SalesOrderForm = forwardRef<SalesOrderFormRef, SalesOrderFormProps>
     };
 
     const selectProduct = (lineId: string, p: ProductLike) => {
-      patchLine(lineId, productToLinePatch(p));
+      const patch = productToLinePatch(p);
+      // Tạm dùng giá niêm yết; nếu đã chọn khách thì tra giá riêng của khách ngay sau đó.
+      patchLine(lineId, { ...patch, ...listPricePatch(p) });
       focusLineCell(lineId, 'quantity');
+      if (customerIdRef.current && patch.productId) {
+        void refreshCustomerPrices(customerIdRef.current, [patch.productId], lineId);
+      }
     };
 
     const handleSubmit = async () => {
@@ -341,7 +392,7 @@ export const SalesOrderForm = forwardRef<SalesOrderFormRef, SalesOrderFormProps>
           errors={fieldErrors}
           info={[
             { key: 'branch', label: 'Kho xuất', value: branch },
-            { key: 'priceList', label: 'Lấy giá', value: 'Bán hàng theo khách' },
+            { key: 'priceList', label: 'Lấy giá', value: 'Giá riêng KH → Niêm yết' },
             { key: 'creator', label: 'Nhân viên', value: initialData?.creator || user?.username || '' },
           ]}
           createdDate={createdDate}
@@ -391,6 +442,16 @@ export const SalesOrderForm = forwardRef<SalesOrderFormRef, SalesOrderFormProps>
             onAdd: addLine,
             onRemove: removeLine,
             onUpdate: updateLine,
+            priceInfo: isView ? undefined : (l: DocumentLine) => linePriceInfo(l, hasCustomer),
+            footerNote:
+              editedPriceCount > 0 ? (
+                <span className="inline-flex items-center gap-1.5">
+                  <TriangleAlert size={14} className="text-warning shrink-0" aria-hidden />
+                  <span>
+                    <strong>{editedPriceCount} dòng</strong> đã sửa giá. {SAVE_PRICE_NOTE}
+                  </span>
+                </span>
+              ) : undefined,
             renderProductCombobox: (line, _index, hasError) => (
               <SearchableCombobox
                 data-testid={`sales-product-combo-${line.id}`}

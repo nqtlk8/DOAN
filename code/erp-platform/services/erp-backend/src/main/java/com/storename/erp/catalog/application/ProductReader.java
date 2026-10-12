@@ -1,8 +1,8 @@
 package com.storename.erp.catalog.application;
 
 import com.storename.erp.catalog.application.dto.ProductResponseDto;
-import com.storename.erp.catalog.domain.Product;
 import com.storename.erp.catalog.domain.PriceList;
+import com.storename.erp.catalog.domain.Product;
 import com.storename.erp.catalog.infrastructure.PriceListRepository;
 import com.storename.erp.catalog.infrastructure.ProductRepository;
 import com.storename.erp.common.exception.ResourceNotFoundException;
@@ -15,7 +15,11 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -48,25 +52,15 @@ public class ProductReader {
     public List<ProductResponseDto> getAllProductsWithBranchPrice() {
         log.info("Fetching all products with branch price");
         Long branchId = getCurrentBranchId();
-        
+
         List<Product> products = productRepository.findAll();
-        
-        // Batch fetch prices to avoid N+1
-        java.util.Map<Long, java.math.BigDecimal> priceMap = new java.util.HashMap<>();
-        if (branchId != null && !products.isEmpty()) {
-            List<Long> productIds = products.stream().map(Product::getId).collect(Collectors.toList());
-            List<PriceList> prices = priceListRepository.findByBranchIdAndProductIdIn(branchId, productIds);
-            priceMap = prices.stream().collect(Collectors.toMap(p -> p.getProduct().getId(), PriceList::getPrice));
-        }
-        
-        final java.util.Map<Long, java.math.BigDecimal> finalPriceMap = priceMap;
-        
+        List<Long> productIds = products.stream().map(Product::getId).collect(Collectors.toList());
+        Map<Long, BigDecimal> priceMap = loadBranchPrices(branchId, productIds);
+
         return products.stream()
                 .map(product -> {
                     ProductResponseDto dto = mapToResponse(product);
-                    if (finalPriceMap.containsKey(product.getId())) {
-                        dto.setPrice(finalPriceMap.get(product.getId()));
-                    }
+                    dto.setPrice(priceMap.get(product.getId()));
                     return dto;
                 })
                 .collect(Collectors.toList());
@@ -76,10 +70,30 @@ public class ProductReader {
     public ProductResponseDto getProductByIdWithBranchPrice(Long id) {
         log.info("Fetching product with id: {} and branch price", id);
         Long branchId = getCurrentBranchId();
-        
+
         Product product = productRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Product not found"));
-        return mapToResponseWithPrice(product, branchId);
+                .orElseThrow(() -> new ResourceNotFoundException("Product not found"));
+        ProductResponseDto dto = mapToResponse(product);
+        dto.setPrice(loadBranchPrices(branchId, List.of(id)).get(id));
+        return dto;
+    }
+
+    /**
+     * Giá niêm yết của chi nhánh: productId -> price. Mỗi cặp (sản phẩm, chi nhánh) có đúng một giá
+     * (ràng buộc uk_price_list_product_branch, migration V12). Nếu dữ liệu cũ còn dòng trùng thì lấy
+     * dòng có id lớn nhất thay vì ném lỗi, để một dòng trùng không làm hỏng cả danh sách sản phẩm.
+     */
+    private Map<Long, BigDecimal> loadBranchPrices(Long branchId, Collection<Long> productIds) {
+        if (branchId == null || productIds == null || productIds.isEmpty()) {
+            return Map.of();
+        }
+        Map<Long, PriceList> latest = new HashMap<>();
+        for (PriceList p : priceListRepository.findByBranchIdAndProductIdIn(branchId, productIds)) {
+            latest.merge(p.getProduct().getId(), p, (a, b) -> a.getId() >= b.getId() ? a : b);
+        }
+        Map<Long, BigDecimal> result = new HashMap<>();
+        latest.forEach((productId, p) -> result.put(productId, p.getPrice()));
+        return result;
     }
 
     private ProductResponseDto mapToResponse(Product product) {
@@ -93,17 +107,6 @@ public class ProductReader {
                 .isActive(product.isActive())
                 .attributes(product.getAttributesCache())
                 .build();
-    }
-
-    private ProductResponseDto mapToResponseWithPrice(Product product, Long branchId) {
-        ProductResponseDto dto = mapToResponse(product);
-        
-        if (branchId != null) {
-            priceListRepository.findByProductIdAndBranchId(product.getId(), branchId)
-                    .ifPresent(priceList -> dto.setPrice(priceList.getPrice()));
-        }
-                
-        return dto;
     }
 
     private Long getCurrentBranchId() {
@@ -121,4 +124,3 @@ public class ProductReader {
         return null;
     }
 }
-

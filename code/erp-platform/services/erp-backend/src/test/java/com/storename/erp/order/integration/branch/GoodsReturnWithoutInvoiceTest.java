@@ -51,6 +51,9 @@ public class GoodsReturnWithoutInvoiceTest {
     @Autowired
     private StockOnHandRepository stockRepository;
 
+    @Autowired
+    private com.storename.erp.inventory.infrastructure.CostLayerRepository costLayerRepository;
+
     private Long branchId;
     private UUID userId;
     private Long productId;
@@ -69,6 +72,8 @@ public class GoodsReturnWithoutInvoiceTest {
 
         StockOnHand stock = new StockOnHand(productId, branchId);
         stock.increase(new BigDecimal("10"), "Init"); // 10 remaining
+        // Lớp giá vốn của 10 cái đang tồn (khách chưa từng mua -> hàng trả lấy giá vốn lớp gần nhất)
+        costLayerRepository.save(com.storename.erp.inventory.domain.CostLayer.fromInbound(productId, branchId, new BigDecimal("10"), new BigDecimal("45000"), null));
 
         stockRepository.save(stock);
 
@@ -104,5 +109,8 @@ public class GoodsReturnWithoutInvoiceTest {
 
         BigDecimal debt = debtService.getCurrentDebt(customer.getId(), branchId);
         assertThat(debt).isEqualByComparingTo("800000"); // 1,000,000 - 200,000
+
+        // Không có hóa đơn gốc, khách chưa từng mua -> giá vốn lớp gần nhất (45.000), không phải giá bán
+        assertThat(gr.getLines().get(0).getUnitCost()).isEqualByComparingTo("45000");
     }
 }

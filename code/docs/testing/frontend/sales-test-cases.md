@@ -126,3 +126,22 @@ Chia chức năng Bán hàng thành 5 nhóm:
 | TC-SALE-73 | Đóng preview | Preview mở | Đóng | Đóng modal | Happy path |
 | TC-SALE-74 | Gọi print | Preview mở | In ngay | window.print() được gọi | Happy path |
 | TC-SALE-75 | Print không có item | Hóa đơn trống | Nhấn In | Không crash | Edge case |
+
+## M. Nhóm 12: Giá theo khách (2026-10-10)
+| ID | Tên test case | Điều kiện tiền đề | Các bước thực hiện | Kết quả mong đợi | Loại |
+|---|---|---|---|---|---|
+| TC-SALE-76 | Chọn sản phẩm khi chưa chọn khách | Sản phẩm có giá niêm yết | Thêm dòng -> chọn sản phẩm | Đơn giá = giá niêm yết, nhãn "Niêm yết" | Happy path |
+| TC-SALE-77 | Khách có giá riêng | API resolve trả `CUSTOMER` | Chọn khách -> chọn sản phẩm | Đơn giá = giá riêng, nhãn "Giá KH"; tooltip có giá niêm yết (E-SALE-09) | Happy path |
+| TC-SALE-78 | Sửa giá | Đã chọn khách + sản phẩm | Nhập đơn giá khác | Dòng tô nổi, ghi chú "Giá này sẽ được lưu làm giá riêng cho khách khi lưu đơn" (E-SALE-10) | Happy path |
+| TC-SALE-79 | Đổi khách sau khi sửa giá | Dòng đã sửa giá tay | Chọn khách khác | Giữ giá đã sửa; nhãn/giá đang áp dụng theo khách mới (E-SALE-10) | Edge case |
+| TC-SALE-80 | Đổi khách khi chưa sửa giá | Dòng giá niêm yết | Chọn khách có giá riêng | Đơn giá đổi sang giá riêng | Happy path |
+| TC-SALE-81 | API resolve lỗi | API 500 | Chọn khách | Toast "Không lấy được giá theo khách hàng", giữ giá niêm yết | Negative |
+| TC-SALE-82 | Đơn sau dùng giá đã lưu | Đơn trước đã lưu với giá sửa | Lập đơn mới cùng khách + sản phẩm | Đơn giá = giá đã sửa ở đơn trước, nhãn "Giá KH" | Happy path (cần backend thật) |
+| TC-SALE-83 | Xem hóa đơn cũ | Hóa đơn đã lưu | Mở chế độ xem | Hiện `unit_price` đã snapshot, không có nhãn nguồn giá | Happy path |
+
+## N. Nhóm 13: Không cho bán vượt tồn (2026-10-11)
+| ID | Tên test case | Điều kiện tiền đề | Các bước thực hiện | Kết quả mong đợi | Loại |
+|---|---|---|---|---|---|
+| TC-SALE-84 | Bán vượt tồn | Tồn 3 | Bán 5 -> Lưu | Toast "Không đủ hàng: [Mã] Tên — tồn kho còn 3, cần 5…"; phiếu vẫn ở chế độ thêm mới, giữ dữ liệu (E-SALE-11) | Negative |
+| TC-SALE-85 | Bán đúng bằng tồn | Tồn 5 | Bán 5 -> Lưu | Lưu thành công, tồn về 0 | Edge case |
+| TC-SALE-86 | Nhiều dòng, một dòng thiếu | Dòng 2 thiếu hàng | Lưu | Cả hóa đơn không được lưu; thông báo nêu sản phẩm thiếu | Negative |

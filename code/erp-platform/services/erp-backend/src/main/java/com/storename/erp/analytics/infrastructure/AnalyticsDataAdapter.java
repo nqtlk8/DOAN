@@ -17,7 +17,9 @@ import java.util.List;
 /**
  * Adapter đọc dữ liệu báo cáo trực tiếp từ bảng nghiệp vụ (không qua ETL/fact tables).
  *
- * <p>Nguồn dữ liệu: doanh thu/giá vốn từ {@code sales_invoice(_line)} đã CONFIRMED; tồn kho từ
+ * <p>Nguồn dữ liệu: doanh thu/giá vốn THUẦN = {@code sales_invoice(_line)} đã CONFIRMED trừ
+ * {@code goods_return(_line)} đã CONFIRMED, mỗi bên lọc theo {@code confirmed_at} của chính chứng từ đó
+ * (hàng trả trừ vào kỳ xác nhận phiếu trả); tồn kho từ
  * {@code stock_movement} (append-only, {@code SUM(quantity)} = tồn); giá trị tồn từ {@code cost_layer};
  * công nợ từ {@code receivable_debt} (replicate từ Branch lên HQ có row filter — ADR-13).</p>
  *
@@ -32,17 +34,32 @@ public class AnalyticsDataAdapter implements AnalyticsDataPort {
 
     @Override
     public SalesTotals getSalesTotals(Long branchId, LocalDateTime fromTs, LocalDateTime toTs) {
+        // Doanh thu thuần = tiền bán - tiền hàng trả; giá vốn thuần = giá vốn bán - giá vốn hàng trả
+        // (goods_return_line.unit_cost là snapshot giá vốn lúc bán, xem V10).
         String sql = """
-            SELECT 
-                COALESCE(SUM(l.line_total), 0) as revenue,
-                COALESCE(SUM(l.quantity * COALESCE(l.unit_cost, 0)), 0) as cogs
-            FROM sales_invoice_line l 
-            JOIN sales_invoice i ON l.invoice_id = i.id 
-            WHERE (:branchId IS NULL OR i.branch_id = :branchId) 
-              AND i.confirmed_at >= :fromTs 
-              AND i.confirmed_at < :toTs
-              AND i.status = 'CONFIRMED'
-              AND l.is_deleted = false AND i.is_deleted = false
+            SELECT s.revenue - r.revenue AS revenue,
+                   s.cogs    - r.cogs    AS cogs
+            FROM (
+                SELECT COALESCE(SUM(l.line_total), 0) AS revenue,
+                       COALESCE(SUM(l.quantity * COALESCE(l.unit_cost, 0)), 0) AS cogs
+                FROM sales_invoice_line l
+                JOIN sales_invoice i ON l.invoice_id = i.id
+                WHERE (:branchId IS NULL OR i.branch_id = :branchId)
+                  AND i.confirmed_at >= :fromTs
+                  AND i.confirmed_at < :toTs
+                  AND i.status = 'CONFIRMED'
+                  AND l.is_deleted = false AND i.is_deleted = false
+            ) s CROSS JOIN (
+                SELECT COALESCE(SUM(rl.quantity * rl.unit_price), 0) AS revenue,
+                       COALESCE(SUM(rl.quantity * COALESCE(rl.unit_cost, 0)), 0) AS cogs
+                FROM goods_return_line rl
+                JOIN goods_return r ON rl.return_id = r.id
+                WHERE (:branchId IS NULL OR r.branch_id = :branchId)
+                  AND r.confirmed_at >= :fromTs
+                  AND r.confirmed_at < :toTs
+                  AND r.status = 'CONFIRMED'
+                  AND rl.is_deleted = false AND r.is_deleted = false
+            ) r
         """;
         MapSqlParameterSource params = AnalyticsSqlParams.withBranchId(branchId);
         params.addValue("fromTs", fromTs, Types.TIMESTAMP);
@@ -55,16 +72,32 @@ public class AnalyticsDataAdapter implements AnalyticsDataPort {
 
     @Override
     public List<ProductPerformanceDto> getTopProductsByRevenue(Long branchId, LocalDateTime fromTs, LocalDateTime toTs, int limit) {
+        // Số lượng/doanh thu thuần theo sản phẩm: bán trong kỳ trừ hàng trả xác nhận trong kỳ.
+        // Bỏ sản phẩm có số lượng thuần <= 0 (vd bán rồi trả hết).
         String sql = """
-            SELECT l.product_id, l.product_name, SUM(l.quantity) as quantity_sold, SUM(l.line_total) as revenue 
-            FROM sales_invoice_line l 
-            JOIN sales_invoice i ON l.invoice_id = i.id 
-            WHERE (:branchId IS NULL OR i.branch_id = :branchId) 
-              AND i.confirmed_at >= :fromTs 
-              AND i.confirmed_at < :toTs
-              AND i.status = 'CONFIRMED'
-              AND l.is_deleted = false AND i.is_deleted = false
-            GROUP BY l.product_id, l.product_name 
+            SELECT t.product_id, MAX(t.product_name) AS product_name,
+                   SUM(t.qty) AS quantity_sold, SUM(t.rev) AS revenue
+            FROM (
+                SELECT l.product_id, l.product_name, l.quantity AS qty, l.line_total AS rev
+                FROM sales_invoice_line l
+                JOIN sales_invoice i ON l.invoice_id = i.id
+                WHERE (:branchId IS NULL OR i.branch_id = :branchId)
+                  AND i.confirmed_at >= :fromTs
+                  AND i.confirmed_at < :toTs
+                  AND i.status = 'CONFIRMED'
+                  AND l.is_deleted = false AND i.is_deleted = false
+                UNION ALL
+                SELECT rl.product_id, CAST(NULL AS VARCHAR(255)), -rl.quantity, -(rl.quantity * rl.unit_price)
+                FROM goods_return_line rl
+                JOIN goods_return r ON rl.return_id = r.id
+                WHERE (:branchId IS NULL OR r.branch_id = :branchId)
+                  AND r.confirmed_at >= :fromTs
+                  AND r.confirmed_at < :toTs
+                  AND r.status = 'CONFIRMED'
+                  AND rl.is_deleted = false AND r.is_deleted = false
+            ) t
+            GROUP BY t.product_id
+            HAVING SUM(t.qty) > 0
             ORDER BY revenue DESC LIMIT :limit
         """;
         

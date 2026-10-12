@@ -115,17 +115,73 @@ public class GoodsReturnServiceTest {
         invoiceLine.setProductId(10L);
         invoiceLine.setUnitOfMeasure("Cai");
         invoiceLine.setQuantity(new BigDecimal("5.0"));
+        invoiceLine.setUnitCost(new BigDecimal("30.0")); // giá vốn đã snapshot lúc bán
         invoice.addLine(invoiceLine);
 
         when(returnRepository.findById(returnId)).thenReturn(Optional.of(goodsReturn));
         when(invoiceRepository.findByIdForUpdate(invoiceId)).thenReturn(Optional.of(invoice));
-        when(returnRepository.getTotalReturnedQuantity(invoiceId, 10L)).thenReturn(BigDecimal.ZERO);
+        when(returnRepository.getTotalReturnedQuantity(invoiceId, 10L, "Cai")).thenReturn(BigDecimal.ZERO);
+        when(debtService.decreaseDebtUpToBalance(eq(customerId), eq(branchId), any(), any(), anyString(), anyString(), any(), anyString()))
+                .thenAnswer(i -> i.getArgument(2)); // công nợ đủ: trừ toàn bộ
 
         goodsReturnService.confirmReturn(returnId, branchId, userId);
 
         assertEquals(GoodsReturnStatus.CONFIRMED, goodsReturn.getStatus());
-        verify(inventoryFacade).recordReturn(eq(10L), eq(branchId), eq(new BigDecimal("2.0")), eq(new BigDecimal("50.0")), eq(returnId.toString()), eq(line.getId()), eq(userId));
-        verify(debtService).decreaseDebt(eq(customerId), eq(branchId), argThat(a -> a.compareTo(new BigDecimal("100.0")) == 0), any(), anyString(), anyString(), any(), anyString());
+        // Lớp hàng trả nhập theo GIÁ VỐN snapshot (30), không theo giá bán trả lại (50)
+        verify(inventoryFacade).recordReturn(eq(10L), eq(branchId), eq(new BigDecimal("2.0")), eq(new BigDecimal("30.0")), eq(returnId.toString()), eq(line.getId()), eq(userId));
+        assertEquals(0, new BigDecimal("30.0").compareTo(line.getUnitCost()));
+        verify(debtService).decreaseDebtUpToBalance(eq(customerId), eq(branchId), argThat(a -> a.compareTo(new BigDecimal("100.0")) == 0), any(), anyString(), anyString(), any(), anyString());
+        assertEquals(0, BigDecimal.ZERO.compareTo(goodsReturn.getRefundAmount()), "không có tiền hoàn khi công nợ đủ");
         verify(returnRepository).save(goodsReturn);
+    }
+}
+
+// ---- Giá vốn hàng trả khi KHÔNG có hóa đơn gốc (GoodsReturnService.resolveReturnUnitCost)
+class GoodsReturnUnitCostResolutionTest {
+
+    private final SalesInvoiceRepository invoiceRepository = mock(SalesInvoiceRepository.class);
+    private final InventoryFacade inventoryFacade = mock(InventoryFacade.class);
+    private final GoodsReturnService service = new GoodsReturnService(
+            mock(GoodsReturnRepository.class), mock(ReceivableDebtService.class), invoiceRepository, inventoryFacade,
+            mock(com.storename.erp.crm.api.CrmFacade.class));
+    private final UUID customerId = UUID.randomUUID();
+
+    private GoodsReturnLine line() {
+        GoodsReturnLine l = new GoodsReturnLine();
+        l.setProductId(10L);
+        l.setUnitOfMeasure("Cai");
+        l.setQuantity(BigDecimal.ONE);
+        l.setUnitPrice(new BigDecimal("50"));
+        return l;
+    }
+
+    @Test
+    void noInvoice_usesLatestSaleCostOfCustomer() {
+        when(invoiceRepository.findRecentSaleUnitCosts(eq(customerId), eq(1L), eq(10L), any()))
+                .thenReturn(List.of(new BigDecimal("27.5")));
+        assertEquals(0, new BigDecimal("27.5").compareTo(service.resolveReturnUnitCost(null, customerId, 1L, line())));
+        verifyNoInteractions(inventoryFacade);
+    }
+
+    @Test
+    void noInvoice_noSale_fallsBackToLatestLayer_thenZero() {
+        when(invoiceRepository.findRecentSaleUnitCosts(any(), any(), any(), any())).thenReturn(List.of());
+        when(inventoryFacade.getLatestLayerUnitCost(10L, 1L)).thenReturn(new BigDecimal("22"));
+        assertEquals(0, new BigDecimal("22").compareTo(service.resolveReturnUnitCost(null, customerId, 1L, line())));
+
+        when(inventoryFacade.getLatestLayerUnitCost(10L, 1L)).thenReturn(null);
+        assertEquals(0, BigDecimal.ZERO.compareTo(service.resolveReturnUnitCost(null, customerId, 1L, line())));
+    }
+
+    @Test
+    void invoiceLineWithoutCost_fallsBackToLatestSale() {
+        SalesInvoice invoice = new SalesInvoice();
+        SalesInvoiceLine il = new SalesInvoiceLine();
+        il.setProductId(10L);
+        il.setUnitOfMeasure("Cai");
+        invoice.addLine(il); // unit_cost null (dữ liệu cũ)
+        when(invoiceRepository.findRecentSaleUnitCosts(eq(customerId), eq(1L), eq(10L), any()))
+                .thenReturn(List.of(new BigDecimal("31")));
+        assertEquals(0, new BigDecimal("31").compareTo(service.resolveReturnUnitCost(invoice, customerId, 1L, line())));
     }
 }

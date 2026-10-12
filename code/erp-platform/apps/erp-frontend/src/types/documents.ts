@@ -12,6 +12,30 @@ export interface DocumentLine {
   unitOfMeasure?: string;
   quantity: number;
   unitPrice: number;          // với phiếu nhập: đây là giá nhập (map sang unitCost khi gọi api)
+  // ---- Chỉ dùng cho phiếu bán: giá hệ thống đề xuất cho khách (xem CustomerProductPriceService) ----
+  priceSource?: PriceSource;  // nguồn của appliedPrice
+  appliedPrice?: number | null; // giá đang áp dụng (giá KH hoặc niêm yết); unitPrice khác giá này = đã sửa giá
+  listPrice?: number | null;  // giá niêm yết chi nhánh (tham khảo, hiện trong tooltip)
+}
+
+/** Nguồn giá bán: giá riêng của khách / giá niêm yết chi nhánh / không có giá. */
+export type PriceSource = 'CUSTOMER' | 'LIST' | 'NONE';
+
+/** GET /api/v1/customer-prices/{customerId}/resolve?productIds=… */
+export interface ResolvedPriceDto {
+  productId: number;
+  unitPrice: number | null;
+  source: PriceSource;
+  listPrice: number | null;
+  customerPrice: number | null;
+}
+
+/** Thông tin hiển thị cạnh ô đơn giá của một dòng (GenericDocumentForm). */
+export interface LinePriceInfo {
+  label: string;                // vd "Giá KH", "Niêm yết"
+  tone: 'customer' | 'list' | 'none';
+  title?: string;               // tooltip
+  edited?: boolean;             // giá đã bị sửa so với giá đang áp dụng -> tô nổi dòng
 }
 
 export interface InfoField   { key: string; label: string; value: React.ReactNode; testId?: string; }

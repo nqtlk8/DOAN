@@ -54,6 +54,8 @@ Tất cả các REST API đều được bọc trong `ApiResponse<T>`:
 |---|---|---|
 | POST | `/api/v1/sales-invoices` | Draft Invoice |
 | POST | `/api/v1/sales-invoices/{id}/confirm` | Xác nhận bán, xuất kho FIFO, tăng Nợ (`ReceivableDebtMovementType.SALE`). Yêu cầu `Idempotency-Key` |
+| GET | `/api/v1/customer-prices/{customerId}/resolve?productIds=1,2,3` | Giá áp dụng khi bán cho khách tại chi nhánh trong JWT (STAFF/ADMIN, tối đa 500 sản phẩm). Mỗi phần tử `ResolvedPriceDto`: `productId`, `unitPrice`, `source` (`CUSTOMER` giá riêng còn hiệu lực > `LIST` giá niêm yết `price_list` > `NONE`), `listPrice`, `customerPrice` |
+| GET | `/api/v1/customer-prices/{customerId}/product/{productId}` | Giá riêng còn hiệu lực của khách (null nếu không có) |
 | POST | `/api/v1/goods-returns` | Draft Return |
 | POST | `/api/v1/goods-returns/{id}/confirm` | Xác nhận khách trả, nhập lại kho, giảm Nợ (`ReceivableDebtMovementType.RETURN`). Yêu cầu `Idempotency-Key` |
 
@@ -101,3 +103,7 @@ Tất cả các exception được `GlobalExceptionHandler` chặn lại và tr�
 }
 ```
 Mã HTTP tuỳ thuộc vào loại exception (ví dụ: `400 Bad Request` cho Validation, `409 Conflict` cho Idempotency, `404 Not Found` cho sai ID).
+
+| HTTP | `errors` | Khi nào |
+|---|---|---|
+| 409 | `INSUFFICIENT_STOCK` | Xác nhận hóa đơn bán (`POST /api/v1/sales-invoices`, `POST /api/v1/sales-invoices/{id}/confirm`) khi tồn kho không đủ. `message`: "Không đủ hàng: [Mã] Tên SP — tồn kho còn X, cần Y. Vui lòng nhập hàng trước khi bán." Hóa đơn không được lưu/xác nhận. |

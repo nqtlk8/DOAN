@@ -72,9 +72,9 @@ public class InboundReceiptConcurrencyIT {
                     // Attempt to confirm the receipt
                     inboundReceiptService.confirmReceipt(receiptId, 1L, UUID.randomUUID());
                     successCount.incrementAndGet();
-                } catch (IllegalStateException e) {
-                    System.out.println("Thread got IllegalStateException: " + e.getMessage());
-                    if (e.getMessage().contains("Receipt is already CONFIRMED")) {
+                } catch (com.storename.erp.common.exception.BusinessConflictException e) {
+                    System.out.println("Thread got BusinessConflictException: " + e.getMessage());
+                    if ("INVALID_STATUS".equals(e.getCode())) {
                         exceptionCount.incrementAndGet();
                     } else {
                         e.printStackTrace();
@@ -97,7 +97,7 @@ public class InboundReceiptConcurrencyIT {
         
         // Assertions
         Assertions.assertEquals(1, successCount.get(), "Only one thread should successfully confirm the receipt");
-        Assertions.assertEquals(4, exceptionCount.get(), "The other threads should throw IllegalStateException after retry");
+        Assertions.assertEquals(4, exceptionCount.get(), "The other threads should be rejected with INVALID_STATUS (409) after retry");
         
         InboundReceipt updatedReceipt = inboundReceiptRepository.findById(receiptId).orElseThrow();
         Assertions.assertEquals(1, updatedReceipt.getVersion(), "Version should be 1 after one successful confirmation");

@@ -4,13 +4,16 @@ import com.storename.erp.branch.application.BranchService;
 import com.storename.erp.branch.application.dto.BranchDTO;
 import com.storename.erp.common.api.ApiResponse;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+/**
+ * API chi nhánh (chỉ HQ). Không có API xóa: chi nhánh không bị xóa trong hệ thống,
+ * gọi DELETE trả HTTP 405.
+ */
 @Slf4j
 @RestController
 @RequestMapping("/api/v1/branches")
@@ -51,13 +54,5 @@ public class BranchController {
         log.info("Updating branch with id: {}", id);
         BranchDTO updated = branchService.updateBranch(id, branchDTO);
         return ResponseEntity.ok(ApiResponse.success(updated, "Branch updated successfully"));
-    }
-
-    @DeleteMapping("/{id}")
-    @PreAuthorize("hasAuthority('ADMIN')")
-    public ResponseEntity<ApiResponse<Void>> deleteBranch(@PathVariable Long id) {
-        log.info("Deleting branch with id: {}", id);
-        branchService.deleteBranch(id);
-        return ResponseEntity.ok(ApiResponse.success(null, "Branch deleted successfully"));
     }
 }

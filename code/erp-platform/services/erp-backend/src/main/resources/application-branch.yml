@@ -1,7 +1,8 @@
 instance:
   role: BRANCH
-  # Phai la id SO cua bang branch (khop claim branchId trong JWT), vd. 1, 2.
-  branch-id: ${BRANCH_ID:HCM01}
+  # Id SO cua bang branch (khop claim branchId trong JWT), vd. 1, 2. Bat buoc dat qua env BRANCH_ID.
+  # Khong co gia tri mac dinh: thieu hoac sai dinh dang se bao loi ERROR luc khoi dong.
+  branch-id: ${BRANCH_ID:}
 
 spring:
   datasource:

@@ -44,14 +44,6 @@ public class StockOnHandUnitTest {
     }
 
     @Test
-    public void decreaseAllowNegative_goesBelow() {
-        StockOnHand stock = new StockOnHand(1L, 1L);
-        stock.increase(new BigDecimal("5"), "init");
-        stock.decreaseAllowNegative(new BigDecimal("10"), "decrease");
-        assertThat(stock.getQuantity()).isEqualByComparingTo("-5");
-    }
-
-    @Test
     public void decrease_zeroOrNegative_throws() {
         StockOnHand stock = new StockOnHand(1L, 1L);
         assertThatThrownBy(() -> stock.decrease(BigDecimal.ZERO, "zero"))

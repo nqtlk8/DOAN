@@ -6,7 +6,8 @@ import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 
 @Entity
-@Table(name = "price_list")
+@Table(name = "price_list", uniqueConstraints = @UniqueConstraint(
+        name = "uk_price_list_product_branch", columnNames = {"product_id", "branch_id"}))
 @Getter
 
 @NoArgsConstructor

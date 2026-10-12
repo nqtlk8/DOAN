@@ -65,7 +65,8 @@ public class InboundReceipt extends BaseEntity {
 
     public void confirm(UUID userId) {
         if (this.status == ReceiptStatus.CONFIRMED) {
-            throw new IllegalStateException("Receipt is already CONFIRMED");
+            throw new com.storename.erp.common.exception.BusinessConflictException("INVALID_STATUS",
+                    "Phiếu nhập " + receiptCode + " đã được xác nhận trước đó");
         }
         this.status = ReceiptStatus.CONFIRMED;
         this.confirmedAt = LocalDateTime.now();

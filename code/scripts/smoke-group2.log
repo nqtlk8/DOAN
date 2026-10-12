@@ -1,0 +1,24 @@
+PASS SMK-00 migration V12 tạo ràng buộc uk_price_list_product_branch
+PASS SMK-01a tạo sản phẩm mới
+FAIL SMK-01b tạo sản phẩm trùng mã -> 409 -> HTTP 400 (mong đợi 409) body: {"success":false,"data":null,"message":"Malformed JSON request","errors":["MALFORMED_JSON"]}
+PASS SMK-02a ngừng bán (xóa mềm) sản phẩm
+PASS SMK-02b JSON sản phẩm dùng khóa isActive
+PASS SMK-02c tạo lại mã của sản phẩm đã ngừng bán -> 409
+PASS SMK-03 sản phẩm kèm giá, id không tồn tại -> 404
+PASS SMK-04a chi tiết công khai sản phẩm ngừng bán -> 404
+PASS SMK-04b danh sách công khai size=0 -> 400
+PASS SMK-04c danh sách công khai size=1 trả tối đa 1 sản phẩm
+PASS SMK-05a tạo NCC mới
+FAIL SMK-05b tạo NCC trùng mã -> 409 -> HTTP 400 (mong đợi 409) body: {"success":false,"data":null,"message":"Malformed JSON request","errors":["MALFORMED_JSON"]}
+FAIL SMK-05c tạo NCC trùng mã số thuế -> 409 -> HTTP 400 (mong đợi 409) body: {"success":false,"data":null,"message":"Malformed JSON request","errors":["MALFORMED_JSON"]}
+PASS SMK-06a tạo khách mới, JSON dùng khóa isDeleted
+PASS SMK-06b tạo khách trùng mã -> 409
+PASS SMK-07 tạo khách với branchId không tồn tại -> 400
+PASS SMK-08a DELETE chi nhánh -> 405 (không có API xóa)
+PASS SMK-08b chi nhánh 1 vẫn còn
+FAIL SMK-09 tạo chi nhánh trùng mã TP1 -> 409 -> HTTP 400 (mong đợi 409) body: {"success":false,"data":null,"message":"Malformed JSON request","errors":["MALFORMED_JSON"]}
+PASS SMK-10 URL cổng không phải http(s) -> 400, không đổi dữ liệu
+----
+Kết quả: 16 PASS, 4 FAIL
+Log đã lưu tại: /d/Docs/CodeProject/DOAN/code/scripts/smoke-group2.log (mã thoát: 1)
+Nhấn Enter để đóng...

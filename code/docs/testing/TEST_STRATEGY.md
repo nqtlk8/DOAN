@@ -62,7 +62,7 @@ Cập nhật 2026-10-01.
 
 ### 3.2. Quy tắc bắt buộc
 
-1. **Không có dữ liệu seed.** Flyway chỉ tạo schema. Test cần sản phẩm/danh mục dùng `test/MasterDataFixtures` (id 9000+). Test cần dữ liệu khác thì tự chèn, và câu SQL phải có **đủ cột NOT NULL** của schema hiện hành (`db/migration/V1..V8`).
+1. **Không có dữ liệu seed.** Flyway chỉ tạo schema. Test cần sản phẩm/danh mục dùng `test/MasterDataFixtures` (id 9000+). Test cần dữ liệu khác thì tự chèn, và câu SQL phải có **đủ cột NOT NULL** của schema hiện hành (`db/migration/V1..V10`).
 2. **Postgres IT dùng một container cho cả JVM** (`PostgresIntegrationTest` khởi động trong `static {}`, không gắn `@Container`). Lý do: Spring cache ApplicationContext giữa các lớp test. Nếu container dừng sau mỗi lớp, các lớp sau báo "Failed to obtain JDBC Connection". Vì DB dùng chung, test nên chạy trong `@Transactional` (rollback) hoặc dùng mã/id riêng. Truy vấn "tất cả chi nhánh" phải so chênh lệch trước/sau thay vì số tuyệt đối.
 3. **H2 IT ghi dữ liệu thật (không rollback) phải gắn `@DirtiesContext(classMode = AFTER_CLASS)`** để lớp sau có DB H2 mới (`testdb_${random.uuid}`). Lý do: `GoodsReturnConcurrencyIT` và `IdempotencyConcurrencyIT` cùng chèn tồn (sản phẩm 1, chi nhánh 1); dùng chung DB thì lớp chạy sau lỗi trùng `uk_stock_product_branch`.
 4. **Không bọc test trong `try/catch` nuốt lỗi.** `ReceivableDebtLedgerPostgresIT.testIdempotencyKeyUniqueConstraint` từng "xanh giả": lệnh chèn đầu tiên lỗi, khối `catch` nuốt mất nên test không kiểm tra gì.

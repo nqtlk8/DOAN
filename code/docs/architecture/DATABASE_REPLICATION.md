@@ -30,7 +30,7 @@ PostgreSQL **logical replication hai chiều** giữa HQ và từng chi nhánh, 
 Danh sách bảng nằm ở **một chỗ duy nhất** là `scripts/replication-tables.conf`:
 
 - `MASTER_TABLES`: `branch role permission role_permission user_account user_branch_role category product supplier price_list customer inventory_alert_config dim_date`
-- `TRANSACTION_TABLES`: `sales_invoice sales_invoice_line goods_return goods_return_line inbound_receipt inbound_receipt_line stock_movement cost_layer receivable_debt_movement`
+- `TRANSACTION_TABLES`: `sales_invoice sales_invoice_line goods_return goods_return_line inbound_receipt inbound_receipt_line stock_movement cost_layer receivable_debt_movement customer_product_price customer_product_price_history` (2 bảng giá theo khách thêm 2026-10-10)
 - `SNAPSHOT_TABLES` (lọc `branch_id`): `stock_on_hand receivable_debt`
 
 `setup-replication.sh` chạy lại được nhiều lần: publication đã có thì `ALTER PUBLICATION ... SET TABLE` theo file cấu hình, subscription đã có thì `REFRESH PUBLICATION WITH (copy_data = true)` (chỉ copy bảng mới thêm).

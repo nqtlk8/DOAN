@@ -5,12 +5,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.storename.erp.common.domain.IdempotencyRecord;
 import com.storename.erp.common.infrastructure.IdempotencyRecordRepository;
 import jakarta.servlet.http.HttpServletRequest;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.reflect.MethodSignature;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -27,12 +27,26 @@ import java.util.Optional;
 @Aspect
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE)
-@RequiredArgsConstructor
 public class IdempotencyAspect {
 
     private final IdempotencyRecordRepository idempotencyRepo;
     private final ObjectMapper objectMapper;
     private final TransactionTemplate transactionTemplate;
+    /**
+     * Thời gian tối đa một request được giữ trạng thái IN_PROGRESS. Quá thời hạn này coi như tiến trình
+     * xử lý đã dừng giữa chừng (mất điện, khởi động lại) và giao dịch nghiệp vụ đã rollback, nên request
+     * gửi lại với cùng key được phép chạy lại thay vì nhận 409 vĩnh viễn.
+     */
+    private final java.time.Duration inProgressTimeout;
+
+    public IdempotencyAspect(IdempotencyRecordRepository idempotencyRepo, ObjectMapper objectMapper,
+                             TransactionTemplate transactionTemplate,
+                             @Value("${idempotency.in-progress-timeout:PT10M}") java.time.Duration inProgressTimeout) {
+        this.idempotencyRepo = idempotencyRepo;
+        this.objectMapper = objectMapper;
+        this.transactionTemplate = transactionTemplate;
+        this.inProgressTimeout = inProgressTimeout;
+    }
 
     @Around("@annotation(IdempotencyProtected)")
     public Object checkIdempotency(ProceedingJoinPoint joinPoint) throws Throwable {
@@ -53,24 +67,13 @@ public class IdempotencyAspect {
         String requestHash = org.springframework.util.DigestUtils.md5DigestAsHex(rawToHash.getBytes(java.nio.charset.StandardCharsets.UTF_8));
 
         // 1. Try to acquire the lock by checking/inserting
-        boolean isLockAcquired = false;
-        try {
-            Boolean result = transactionTemplate.execute(status -> {
-                Optional<IdempotencyRecord> existing = idempotencyRepo.findByIdempotencyKey(idempotencyKey);
-                if (existing.isPresent()) {
-                    return false; // Already exists, lock not acquired
-                }
-                
-                IdempotencyRecord record = new IdempotencyRecord();
-                record.setIdempotencyKey(idempotencyKey);
-                record.setRequestHash(requestHash);
-                record.setResponseSnapshot("IN_PROGRESS");
-                idempotencyRepo.saveAndFlush(record);
-                return true; // Lock acquired
-            });
-            isLockAcquired = Boolean.TRUE.equals(result);
-        } catch (DataIntegrityViolationException e) {
-            isLockAcquired = false; // Another thread inserted it right before we did
+        boolean isLockAcquired = tryAcquire(idempotencyKey, requestHash);
+
+        // Bản ghi IN_PROGRESS quá hạn: thu hồi (xóa có điều kiện) rồi thử giành khóa lại đúng một lần.
+        if (!isLockAcquired && reclaimStaleInProgress(idempotencyKey, requestHash)) {
+            log.warn("Idempotency key '{}' was IN_PROGRESS longer than {}; reclaimed for a new attempt",
+                    idempotencyKey, inProgressTimeout);
+            isLockAcquired = tryAcquire(idempotencyKey, requestHash);
         }
 
         if (!isLockAcquired) {
@@ -129,6 +132,34 @@ public class IdempotencyAspect {
         }
 
         return result;
+    }
+
+    private boolean tryAcquire(String idempotencyKey, String requestHash) {
+        try {
+            Boolean result = transactionTemplate.execute(status -> {
+                Optional<IdempotencyRecord> existing = idempotencyRepo.findByIdempotencyKey(idempotencyKey);
+                if (existing.isPresent()) {
+                    return false; // Already exists, lock not acquired
+                }
+
+                IdempotencyRecord record = new IdempotencyRecord();
+                record.setIdempotencyKey(idempotencyKey);
+                record.setRequestHash(requestHash);
+                record.setResponseSnapshot("IN_PROGRESS");
+                idempotencyRepo.saveAndFlush(record);
+                return true; // Lock acquired
+            });
+            return Boolean.TRUE.equals(result);
+        } catch (DataIntegrityViolationException e) {
+            return false; // Another thread inserted it right before we did
+        }
+    }
+
+    private boolean reclaimStaleInProgress(String idempotencyKey, String requestHash) {
+        java.time.LocalDateTime cutoff = java.time.LocalDateTime.now().minus(inProgressTimeout);
+        Integer deleted = transactionTemplate.execute(status ->
+                idempotencyRepo.deleteStaleInProgress(idempotencyKey, requestHash, cutoff));
+        return deleted != null && deleted > 0;
     }
 
     private Object deserializeResponse(String snapshot, ProceedingJoinPoint joinPoint) {

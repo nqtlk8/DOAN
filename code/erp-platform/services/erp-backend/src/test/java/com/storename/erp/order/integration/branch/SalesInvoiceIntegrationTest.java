@@ -52,6 +52,9 @@ public class SalesInvoiceIntegrationTest {
     @Autowired
     private SalesInvoiceRepository invoiceRepo;
 
+    @Autowired
+    private com.storename.erp.inventory.infrastructure.CostLayerRepository costLayerRepo;
+
     private Long branchId;
     private Customer customer;
     private Long productId;
@@ -84,6 +87,8 @@ public class SalesInvoiceIntegrationTest {
         StockOnHand stock = new StockOnHand(productId, branchId);
         stock.increase(new BigDecimal("100"), "Init");
         stockRepo.save(stock);
+        // Tồn kho phải đi kèm lớp giá vốn (như phiếu nhập thật) — FIFO không cho xuất khi thiếu lớp.
+        costLayerRepo.save(com.storename.erp.inventory.domain.CostLayer.fromInbound(productId, branchId, new BigDecimal("100"), new BigDecimal("500"), null));
     }
 
     @Test
@@ -162,10 +167,17 @@ public class SalesInvoiceIntegrationTest {
         dto.setLines(Collections.singletonList(line));
 
         SalesInvoice draft = invoiceService.createDraft(dto, branchId);
-        invoiceService.confirmInvoice(draft.getId(), UUID.randomUUID(), branchId);
+        // Không cho tồn âm: xác nhận bị từ chối, toàn bộ giao dịch rollback
+        com.storename.erp.inventory.domain.StockInsufficientException ex = assertThrows(
+                com.storename.erp.inventory.domain.StockInsufficientException.class,
+                () -> invoiceService.confirmInvoice(draft.getId(), UUID.randomUUID(), branchId));
+        org.junit.jupiter.api.Assertions.assertTrue(ex.getMessage().contains("tồn kho còn 100, cần 150"), ex.getMessage());
 
         StockOnHand stock = stockRepo.findByBranchId(branchId).get(0);
-        assertEquals(-50, stock.getQuantity().intValue());
+        assertEquals(100, stock.getQuantity().intValue());
+        assertEquals(com.storename.erp.order.domain.SalesInvoiceStatus.DRAFT,
+                invoiceRepo.findById(draft.getId()).orElseThrow().getStatus());
+        assertEquals(0, debtService.getCurrentDebt(customer.getId(), branchId).compareTo(BigDecimal.ZERO));
     }
 
     @Test
@@ -174,6 +186,7 @@ public class SalesInvoiceIntegrationTest {
         StockOnHand stock2 = new StockOnHand(productId2, branchId);
         stock2.increase(new BigDecimal("50"), "Init");
         stockRepo.save(stock2);
+        costLayerRepo.save(com.storename.erp.inventory.domain.CostLayer.fromInbound(productId2, branchId, new BigDecimal("50"), new BigDecimal("800"), null));
 
         SalesInvoiceCreateDto dto = new SalesInvoiceCreateDto();
         dto.setInvoiceCode("INV-TEST-MULTI");

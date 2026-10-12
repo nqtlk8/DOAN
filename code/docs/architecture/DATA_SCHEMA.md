@@ -13,13 +13,15 @@ Thư mục `erp-platform/services/erp-backend/src/main/resources/`:
 | `db/migration/V6__analytics.sql` | HQ + mọi chi nhánh | dim_date, fact_sales, fact_stock_movement |
 | `db/migration/V7__common.sql` | HQ + mọi chi nhánh | idempotency_record |
 | `db/migration/V8__replication_support.sql` | HQ + mọi chi nhánh | REPLICA IDENTITY cho bảng snapshot |
+| `db/migration/V10__sales_add_return_line_unit_cost.sql` | HQ + mọi chi nhánh | `goods_return_line.unit_cost`: snapshot giá vốn hàng trả (dùng cho lớp giá vốn RETURN và giá vốn thuần trên dashboard) |
+| `db/migration/V9__sales_add_customer_price_history.sql` | HQ + mọi chi nhánh | `customer_product_price.source_invoice_id`, bảng `customer_product_price_history` (giá riêng theo khách, ghi khi xác nhận hóa đơn) |
 | `db/migration-hq/R__reference_data.sql` | chỉ HQ | dữ liệu hệ thống: chi nhánh TP1/TP2, vai trò, 3 tài khoản mặc định; cây danh mục sản phẩm (giống website web-public) |
 | `db/migration-branch/R__branch_db_security.sql` | chỉ chi nhánh | quyền "mặc định chỉ đọc" cho role ứng dụng |
 
 Chuỗi cũ (V1..V21, trộn schema + seed + vá dữ liệu) được lưu tham khảo tại `docs/to_remove/flyway-legacy/`. Schema cuối của chuỗi mới đã được so sánh tự động với chuỗi cũ (cột, kiểu, nullable, default, unique/check/FK, index, replica identity). Khác biệt duy nhất là bỏ `supplier.branch_id`.
 
 Quy tắc thêm migration mới:
-1. File `V9__<module>_<hành_động>_<đối_tượng>.sql`, đánh số tiếp, đặt trong `db/migration` (chung cho mọi instance).
+1. File `V11__<module>_<hành_động>_<đối_tượng>.sql`, đánh số tiếp, đặt trong `db/migration` (chung cho mọi instance).
 2. Không trộn DDL và cập nhật dữ liệu trong một file. Không đưa dữ liệu demo vào Flyway (dùng `scripts/seed-demo.py`).
 3. File riêng HQ hoặc chi nhánh chỉ được là repeatable `R__`.
 4. Bảng mới do chi nhánh ghi: thêm vào danh sách trong `R__branch_db_security.sql`. Bảng cần replicate: thêm vào `scripts/replication-tables.conf`.

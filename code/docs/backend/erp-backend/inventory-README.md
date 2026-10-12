@@ -12,13 +12,17 @@ Module này tuân thủ chặt chẽ kiến trúc **Modular Monolith 4-layer** c
 
 ## Concurrency & Integrity
 Để biết chi tiết về quyết định xử lý đồng thời, vui lòng tham khảo [ADR-003: Optimistic Locking cho Inventory Concurrency](../../../../docs/adr/ADR-003-inventory-concurrency.md).
-Tính toàn vẹn của tồn kho được bảo vệ nghiêm ngặt qua 3 lớp:
-1. **Domain Layer**: `StockOnHand.decrease()` kiểm tra và ném `StockInsufficientException` nếu xuất lố.
-2. **JPA Layer**: Optimistic Locking qua trường `@Version` chống lost-update.
-3. **Database Layer**: Ràng buộc `CHECK (quantity >= 0)` mức schema.
+Tính toàn vẹn của tồn kho (không cho tồn âm — nhập trước, bán sau):
+1. **Khóa dòng tồn khi bán**: `StockOnHandRepository.findForUpdate` (PESSIMISTIC_WRITE) trong `InventoryFacadeImpl.recordSaleAndGetCost`, hai hóa đơn đồng thời không cùng vượt qua bước kiểm tra (`SaleOversellConcurrencyIT`).
+2. **Domain Layer**: `StockOnHand.decrease()` và `FifoCostService.consume()` ném `StockInsufficientException` nếu xuất lố → HTTP 409 `INSUFFICIENT_STOCK` (`GlobalExceptionHandler` qua `BusinessConflictException`).
+3. **JPA Layer**: Optimistic Locking qua trường `@Version` chống lost-update.
+4. Schema `stock_on_hand` hiện **chưa** có `CHECK (quantity >= 0)`; ràng buộc nằm ở tầng ứng dụng.
 
 ## Costing Strategy (FIFO)
 Hệ thống tính giá vốn xuất kho theo phương pháp FIFO (First-In, First-Out) thông qua `FifoCostService`. Mỗi lần nhập hàng sẽ tạo ra một `CostLayer` mới, và mỗi lần xuất hàng sẽ tiêu thụ dần số lượng từ các `CostLayer` cũ nhất đến mới nhất.
+
+- Giá vốn một dòng bán = `Σ(số lượng lấy từ lớp × giá lớp) / Σ số lượng`, làm tròn 4 chữ số, snapshot vào `sales_invoice_line.unit_cost`.
+- Hàng khách trả tạo lớp `RETURN` theo **giá vốn** đã snapshot của lần bán (không theo giá bán), lưu ở `goods_return_line.unit_cost` (V10). Xem `docs/architecture/WORKFLOWS.md` mục 9–10.
 
 ## Inter-Module Communication (Facade Pattern)
 Tuân thủ giới hạn của Bounded Context:

@@ -40,8 +40,8 @@ Hệ thống ERP cho cửa hàng VLXD & thiết bị thông minh nhà.
 ## Business Core Flows
 
 1. **Inbound Receipt**: Nhập kho -> Tăng `StockOnHand` + Ghi nhận `CostLayer` (FIFO).
-2. **Sales Invoice Confirm**: Xác nhận bán hàng -> Giảm `StockOnHand` (tiêu thụ `CostLayer`) + Tăng `ReceivableDebt` (Movement: `SALE` [+]).
-3. **Goods Return Confirm**: Khách trả hàng -> Tăng `StockOnHand` (cộng lại kho) + Giảm `ReceivableDebt` (Movement: `RETURN` [-]).
+2. **Sales Invoice Confirm**: Xác nhận bán hàng -> Kiểm tra đủ tồn (KHÔNG cho tồn âm, thiếu -> 409 `INSUFFICIENT_STOCK`) -> Giảm `StockOnHand` (tiêu thụ `CostLayer`) + Lưu giá đã sửa làm giá riêng của khách (`customer_product_price`, có lịch sử) + Tăng `ReceivableDebt` (Movement: `SALE` [+]). Giá bán đề xuất: giá riêng KH > `price_list` (xem `WORKFLOWS.md` 7.1).
+3. **Goods Return Confirm**: Khách trả hàng -> Tăng `StockOnHand` (cộng lại kho, lớp `CostLayer` RETURN theo giá vốn snapshot của lần bán, lưu `goods_return_line.unit_cost`) + Giảm `ReceivableDebt` (Movement: `RETURN` [-]).
 4. **Customer Payment**: Thu tiền nợ -> Giảm `ReceivableDebt` (Movement: `PAYMENT` [-]).
 *Quy tắc chuẩn: `SUM(Movement Amount) = Current Debt`*.
 
@@ -77,7 +77,7 @@ Hệ thống ERP cho cửa hàng VLXD & thiết bị thông minh nhà.
 When answering questions about current behavior, inspect:
 
 1. Java source.
-2. SQL migrations (`db/migration` V1..V8, `db/migration-hq`, `db/migration-branch`).
+2. SQL migrations (`db/migration` V1..V10, `db/migration-hq`, `db/migration-branch`).
 3. Architecture docs (`docs/architecture/*`, `docs/testing/TEST_STRATEGY.md`). Old sprint notes are archived in `docs/to_remove/` (history only, not source of truth).
 4. Docker Compose / Nginx.
 5. Unit & Integration Tests (cực kỳ đầy đủ, bao gồm E2E flow).

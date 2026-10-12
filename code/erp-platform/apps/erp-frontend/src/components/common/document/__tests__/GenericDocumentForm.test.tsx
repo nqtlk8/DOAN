@@ -88,4 +88,28 @@ describe('GenericDocumentForm', () => {
     fireEvent.keyDown(lastPrice, { key: 'Enter' });
     expect(props.lines.onAdd).toHaveBeenCalledTimes(1);
   });
+  it('U-GDF-09: priceInfo hiển thị nhãn nguồn giá, tô nổi dòng đã sửa giá và ghi chú', () => {
+    const props = makeProps();
+    props.lines.priceInfo = (l) =>
+      l.id === 'a'
+        ? { label: 'Giá KH', tone: 'customer', title: 'Giá niêm yết: 60.000 ₫' }
+        : { label: 'Niêm yết', tone: 'list', title: 'Giá niêm yết: 90.000 ₫\nGiá này sẽ được lưu', edited: true };
+    props.lines.footerNote = <span>1 dòng đã sửa giá</span>;
+    render(<GenericDocumentForm {...props} />);
+
+    const badges = screen.getAllByTestId('sales-line-price-source');
+    expect(badges.map((b) => b.textContent)).toEqual(['Giá KH', 'Niêm yết']);
+
+    const rows = screen.getAllByTestId('sales-line-row');
+    expect(rows[0]).not.toHaveAttribute('data-price-edited');
+    expect(rows[1]).toHaveAttribute('data-price-edited', 'true');
+    expect(rows[1].className).toContain('bg-warning-soft');
+    expect(screen.getByTestId('sales-price-note')).toHaveTextContent('1 dòng đã sửa giá');
+  });
+
+  it('U-GDF-10: không truyền priceInfo / chế độ VIEW -> không có nhãn giá', () => {
+    render(<GenericDocumentForm {...makeProps({ mode: 'VIEW' })} />);
+    expect(screen.queryByTestId('sales-line-price-source')).toBeNull();
+    expect(screen.queryByTestId('sales-price-note')).toBeNull();
+  });
 });
