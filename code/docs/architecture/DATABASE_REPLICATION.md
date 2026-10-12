@@ -105,5 +105,5 @@ Logical replication bất đồng bộ nên dữ liệu giữa HQ và chi nhánh
 | Danh sách bảng nằm ở 3 nơi: `scripts/replication-tables.conf`, `R__branch_db_security.sql`, `DATA_OWNERSHIP_MATRIX.md` | Quên sửa một nơi: bảng không được replicate, hoặc app chi nhánh báo `permission denied` | Test tự động so khớp ba danh sách |
 | Nginx chi nhánh khai báo upstream tĩnh | App chi nhánh không chạy thì nginx chi nhánh đó không khởi động được | Profile `tp2` bật/tắt nginx cùng app; xử lý tận gốc bằng `resolver` + upstream qua biến |
 | WAL ở HQ giữ tối đa 2GB cho mỗi chi nhánh đang tắt | Vượt ngưỡng: slot bị vô hiệu, phải thiết lập lại chi nhánh | `remove-branch.sh` + `setup-replication.sh --resync-master` (Runbook mục 4) |
-| Image Docker (backend, frontend, nginx) chưa được build/chạy trong lần kiểm thử 2026-10-01. Script và DB đã được kiểm với `docker-compose.yml` thật, backend chạy từ jar | Lần chạy đầu trên máy dev là lần đầu chạy toàn bộ qua nginx | Chạy `scripts/bootstrap.sh --seed` rồi `scripts/test-replication-e2e.sh tp1` |
+| Image Docker (backend, frontend, nginx) chưa được build/chạy trong lần kiểm thử 2026-10-01. Script và DB đã được kiểm với `docker-compose.yml` thật, backend chạy từ jar | Lần chạy đầu trên máy dev là lần đầu chạy toàn bộ qua nginx | Chạy `scripts/bootstrap.sh --seed` rồi `erp-backend/scripts/test.sh replication tp1` |
 

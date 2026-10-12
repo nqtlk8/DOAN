@@ -94,8 +94,8 @@ cấu trúc thư mục chuẩn ở mục A.4; khi thêm test case mới cho clas
 Bất kỳ Controller/API mới nào thuộc nhóm dữ liệu có phân biệt quyền ghi
 theo instance (`@ConditionalOnProperty(name = "instance.role", ...)`), bắt
 buộc có Integration Test theo đúng pattern đã có sẵn trong
-`src/test/java/com/storename/erp/ReplicationOwnershipTest.java` và
-`ReplicationOwnershipHqTest.java`:
+`src/test/java/com/storename/erp/profile/BranchProfileIT.java` và
+`HqProfileIT.java`:
 - Verify bean Controller/Service **không tồn tại** trong context của phía
   không được ghi (`context.containsBean(...)` trả `false`) — không chỉ
   test "trả lỗi 403", vì đây là kiểm tra endpoint bị loại vật lý khỏi
@@ -115,7 +115,7 @@ buộc có Integration Test theo đúng pattern đã có sẵn trong
   chối; token sai format → không throw exception không kiểm soát.
 - Integration: gọi `/auth/login` ở Branch phải không tồn tại/bị chặn (verify
   `@ConditionalOnProperty(instance.role=HQ)` trên `AuthController` chặn
-  đúng, theo đúng cách `ReplicationOwnershipTest` đã làm cho Product); gọi
+  đúng, theo đúng cách `BranchProfileIT` đã làm cho Product); gọi
   API cần auth ở Branch bằng token ký sai chữ ký phải bị Filter chặn ở tầng
   HTTP (401), không lọt xuống Controller.
 - Bất kỳ thay đổi nào ở `JwtTokenProvider`/`JwtAuthenticationFilter` liên
@@ -158,12 +158,12 @@ code/erp-platform/services/erp-backend/src/test/java/com/storename/erp/<module>/
 
 ### A.5. Ma trận bao phủ — bắt buộc cập nhật mỗi khi thêm tính năng
 
-File `docs/testing/coverage-matrix.md`. Mỗi dòng mới:
+File `erp-platform/services/erp-backend/TESTING.md` (mục 7). Mỗi dòng mới:
 
 | Tính năng / Module | Unit | Slice (H2) | Integration | E2E | Ghi chú |
 |---|---|---|---|---|---|
 | (ví dụ) FifoCostService.consume | ✅ | — | — | — | Logic thuần, không cần DB thật |
-| (ví dụ) InboundReceiptController write-ownership | — | — | ✅ (404 ở HQ) | — | Theo pattern ReplicationOwnershipTest |
+| (ví dụ) InboundReceiptController write-ownership | — | — | ✅ (404 ở HQ) | — | Theo pattern HqProfileIT / BranchProfileIT |
 
 Ô để trống (`—`) phải có lý do ngầm hiểu được; nếu không, coi là **thiếu
 test**, phải bổ sung hoặc ghi rõ lý do cố tình bỏ qua trong cột Ghi chú.
@@ -178,7 +178,7 @@ test**, phải bổ sung hoặc ghi rõ lý do cố tình bỏ qua trong cột G
 - [ ] Nếu tính năng thêm API mới có phân biệt quyền ghi HQ/Branch → có cặp
       test write-ownership theo mục A.2.b.
 - [ ] Nếu tính năng chạm JWT/Redis/Idempotency → đủ case theo A.2.c/A.3.
-- [ ] Đã cập nhật `docs/testing/coverage-matrix.md`.
+- [ ] Đã cập nhật `erp-platform/services/erp-backend/TESTING.md` (mục 7).
 - [ ] `mvn test` chạy pass. Nếu môi trường không tải được Maven (lỗi mạng
       tới `repo.maven.apache.org`), ghi rõ điều này, **không được báo cáo
       "đã pass" khi thực tế chưa chạy được**.
@@ -254,7 +254,7 @@ test.describe('<Ten tinh nang> flow', () => {
 - [ ] API được mock bằng `page.route`, không gọi network thật.
 - [ ] Không thêm test lỗi/edge case trừ khi được yêu cầu riêng.
 - [ ] `npx playwright test tests/<feature>.spec.ts` pass.
-- [ ] Không cần cập nhật `docs/testing/coverage-matrix.md` (file đó chỉ
+- [ ] Không cần cập nhật `erp-platform/services/erp-backend/TESTING.md` (mục 7) (file đó chỉ
       dành cho Backend).
 
 ---
@@ -267,7 +267,7 @@ test.describe('<Ten tinh nang> flow', () => {
 3. Chạy test thật, xác nhận pass trước khi báo "xong". Nếu không chạy được
    do hạn chế môi trường (không tải được Maven, chưa cài Playwright
    browser...), ghi rõ lý do, không giả định đã pass.
-4. BE: cập nhật `docs/testing/coverage-matrix.md`. FE: bỏ qua bước này.
+4. BE: cập nhật `erp-platform/services/erp-backend/TESTING.md` (mục 7). FE: bỏ qua bước này.
 5. Nếu tính năng có liên kết tới một sprint doc (`docs/sprints/sprint-X.md`)
    hoặc một rủi ro/nợ kỹ thuật đã ghi trong docs kiến trúc (ví dụ các mục
    đã liệt kê trong `docs/FOUND_ISSUES.md`), và rủi ro đó kiểm chứng được

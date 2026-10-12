@@ -78,6 +78,6 @@ When answering questions about current behavior, inspect:
 
 1. Java source.
 2. SQL migrations (`db/migration` V1..V10, `db/migration-hq`, `db/migration-branch`).
-3. Architecture docs (`docs/architecture/*`, `docs/testing/TEST_STRATEGY.md`). Old sprint notes are archived in `docs/to_remove/` (history only, not source of truth).
+3. Architecture docs (`docs/architecture/*`, `erp-platform/services/erp-backend/TESTING.md`). Old sprint notes are archived in `docs/to_remove/` (history only, not source of truth).
 4. Docker Compose / Nginx.
 5. Unit & Integration Tests (cực kỳ đầy đủ, bao gồm E2E flow).

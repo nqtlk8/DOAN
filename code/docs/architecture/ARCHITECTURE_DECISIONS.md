@@ -151,7 +151,7 @@ Thêm một ràng buộc: seed V2/V13 chèn dữ liệu `branch_id = 1` (cùng U
 - Mỗi chi nhánh publish thêm `stock_on_hand` và `receivable_debt` trong `pub_<branch>_to_hq`, **có row filter** `WHERE (branch_id = N)` với N là `branch.id` của chính chi nhánh đó (lấy từ DB, không hard-code).
 - Migration `V21` đặt `REPLICA IDENTITY USING INDEX` (`uk_stock_product_branch`, `uk_debt_customer_branch`) trên mọi DB. PostgreSQL yêu cầu cột dùng trong row filter phải thuộc replica identity khi publish UPDATE/DELETE; thiếu bước này, lệnh `UPDATE stock_on_hand` ở chi nhánh sẽ báo lỗi và làm hỏng luồng bán hàng.
 - Bật cho chi nhánh đang chạy bằng `scripts/enable-snapshot-replication.sh <branch>`: tại HQ chỉ `DELETE ... WHERE branch_id = N` rồi `ALTER SUBSCRIPTION ... REFRESH PUBLICATION WITH (copy_data = true)`. Không `TRUNCATE`, vì sẽ xoá dữ liệu các chi nhánh khác đã đồng bộ. Chi nhánh mới: `setup-replication.sh` tự gọi script này.
-- HQ không có API ghi 2 bảng này (controller giao dịch chỉ bật ở BRANCH/ALL; opening-balance từ chối khi không có branchId) — được khẳng định bằng `ReplicationOwnershipHqTest`.
+- HQ không có API ghi 2 bảng này (controller giao dịch chỉ bật ở BRANCH/ALL; opening-balance từ chối khi không có branchId) — được khẳng định bằng `HqProfileIT`.
 - Cảnh báo tồn kho vẫn tính từ `stock_movement` (append-only); `stock_on_hand` ở HQ dùng cho màn tồn kho và đối soát.
 
 ### Rejected alternatives

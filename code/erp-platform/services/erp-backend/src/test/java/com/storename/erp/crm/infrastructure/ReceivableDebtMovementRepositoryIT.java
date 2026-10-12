@@ -3,7 +3,7 @@ package com.storename.erp.crm.infrastructure;
 import com.storename.erp.crm.domain.Customer;
 import com.storename.erp.crm.domain.ReceivableDebtMovement;
 import com.storename.erp.crm.domain.ReceivableDebtMovementType;
-import com.storename.erp.test.PostgresIntegrationTest;
+import com.storename.erp.support.PostgresIntegrationTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

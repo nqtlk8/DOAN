@@ -32,7 +32,7 @@ Khi tài liệu mâu thuẫn với implementation, ưu tiên theo thứ tự:
 | `architecture/DATABASE_REPLICATION.md` | Logical replication HQ ↔ chi nhánh, role DB, bật/tắt chi nhánh, hạn chế đã biết |
 | `architecture/REPLICATION_RUNBOOK.md` | Lệnh vận hành: dựng từ đầu, bật/tắt TP2, dữ liệu demo, xử lý sự cố |
 | `architecture/DATA_OWNERSHIP_MATRIX.md` | Bảng nào do ai ghi, replicate chiều nào |
-| `testing/TEST_STRATEGY.md` | Test hiện hành, quy tắc viết test tích hợp, kết quả chạy gần nhất |
+| `../erp-platform/services/erp-backend/TESTING.md` | Test backend hiện hành: cấu trúc, quy ước `*Test`/`*IT`, cách chạy |
 | `AI_CONTEXT.md` | Context ngắn gọn dành cho AI Agent |
 | `fix-replication/00-PLAN.md` | Hiện trạng trước khi sửa và các quyết định đợt fix-replication (2026-10-01) |
 

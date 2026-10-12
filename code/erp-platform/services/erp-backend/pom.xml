@@ -197,4 +197,23 @@
       </plugin>
     </plugins>
   </build>
+  <profiles>
+    <!-- Replication E2E trên 2 PostgreSQL thật: scripts/test.ps1 e2e (hoặc scripts/test.sh e2e) -->
+    <profile>
+      <id>e2e</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-failsafe-plugin</artifactId>
+            <configuration>
+              <systemPropertyVariables>
+                <e2e.enabled>true</e2e.enabled>
+              </systemPropertyVariables>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
 </project>

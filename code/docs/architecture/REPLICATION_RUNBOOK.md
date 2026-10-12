@@ -12,7 +12,7 @@ Mọi lệnh chạy trong **Git Bash** (Windows) hoặc bash (Linux/macOS), tạ
 | `scripts/branch.sh on\|off\|status <cn>` | Bật/tắt container chi nhánh **kèm** subscription ở HQ |
 | `scripts/remove-branch.sh <cn> [--purge-hq-data]` | Gỡ replication của một chi nhánh, giải phóng slot/WAL ở HQ |
 | `scripts/check-schema-version.sh <cn>` | So danh sách version Flyway HQ ↔ chi nhánh |
-| `scripts/test-replication-e2e.sh [cn]` | Kiểm thử nhanh hai chiều + quyền ghi của role ứng dụng |
+| `erp-backend/scripts/test.sh replication [cn]` | Kiểm thử nhanh hai chiều + quyền ghi của role ứng dụng |
 | `scripts/seed-demo.py` | Nạp dữ liệu demo qua API (xem mục 3) |
 | `scripts/add-branch.sh <cn>` | Thêm chi nhánh mới (đọc phần đầu file để biết các bước thủ công trước) |
 
@@ -72,7 +72,7 @@ Tham số hay dùng: `--branches tp1,tp2`, `--transactions-only`, `--hq-url`, `-
 ## 5. Kiểm tra nhanh
 
 ```bash
-scripts/test-replication-e2e.sh tp1     # mong đợi: 4 dòng PASS, "TẤT CẢ PASS"
+erp-backend/scripts/test.sh replication tp1     # mong đợi: 4 dòng PASS, "TẤT CẢ PASS"
 scripts/branch.sh status tp1
 ```
 

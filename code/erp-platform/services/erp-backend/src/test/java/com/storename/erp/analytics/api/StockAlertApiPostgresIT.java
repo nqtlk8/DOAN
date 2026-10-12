@@ -1,8 +1,8 @@
 package com.storename.erp.analytics.api;
 
 import com.storename.erp.common.security.JwtAuthDetails;
-import com.storename.erp.test.MasterDataFixtures;
-import com.storename.erp.test.PostgresIntegrationTest;
+import com.storename.erp.support.MasterDataFixtures;
+import com.storename.erp.support.PostgresIntegrationTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;

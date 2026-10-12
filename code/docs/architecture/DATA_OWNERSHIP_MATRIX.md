@@ -36,4 +36,4 @@ Cập nhật: 2026-10-10. Danh sách bảng replicate được cấu hình ở `
 | fact_sales | HQ | Yes | No* | None (DW only) | *Chi nhánh được ghi cục bộ nhưng không dùng |
 | fact_stock_movement | HQ | Yes | No* | None (DW only) | như trên |
 
-Ở mức ứng dụng, HQ không có API ghi bảng do chi nhánh sở hữu (`opening-balance` từ chối khi JWT không có branchId — `ReplicationOwnershipHqTest`). Ở mức DB, chiều ngược lại (HQ ghi bảng chi nhánh) chưa bị chặn bằng quyền — xem `DATABASE_REPLICATION.md` mục 9.
+Ở mức ứng dụng, HQ không có API ghi bảng do chi nhánh sở hữu (`opening-balance` từ chối khi JWT không có branchId — `HqProfileIT`). Ở mức DB, chiều ngược lại (HQ ghi bảng chi nhánh) chưa bị chặn bằng quyền — xem `DATABASE_REPLICATION.md` mục 9.
