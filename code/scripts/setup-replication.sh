@@ -53,7 +53,7 @@ echo "    version: $HQ_VERSIONS"
 for svc_db in "$HQ_SERVICE:$HQ_DB" "$BR_SERVICE:$BR_DB"; do
   svc="${svc_db%%:*}"; db="${svc_db#*:}"
   [ "$(sql_value "$svc" "$db" "SELECT count(*) FROM pg_roles WHERE rolname = '$REPL_DB_USER' AND rolreplication")" = "1" ] \
-    || die "Thiếu role replication '$REPL_DB_USER' trên $svc. Volume DB được tạo trước khi có docker/postgres/init/01-roles.sh -> xem REPLICATION_RUNBOOK.md (tạo lại volume)."
+    || die "Thiếu role replication '$REPL_DB_USER' trên $svc. Volume DB được tạo trước khi có docker/postgres/init/01-roles.sh -> tạo lại volume DB."
   # Bảo đảm role replication đọc được mọi bảng hiện có (bảng mới đã có ALTER DEFAULT PRIVILEGES).
   psql_on "$svc" "$db" -c "GRANT SELECT ON ALL TABLES IN SCHEMA public TO \"$REPL_DB_USER\";"
 done
@@ -95,7 +95,7 @@ else
     [ "$(sql_value "$BR_SERVICE" "$BR_DB" "SELECT EXISTS (SELECT 1 FROM $t)")" = "t" ] && NON_EMPTY+=("$t")
   done
   if [ ${#NON_EMPTY[@]} -gt 0 ]; then
-    [ "$RESYNC_MASTER" = true ] || die "Bảng master ở $CODE đã có dữ liệu: ${NON_EMPTY[*]}. Master data chỉ được đến từ HQ. Thiết lập lại chi nhánh cũ: thêm --resync-master; DB mới thì tạo lại volume (xem REPLICATION_RUNBOOK.md)."
+    [ "$RESYNC_MASTER" = true ] || die "Bảng master ở $CODE đã có dữ liệu: ${NON_EMPTY[*]}. Master data chỉ được đến từ HQ. Thiết lập lại chi nhánh cũ: thêm --resync-master; DB mới thì tạo lại volume."
     log "    --resync-master: xoá master data cũ ở $CODE để copy lại từ HQ (giữ nguyên giao dịch)"
     # session_replication_role = replica: không kích hoạt FK -> giao dịch đang tham chiếu product/customer...
     # vẫn giữ nguyên; các dòng master sẽ được copy lại với đúng id cũ từ HQ.

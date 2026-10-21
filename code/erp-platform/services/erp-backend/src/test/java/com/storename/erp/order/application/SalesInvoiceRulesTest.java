@@ -1,13 +1,10 @@
 package com.storename.erp.order.application;
 
-import com.storename.erp.common.exception.BusinessConflictException;
-import com.storename.erp.common.exception.ResourceNotFoundException;
 import com.storename.erp.crm.api.CrmFacade;
 import com.storename.erp.crm.application.ReceivableDebtService;
 import com.storename.erp.inventory.api.InventoryFacade;
 import com.storename.erp.order.application.dto.SalesInvoiceCreateDto;
 import com.storename.erp.order.application.dto.SalesInvoiceLineDto;
-import com.storename.erp.order.domain.PaymentMethod;
 import com.storename.erp.order.domain.SalesInvoice;
 import com.storename.erp.order.domain.SalesInvoiceStatus;
 import com.storename.erp.order.infrastructure.SalesInvoiceRepository;
@@ -52,7 +49,6 @@ class SalesInvoiceRulesTest {
     private SalesInvoiceCreateDto dtoWithProducts(long... productIds) {
         SalesInvoiceCreateDto dto = new SalesInvoiceCreateDto();
         dto.setCustomerId(customerId);
-        dto.setPaymentMethod(PaymentMethod.CREDIT);
         List<SalesInvoiceLineDto> lines = new ArrayList<>();
         for (long pid : productIds) {
             SalesInvoiceLineDto l = new SalesInvoiceLineDto();
@@ -68,8 +64,8 @@ class SalesInvoiceRulesTest {
     }
 
     @Test
-    @DisplayName("Xuất kho theo productId tăng dần, bất kể thứ tự dòng trên hóa đơn (chống deadlock)")
-    void createAndConfirm_locksStockInProductIdOrder() {
+    @DisplayName("Xác nhận: xuất kho theo productId tăng dần, bất kể thứ tự dòng trên hóa đơn (chống deadlock)")
+    void confirm_locksStockInProductIdOrder() {
         when(crmFacade.customerExists(customerId)).thenReturn(true);
         when(invoiceRepository.save(any(SalesInvoice.class))).thenAnswer(i -> {
             SalesInvoice inv = i.getArgument(0);
@@ -83,7 +79,9 @@ class SalesInvoiceRulesTest {
                 .thenReturn(new InventoryFacade.SaleCostResult(new BigDecimal("50"), "NORMAL"));
         when(debtService.getCurrentDebt(customerId, branchId)).thenReturn(BigDecimal.ZERO);
 
-        SalesInvoice invoice = service.createAndConfirm(dtoWithProducts(30L, 10L, 20L), branchId, UUID.randomUUID());
+        SalesInvoice draft = service.createDraft(dtoWithProducts(30L, 10L, 20L), branchId);
+        when(invoiceRepository.findByIdForUpdate(draft.getId())).thenReturn(Optional.of(draft));
+        SalesInvoice invoice = service.confirmInvoice(draft.getId(), branchId, UUID.randomUUID());
 
         InOrder order = inOrder(inventoryFacade);
         order.verify(inventoryFacade).recordSaleAndGetCost(eq(10L), any(), any(), anyString(), any(), any());
@@ -95,36 +93,13 @@ class SalesInvoiceRulesTest {
     }
 
     @Test
-    @DisplayName("Token không có chi nhánh -> 403, không ghi gì")
-    void createAndConfirm_withoutBranch_isForbidden() {
-        assertThatThrownBy(() -> service.createAndConfirm(dtoWithProducts(1L), null, UUID.randomUUID()))
+    @DisplayName("Token không có chi nhánh -> 403 ở cả lưu nháp và xác nhận, không ghi gì")
+    void withoutBranch_isForbidden() {
+        assertThatThrownBy(() -> service.createDraft(dtoWithProducts(1L), null))
+                .isInstanceOf(AccessDeniedException.class);
+        assertThatThrownBy(() -> service.confirmInvoice(UUID.randomUUID(), null, UUID.randomUUID()))
                 .isInstanceOf(AccessDeniedException.class);
         verifyNoInteractions(invoiceRepository, inventoryFacade, debtService);
-    }
-
-    @Test
-    @DisplayName("Xác nhận hóa đơn không tồn tại -> 404 (trước đây RuntimeException -> 500)")
-    void confirmInvoice_notFound_is404() {
-        UUID id = UUID.randomUUID();
-        when(invoiceRepository.findById(id)).thenReturn(Optional.empty());
-
-        assertThatThrownBy(() -> service.confirmInvoice(id, UUID.randomUUID(), branchId))
-                .isInstanceOf(ResourceNotFoundException.class);
-    }
-
-    @Test
-    @DisplayName("Xác nhận hóa đơn đã CONFIRMED -> 409 INVALID_STATUS")
-    void confirmInvoice_alreadyConfirmed_is409() {
-        UUID id = UUID.randomUUID();
-        SalesInvoice invoice = new SalesInvoice();
-        invoice.setBranchId(branchId);
-        invoice.setInvoiceCode("HD-1");
-        invoice.setStatus(SalesInvoiceStatus.CONFIRMED);
-        when(invoiceRepository.findById(id)).thenReturn(Optional.of(invoice));
-
-        assertThatThrownBy(() -> service.confirmInvoice(id, UUID.randomUUID(), branchId))
-                .isInstanceOf(BusinessConflictException.class)
-                .extracting("code").isEqualTo(SalesInvoice.INVALID_STATUS);
     }
 
     @Test

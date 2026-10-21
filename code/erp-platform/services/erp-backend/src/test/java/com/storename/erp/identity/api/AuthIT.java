@@ -183,7 +183,7 @@ public class AuthIT {
                 .content(objectMapper.writeValueAsString(authRequest)))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.message").value("Bad credentials"));
+                .andExpect(jsonPath("$.message").value("Sai tên đăng nhập hoặc mật khẩu"));
     }
 
     @Test

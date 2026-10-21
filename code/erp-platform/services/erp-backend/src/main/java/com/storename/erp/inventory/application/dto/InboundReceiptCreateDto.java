@@ -21,10 +21,10 @@ public class InboundReceiptCreateDto {
     
     @NotEmpty(message = "Receipt must have at least one line")
     @Valid
-    private List<LineDto> lines;
+    private List<InboundReceiptLineDto> lines;
 
     @Data
-    public static class LineDto {
+    public static class InboundReceiptLineDto {
         
         @NotNull(message = "Product ID is required")
         private Long productId;

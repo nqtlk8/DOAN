@@ -8,12 +8,14 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 @Slf4j
+// Lịch chạy (@EnableScheduling) đã được bật cho job dọn idempotency; khung ETL chưa có logic nên mặc định tắt.
+@org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(name = "analytics.etl.enabled", havingValue = "true")
 public class AnalyticsEtlJob {
     
     // LƯU Ý: Job này hiện là khung lịch chạy định kỳ, CHƯA hiện thực logic ETL vào
     // FactSales/FactStockMovement. Dashboard hiện tại đọc trực tiếp từ bảng nghiệp vụ
     // (sales_invoice, sales_invoice_line) qua AnalyticsDataAdapter, KHÔNG phụ thuộc job này.
-    // Việc hiện thực ETL đầy đủ là hướng phát triển tiếp theo (xem docs/FOUND_ISSUES.md).
+    // Việc hiện thực ETL đầy đủ là hướng phát triển tiếp theo.
     // In a real system, this job would extract from SalesInvoice & StockMovement 
     // and load into FactSales & FactStockMovement.
     

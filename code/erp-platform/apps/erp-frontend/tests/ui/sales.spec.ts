@@ -16,7 +16,8 @@ test.describe('Sales Order Form', () => {
         } else {
           route.fallback();
         }
-      }
+      },
+      '**/api/v1/sales-invoices/*/confirm': (route) => route.fulfill(ok(null)),
     });
     await page.goto('/');
   });
@@ -81,7 +82,16 @@ test.describe('Sales Order Form', () => {
     await page.getByTestId('btn-save').click();
     const payload = (await requestPromise).postDataJSON();
     expect(payload.customerId).toBe(customers[1].id);
+    // Bước 1: lưu nháp — chưa xuất kho, chưa ghi công nợ.
+    await expect(page.getByText('Nháp', { exact: true })).toBeVisible();
+
+    // Bước 2: xác nhận (F9) với key cố định theo hóa đơn.
+    const confirmPromise = page.waitForRequest((req) => req.url().endsWith('/api/v1/sales-invoices/inv-1/confirm'));
+    await page.getByTestId('btn-confirm').click();
+    const confirmReq = await confirmPromise;
+    expect(confirmReq.headers()['idempotency-key']).toBe('sales-invoice-confirm:inv-1');
     await expect(page.getByText('Đã xác nhận', { exact: true })).toBeVisible();
+    await expect(page.getByTestId('btn-confirm')).toHaveCount(0);
   });
 
   test('E-SALE-07: Sửa đơn giá + Enter ở dòng cuối tạo dòng mới', async ({ page }) => {
@@ -121,3 +131,72 @@ test.describe('Sales Order Form', () => {
   });
 });
 
+
+test.describe('Sales Order Form – chống tạo trùng hóa đơn', () => {
+  test('E-SALE-09: Hết thời gian chờ khi lưu -> báo chưa rõ kết quả; Lưu lại gửi CÙNG Idempotency-Key', async ({ page }) => {
+    const keys: string[] = [];
+    let attempt = 0;
+    await loginAs(page, 'STAFF');
+    await mockApi(page, {
+      '**/api/v1/customers*': (route) => route.fulfill(ok(customers)),
+      '**/api/v1/catalog/products*': (route) => route.fulfill(ok(products)),
+      '**/api/v1/receivable-debts/*/balance': (route) => route.fulfill(ok(0)),
+      '**/api/v1/sales-invoices': (route) => {
+        if (route.request().method() !== 'POST') return route.fallback();
+        keys.push(route.request().headers()['idempotency-key']);
+        attempt += 1;
+        // Lần 1: mạng đứt sau khi gửi (server có thể đã lưu). Lần 2: server trả lại hóa đơn đã lưu.
+        if (attempt === 1) return route.abort('timedout');
+        return route.fulfill(ok({ id: 'inv-1', invoiceCode: 'HD0001' }));
+      },
+    });
+    await page.goto('/');
+
+    await page.getByTestId('sales-customer-combo').click();
+    await page.getByTestId('combobox-dropdown').getByText('Nguyễn Văn A').click();
+    await page.getByTestId('sales-add-line').click();
+    await page.getByTestId('combobox-dropdown').getByText('Sản phẩm 1').click();
+
+    await page.getByTestId('btn-save').click();
+    await expect(page.getByText(/chưa rõ phiếu đã được lưu hay chưa/).first()).toBeVisible();
+    await expect(page.getByTestId('doc-code')).toContainText('(Tự động)');
+
+    await page.getByTestId('btn-save').click();
+    await expect(page.getByTestId('doc-code')).toContainText('HD0001');
+
+    expect(keys).toHaveLength(2);
+    expect(keys[0]).toBeTruthy();
+    expect(keys[1]).toBe(keys[0]);
+  });
+
+  test('E-SALE-10: Phiếu mới (Thêm mới) dùng key mới', async ({ page }) => {
+    const keys: string[] = [];
+    let n = 0;
+    await loginAs(page, 'STAFF');
+    await mockApi(page, {
+      '**/api/v1/customers*': (route) => route.fulfill(ok(customers)),
+      '**/api/v1/catalog/products*': (route) => route.fulfill(ok(products)),
+      '**/api/v1/receivable-debts/*/balance': (route) => route.fulfill(ok(0)),
+      '**/api/v1/sales-invoices': (route) => {
+        if (route.request().method() !== 'POST') return route.fallback();
+        keys.push(route.request().headers()['idempotency-key']);
+        n += 1;
+        return route.fulfill(ok({ id: `inv-${n}`, invoiceCode: `HD000${n}` }));
+      },
+    });
+    await page.goto('/');
+
+    for (const code of ['HD0001', 'HD0002']) {
+      if (code === 'HD0002') await page.getByTestId('btn-add').click();
+      await page.getByTestId('sales-customer-combo').click();
+      await page.getByTestId('combobox-dropdown').getByText('Nguyễn Văn A').click();
+      await page.getByTestId('sales-add-line').click();
+      await page.getByTestId('combobox-dropdown').getByText('Sản phẩm 1').click();
+      await page.getByTestId('btn-save').click();
+      await expect(page.getByTestId('doc-code')).toContainText(code);
+    }
+
+    expect(keys).toHaveLength(2);
+    expect(keys[1]).not.toBe(keys[0]);
+  });
+});

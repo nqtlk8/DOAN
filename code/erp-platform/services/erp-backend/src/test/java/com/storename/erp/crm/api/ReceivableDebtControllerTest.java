@@ -45,6 +45,9 @@ public class ReceivableDebtControllerTest {
     @MockBean
     private com.storename.erp.order.api.OrderFacade orderFacade;
 
+    @MockBean
+    private com.storename.erp.crm.application.CashReceiptService cashReceiptService;
+
     @BeforeEach
     void setUpFilter() throws Exception {
         org.mockito.Mockito.doAnswer(invocation -> {

@@ -30,7 +30,26 @@ public class InboundReceiptService {
 
     @Transactional
     public UUID createDraft(Long branchId, InboundReceiptCreateDto dto) {
+        return createDraft(branchId, dto, null);
+    }
+
+    /**
+     * Tạo phiếu nhập DRAFT. {@code requestKey} (khóa lập phiếu, xem {@code IdempotencyContext}) được ghi vào
+     * phiếu trong cùng transaction: gửi lại cùng khóa thì trả lại phiếu đã lưu, không tạo phiếu thứ hai.
+     */
+    @Transactional
+    public UUID createDraft(Long branchId, InboundReceiptCreateDto dto, String requestKey) {
         requireBranch(branchId);
+        if (requestKey != null) {
+            java.util.Optional<InboundReceipt> existing = inboundRepo.findByRequestKey(requestKey);
+            if (existing.isPresent()) {
+                if (!existing.get().getBranchId().equals(branchId)) {
+                    throw new AccessDeniedException("Receipt does not belong to this branch");
+                }
+                log.info("Inbound receipt {} already created with this request key, returning it", existing.get().getReceiptCode());
+                return existing.get().getId();
+            }
+        }
         String code = dto.getReceiptCode();
         if (code == null || code.trim().isEmpty()) {
             code = "NK" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
@@ -40,8 +59,9 @@ public class InboundReceiptService {
 
         InboundReceipt receipt = new InboundReceipt(branchId, code, dto.getNote());
         receipt.setSupplierId(dto.getSupplierId());
+        receipt.setRequestKey(requestKey);
         
-        for (InboundReceiptCreateDto.LineDto lineDto : dto.getLines()) {
+        for (InboundReceiptCreateDto.InboundReceiptLineDto lineDto : dto.getLines()) {
             InboundReceiptLine line = new InboundReceiptLine(
                     lineDto.getProductId(),
                     lineDto.getQuantity(),
@@ -54,6 +74,36 @@ public class InboundReceiptService {
         receipt = inboundRepo.save(receipt);
         log.info("Created DRAFT inbound receipt {} for branch {}", receipt.getId(), branchId);
         return receipt.getId();
+    }
+
+    /**
+     * Sửa phiếu nhập khi còn nháp: thay nhà cung cấp, ghi chú và toàn bộ dòng hàng. Chưa tác động kho.
+     * Khóa phiếu trước khi kiểm tra trạng thái (cùng khóa với {@link #confirmReceipt}), nên không thể sửa một
+     * phiếu đang được xác nhận. Mã phiếu không đổi (bỏ qua {@code receiptCode} trong request).
+     */
+    @org.springframework.retry.annotation.Retryable(
+        retryFor = {
+            org.springframework.orm.ObjectOptimisticLockingFailureException.class,
+            org.springframework.dao.PessimisticLockingFailureException.class
+        },
+        maxAttempts = 3,
+        backoff = @org.springframework.retry.annotation.Backoff(delay = 100)
+    )
+    @Transactional
+    public InboundReceipt updateDraft(UUID receiptId, Long branchId, InboundReceiptCreateDto dto) {
+        requireBranch(branchId);
+        InboundReceipt receipt = inboundRepo.findByIdForUpdate(receiptId)
+                .orElseThrow(() -> new ResourceNotFoundException("Receipt not found: " + receiptId));
+        if (!receipt.getBranchId().equals(branchId)) {
+            throw new AccessDeniedException("Receipt does not belong to this branch");
+        }
+        List<InboundReceiptLine> newLines = dto.getLines().stream()
+                .map(l -> new InboundReceiptLine(l.getProductId(), l.getQuantity(), l.getUnitCost(), l.getUnitOfMeasure()))
+                .toList();
+        receipt.updateDraft(dto.getSupplierId(), dto.getNote(), newLines);
+        receipt = inboundRepo.save(receipt);
+        log.info("Updated DRAFT inbound receipt {} ({} lines)", receipt.getReceiptCode(), newLines.size());
+        return receipt;
     }
 
     /**
@@ -75,7 +125,9 @@ public class InboundReceiptService {
     public void confirmReceipt(UUID receiptId, Long branchId, UUID userId) {
         log.info("Confirming inbound receipt {}, branch={}, userId={}", receiptId, branchId, userId);
         requireBranch(branchId);
-        InboundReceipt receipt = inboundRepo.findById(receiptId)
+        // Khóa phiếu: hai lần xác nhận đồng thời (kể cả của hai người khác nhau) xếp hàng, lần sau thấy CONFIRMED
+        // và nhận 409 INVALID_STATUS; cũng không thể xác nhận xen giữa lúc phiếu đang được sửa.
+        InboundReceipt receipt = inboundRepo.findByIdForUpdate(receiptId)
                 .orElseThrow(() -> new ResourceNotFoundException("Receipt not found: " + receiptId));
 
         if (!receipt.getBranchId().equals(branchId)) {

@@ -3,12 +3,12 @@ import { ApiService } from '../api/ApiService';
 import { notify } from '../shared/notifications/notification';
 import type { Product } from '../types/catalog';
 
-export const useProducts = () => {
+export const useProducts = (branchId?: number) => {
   const queryClient = useQueryClient();
 
   const query = useQuery({
-    queryKey: ['products'],
-    queryFn: () => ApiService.Catalog.getProducts(),
+    queryKey: ['products', branchId ?? 'own'],
+    queryFn: () => ApiService.Catalog.getProductsWithPrice(branchId),
   });
 
   const createMutation = useMutation({

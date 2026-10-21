@@ -88,7 +88,7 @@ public class GoodsReturnWithoutInvoiceIT {
         dto.setReturnCode("RET-1002");
         dto.setInvoiceId(null);
         
-        GoodsReturnCreateDto.LineDto line = new GoodsReturnCreateDto.LineDto();
+        GoodsReturnCreateDto.GoodsReturnLineDto line = new GoodsReturnCreateDto.GoodsReturnLineDto();
         line.setProductId(productId);
         line.setQuantity(new BigDecimal("2.0"));
         line.setUnitPrice(new BigDecimal("100000"));

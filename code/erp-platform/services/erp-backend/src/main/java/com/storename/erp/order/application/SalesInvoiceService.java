@@ -1,12 +1,10 @@
 package com.storename.erp.order.application;
 
-import com.storename.erp.common.exception.BusinessConflictException;
 import com.storename.erp.common.exception.ResourceNotFoundException;
 import com.storename.erp.crm.api.CrmFacade;
 import com.storename.erp.crm.application.ReceivableDebtService;
 import com.storename.erp.inventory.api.InventoryFacade;
 import com.storename.erp.order.application.dto.SalesInvoiceCreateDto;
-import com.storename.erp.order.application.dto.SalesInvoiceLineDto;
 import com.storename.erp.order.domain.SalesInvoice;
 import com.storename.erp.order.domain.SalesInvoiceLine;
 import com.storename.erp.order.domain.SalesInvoiceStatus;
@@ -36,23 +34,30 @@ public class SalesInvoiceService {
     /**
      * Builds a SalesInvoice aggregate (header + lines) from the create request,
      * validating the advance payment, WITHOUT persisting it.
-     * Shared by {@link #createDraft} and {@link #createAndConfirm}.
+     * Used by {@link #createDraft}.
      */
     private SalesInvoice buildInvoice(SalesInvoiceCreateDto dto, Long branchId) {
         SalesInvoice invoice = new SalesInvoice();
         invoice.setBranchId(branchId);
-        invoice.setCustomerId(dto.getCustomerId());
         String code = dto.getInvoiceCode();
         if (code == null || code.trim().isEmpty()) {
             code = "HD" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
         }
         invoice.setInvoiceCode(code);
-        invoice.setPaymentMethod(dto.getPaymentMethod());
-        invoice.setNote(dto.getNote());
-        if (dto.getAdvancePayment() != null) {
-            invoice.setAdvancePayment(dto.getAdvancePayment());
-        }
+        applyDraftContent(invoice, dto);
+        return invoice;
+    }
 
+    /**
+     * Ghi nội dung phiếu nháp từ request: khách, ghi chú, trả trước và thay toàn bộ dòng hàng, rồi tính lại tổng
+     * và kiểm tra khoản trả trước. Dùng chung cho lưu nháp ({@link #createDraft}) và sửa nháp ({@link #updateDraft}).
+     */
+    private void applyDraftContent(SalesInvoice invoice, SalesInvoiceCreateDto dto) {
+        invoice.setCustomerId(dto.getCustomerId());
+        invoice.setNote(dto.getNote());
+        invoice.setAdvancePayment(dto.getAdvancePayment() != null ? dto.getAdvancePayment() : BigDecimal.ZERO);
+
+        invoice.getLines().clear();
         for (var lineDto : dto.getLines()) {
             SalesInvoiceLine line = new SalesInvoiceLine();
             line.setProductId(lineDto.getProductId());
@@ -74,8 +79,6 @@ public class SalesInvoiceService {
                 throw new IllegalArgumentException("Advance payment cannot exceed the total invoice amount");
             }
         }
-
-        return invoice;
     }
 
     /**
@@ -83,8 +86,7 @@ public class SalesInvoiceService {
      * saves edited line prices as the customer's own price (customer_product_price),
      * raises the customer's receivable debt by the invoice total, then reduces it back by any
      * advance payment already collected, and finally flips the entity to CONFIRMED.
-     * Shared by {@link #confirmInvoice} (explicit two-step confirm of an existing DRAFT) and
-     * {@link #createAndConfirm} (single-step create, still inside the same DB transaction).
+     * Used by {@link #confirmInvoice} (inside one DB transaction).
      */
     private void applyConfirmationEffects(SalesInvoice invoice, Long branchId, UUID userId) {
         // Khóa dòng tồn theo thứ tự productId tăng dần (cùng thứ tự với nhập kho và trả hàng):
@@ -126,19 +128,89 @@ public class SalesInvoiceService {
         invoice.confirm(userId);
     }
 
+    /** Lưu nháp không kèm khóa lập phiếu (script nội bộ, test). */
     @Transactional
     public SalesInvoice createDraft(SalesInvoiceCreateDto dto, Long branchId) {
-        requireBranch(branchId);
-        return invoiceRepository.save(buildInvoice(dto, branchId));
+        return createDraft(dto, branchId, null);
     }
 
     /**
-     * Creates the invoice and confirms it in the same step: no DRAFT row is ever left
-     * behind for the user to lose track of. Build + persist (to obtain generated ids for
-     * the invoice/lines) + inventory deduction + debt update all happen inside this single
-     * {@code @Transactional} boundary, so if anything fails (e.g. inventory/debt service
-     * throws), the whole insert rolls back and nothing is saved — the caller gets an error
-     * instead of an orphaned, unconfirmed invoice.
+     * Bước 1 — Lưu hóa đơn ở trạng thái DRAFT. Chưa trừ kho, chưa ghi công nợ, chưa lưu giá riêng của khách:
+     * mọi tác động nằm ở {@link #confirmInvoice} (giống phiếu nhập và phiếu trả).
+     *
+     * <p>{@code requestKey} (khóa lập phiếu, xem {@code IdempotencyContext}) được ghi vào hóa đơn trong cùng
+     * transaction. Gửi lại cùng khóa thì trả lại hóa đơn đã lưu thay vì tạo hóa đơn thứ hai.</p>
+     */
+    @Transactional
+    public SalesInvoice createDraft(SalesInvoiceCreateDto dto, Long branchId, String requestKey) {
+        requireBranch(branchId);
+        if (requestKey != null) {
+            java.util.Optional<SalesInvoice> existing = invoiceRepository.findByRequestKey(requestKey);
+            if (existing.isPresent()) {
+                SalesInvoice invoice = existing.get();
+                requireSameBranch(invoice.getBranchId(), branchId);
+                log.info("Invoice {} already created with this request key, returning it", invoice.getInvoiceCode());
+                return invoice;
+            }
+        }
+        if (!crmFacade.customerExists(dto.getCustomerId())) {
+            throw new com.storename.erp.common.exception.ResourceNotFoundException("Khách hàng chưa có tại chi nhánh (chưa đồng bộ từ HQ): " + dto.getCustomerId());
+        }
+        String requestedCode = dto.getInvoiceCode();
+        if (requestedCode != null && !requestedCode.trim().isEmpty() && invoiceRepository.existsByInvoiceCode(requestedCode)) {
+            throw new IllegalArgumentException("Invoice code already exists");
+        }
+        SalesInvoice invoice = buildInvoice(dto, branchId);
+        invoice.setRequestKey(requestKey);
+        invoice = invoiceRepository.save(invoice);
+        log.info("Created DRAFT sales invoice {} for branch {}, totalAmount: {}", invoice.getInvoiceCode(), branchId, invoice.getTotalAmount());
+        return invoice;
+    }
+
+    /**
+     * Sửa hóa đơn khi còn nháp: ghi đè khách, ghi chú, trả trước và toàn bộ dòng hàng. Vẫn chưa trừ kho, chưa ghi
+     * công nợ, chưa lưu giá riêng của khách (mọi tác động vẫn nằm ở {@link #confirmInvoice}).
+     *
+     * <p>Khóa hóa đơn ({@code findByIdForUpdate}) trước khi kiểm tra trạng thái, cùng khóa với bước xác nhận: sửa và
+     * xác nhận đồng thời thì chạy lần lượt, nên xác nhận luôn tác động kho / công nợ đúng theo nội dung đã lưu.
+     * Hóa đơn đã xác nhận -> 409 {@code INVALID_STATUS} (điều chỉnh bằng phiếu trả hàng). Mã hóa đơn không đổi.</p>
+     */
+    @org.springframework.retry.annotation.Retryable(
+        retryFor = {
+            org.springframework.orm.ObjectOptimisticLockingFailureException.class,
+            org.springframework.dao.PessimisticLockingFailureException.class
+        },
+        maxAttempts = 3,
+        backoff = @org.springframework.retry.annotation.Backoff(delay = 100)
+    )
+    @Transactional
+    public SalesInvoice updateDraft(UUID invoiceId, SalesInvoiceCreateDto dto, Long branchId) {
+        requireBranch(branchId);
+        SalesInvoice invoice = invoiceRepository.findByIdForUpdate(invoiceId)
+                .orElseThrow(() -> new ResourceNotFoundException("Invoice not found: " + invoiceId));
+        requireSameBranch(invoice.getBranchId(), branchId);
+        if (invoice.getStatus() != SalesInvoiceStatus.DRAFT) {
+            throw new com.storename.erp.common.exception.BusinessConflictException(SalesInvoice.INVALID_STATUS,
+                    "Chỉ hóa đơn nháp (DRAFT) mới được sửa. Hóa đơn " + invoice.getInvoiceCode()
+                            + " đã xác nhận (đã trừ kho, ghi công nợ); điều chỉnh bằng phiếu trả hàng.");
+        }
+        if (!crmFacade.customerExists(dto.getCustomerId())) {
+            throw new ResourceNotFoundException("Khách hàng chưa có tại chi nhánh (chưa đồng bộ từ HQ): " + dto.getCustomerId());
+        }
+        applyDraftContent(invoice, dto);
+        invoice = invoiceRepository.save(invoice);
+        log.info("Updated DRAFT sales invoice {}, totalAmount: {}", invoice.getInvoiceCode(), invoice.getTotalAmount());
+        return invoice;
+    }
+
+    /**
+     * Bước 2 — Xác nhận hóa đơn DRAFT: trừ kho theo FIFO (chụp giá vốn từng dòng), lưu giá riêng của khách,
+     * tăng công nợ theo tổng hóa đơn rồi giảm theo khoản trả trước, chụp nợ cũ / nợ còn lại.
+     *
+     * <p>Thứ tự khóa giống phiếu trả: hóa đơn ({@code findByIdForUpdate}) → dòng tồn (productId tăng dần)
+     * → dòng công nợ. Khóa hóa đơn làm hai lần xác nhận đồng thời xếp hàng; lần sau thấy CONFIRMED và nhận
+     * 409 {@code INVALID_STATUS}, nên kho và công nợ chỉ bị tác động một lần. Lỗi ở bất kỳ bước nào thì
+     * toàn bộ rollback và hóa đơn vẫn là DRAFT.</p>
      */
     @org.springframework.retry.annotation.Retryable(
         retryFor = {
@@ -150,43 +222,17 @@ public class SalesInvoiceService {
         backoff = @org.springframework.retry.annotation.Backoff(delay = 100)
     )
     @Transactional
-    public SalesInvoice createAndConfirm(SalesInvoiceCreateDto dto, Long branchId, UUID userId) {
+    public SalesInvoice confirmInvoice(UUID invoiceId, Long branchId, UUID userId) {
         requireBranch(branchId);
-        if (!crmFacade.customerExists(dto.getCustomerId())) {
-            throw new com.storename.erp.common.exception.ResourceNotFoundException("Khách hàng chưa có tại chi nhánh (chưa đồng bộ từ HQ): " + dto.getCustomerId());
-        }
-        SalesInvoice invoice = invoiceRepository.save(buildInvoice(dto, branchId));
-
-        applyConfirmationEffects(invoice, branchId, userId);
-
-        log.info("Invoice {} created and confirmed directly (no draft step), totalAmount: {}, previousDebt: {}, remainingDebt: {}",
-                invoice.getInvoiceCode(), invoice.getTotalAmount(), invoice.getPreviousDebt(), invoice.getRemainingDebt());
-
-        return invoiceRepository.save(invoice);
-    }
-
-    @org.springframework.retry.annotation.Retryable(
-        retryFor = {
-            org.springframework.orm.ObjectOptimisticLockingFailureException.class,
-            org.springframework.dao.DataIntegrityViolationException.class,
-            org.springframework.dao.PessimisticLockingFailureException.class
-        },
-        maxAttempts = 3,
-        backoff = @org.springframework.retry.annotation.Backoff(delay = 100)
-    )
-    @Transactional
-    public SalesInvoice confirmInvoice(UUID invoiceId, UUID userId, Long branchId) {
-        requireBranch(branchId);
-        SalesInvoice invoice = invoiceRepository.findById(invoiceId)
+        SalesInvoice invoice = invoiceRepository.findByIdForUpdate(invoiceId)
                 .orElseThrow(() -> new ResourceNotFoundException("Invoice not found: " + invoiceId));
-
-        if (!invoice.getBranchId().equals(branchId)) {
-            throw new SecurityException("Cannot confirm invoice of different branch");
-        }
-
+        requireSameBranch(invoice.getBranchId(), branchId);
         if (invoice.getStatus() != SalesInvoiceStatus.DRAFT) {
-            throw new BusinessConflictException(SalesInvoice.INVALID_STATUS,
-                    "Hóa đơn " + invoice.getInvoiceCode() + " không ở trạng thái DRAFT (hiện tại: " + invoice.getStatus() + ")");
+            throw new com.storename.erp.common.exception.BusinessConflictException(SalesInvoice.INVALID_STATUS,
+                    "Chỉ hóa đơn DRAFT mới được xác nhận (hiện tại: " + invoice.getStatus() + ")");
+        }
+        if (!crmFacade.customerExists(invoice.getCustomerId())) {
+            throw new ResourceNotFoundException("Khách hàng chưa có tại chi nhánh (chưa đồng bộ từ HQ): " + invoice.getCustomerId());
         }
 
         applyConfirmationEffects(invoice, branchId, userId);
@@ -195,6 +241,12 @@ public class SalesInvoiceService {
                 invoice.getInvoiceCode(), invoice.getTotalAmount(), invoice.getPreviousDebt(), invoice.getRemainingDebt());
 
         return invoiceRepository.save(invoice);
+    }
+
+    private static void requireSameBranch(Long documentBranchId, Long branchId) {
+        if (!documentBranchId.equals(branchId)) {
+            throw new AccessDeniedException("Invoice does not belong to this branch");
+        }
     }
 
     @Transactional(readOnly = true)

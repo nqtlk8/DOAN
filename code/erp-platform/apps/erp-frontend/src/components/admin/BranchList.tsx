@@ -18,7 +18,7 @@ export const BranchList: React.FC = () => {
   const items: any[] = response || [];
   const term = normalizeSearch(searchTerm);
   const filtered = items.filter(
-    (c) => normalizeSearch(c.name).includes(term) || normalizeSearch(c.branchCode).includes(term),
+    (c) => normalizeSearch(c.name).includes(term) || normalizeSearch(c.code).includes(term),
   );
 
   return (
@@ -62,7 +62,7 @@ export const BranchList: React.FC = () => {
       >
         {filtered.map((c, i) => (
           <tr key={c.id ?? i} data-testid="branch-row">
-            <td>{c.branchCode || '—'}</td>
+            <td>{c.code || '—'}</td>
             <td className="font-medium">{c.name}</td>
             <td>{c.address || '—'}</td>
           </tr>

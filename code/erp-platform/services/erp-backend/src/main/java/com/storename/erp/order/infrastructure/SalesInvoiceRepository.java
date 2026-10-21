@@ -9,8 +9,12 @@ import java.util.UUID;
 
 @Repository
 public interface SalesInvoiceRepository extends JpaRepository<SalesInvoice, UUID> {
-    Optional<SalesInvoice> findByInvoiceCode(String invoiceCode);
     java.util.List<SalesInvoice> findByBranchId(Long branchId);
+
+    boolean existsByInvoiceCode(String invoiceCode);
+
+    /** Chứng từ đã tạo với khóa lập phiếu này (gửi lại cùng Idempotency-Key -> trả lại chứng từ cũ). */
+    java.util.Optional<SalesInvoice> findByRequestKey(String requestKey);
 
     @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
     @org.springframework.data.jpa.repository.Query("SELECT i FROM SalesInvoice i WHERE i.id = :id")

@@ -55,6 +55,8 @@ export const InboundReceiptModule: React.FC<InboundReceiptModuleProps> = ({
       isLoading={isLoading}
       hideConfirm={status !== 'DRAFT'}
       onAdd={() => formRef.current?.handleAdd()}
+      // Chỉ phiếu nháp (chưa xác nhận) mới được sửa; sửa xong Lưu rồi Xác nhận (F9) như bình thường.
+      onEdit={status === 'DRAFT' ? () => formRef.current?.handleEdit() : undefined}
       onSave={() => formRef.current?.handleSubmit()}
       onCancel={() => formRef.current?.handleCancel()}
       onConfirm={() => formRef.current?.handleConfirm()}

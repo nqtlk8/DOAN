@@ -87,13 +87,4 @@ class CustomerProductPriceControllerTest {
         verifyNoInteractions(priceService);
     }
 
-    @Test
-    void getPrice_ShouldUseBranchFromToken() throws Exception {
-        when(priceService.getPrice(customerId, 5L, 1L)).thenReturn(Optional.of(new BigDecimal("12345")));
-
-        mockMvc.perform(get("/api/v1/customer-prices/{c}/product/{p}", customerId, 5L)
-                        .with(authentication(auth("STAFF", "1"))))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data").value(12345));
-    }
 }

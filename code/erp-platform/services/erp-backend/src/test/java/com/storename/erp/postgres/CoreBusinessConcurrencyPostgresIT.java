@@ -14,7 +14,6 @@ import com.storename.erp.order.application.SalesInvoiceService;
 import com.storename.erp.order.application.dto.GoodsReturnCreateDto;
 import com.storename.erp.order.application.dto.SalesInvoiceCreateDto;
 import com.storename.erp.order.application.dto.SalesInvoiceLineDto;
-import com.storename.erp.order.domain.PaymentMethod;
 import com.storename.erp.order.domain.SalesInvoice;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -101,9 +100,9 @@ class CoreBusinessConcurrencyPostgresIT extends PostgresIntegrationTest {
 
     private UUID draftReceipt(long[] productIds, String qty, String unitCost) {
         InboundReceiptCreateDto dto = new InboundReceiptCreateDto();
-        List<InboundReceiptCreateDto.LineDto> lines = new ArrayList<>();
+        List<InboundReceiptCreateDto.InboundReceiptLineDto> lines = new ArrayList<>();
         for (long pid : productIds) {
-            InboundReceiptCreateDto.LineDto l = new InboundReceiptCreateDto.LineDto();
+            InboundReceiptCreateDto.InboundReceiptLineDto l = new InboundReceiptCreateDto.InboundReceiptLineDto();
             l.setProductId(pid);
             l.setQuantity(new BigDecimal(qty));
             l.setUnitCost(new BigDecimal(unitCost));
@@ -122,7 +121,6 @@ class CoreBusinessConcurrencyPostgresIT extends PostgresIntegrationTest {
     private SalesInvoiceCreateDto saleDto(UUID customerId, String qty, String unitPrice, long... productIds) {
         SalesInvoiceCreateDto dto = new SalesInvoiceCreateDto();
         dto.setCustomerId(customerId);
-        dto.setPaymentMethod(PaymentMethod.CREDIT);
         List<SalesInvoiceLineDto> lines = new ArrayList<>();
         for (long pid : productIds) {
             SalesInvoiceLineDto l = new SalesInvoiceLineDto();
@@ -141,9 +139,9 @@ class CoreBusinessConcurrencyPostgresIT extends PostgresIntegrationTest {
         GoodsReturnCreateDto dto = new GoodsReturnCreateDto();
         dto.setCustomerId(customerId);
         dto.setInvoiceId(invoiceId);
-        List<GoodsReturnCreateDto.LineDto> lines = new ArrayList<>();
+        List<GoodsReturnCreateDto.GoodsReturnLineDto> lines = new ArrayList<>();
         for (String q : quantities) {
-            GoodsReturnCreateDto.LineDto l = new GoodsReturnCreateDto.LineDto();
+            GoodsReturnCreateDto.GoodsReturnLineDto l = new GoodsReturnCreateDto.GoodsReturnLineDto();
             l.setProductId(productId);
             l.setQuantity(new BigDecimal(q));
             l.setUnitPrice(new BigDecimal(unitPrice));
@@ -236,7 +234,7 @@ class CoreBusinessConcurrencyPostgresIT extends PostgresIntegrationTest {
         for (int i = 0; i < 20; i++) {
             UUID c = customers.get(i);
             long[] order = (i % 2 == 0) ? new long[]{a, b} : new long[]{b, a};
-            tasks.add(() -> salesInvoiceService.createAndConfirm(saleDto(c, "1", "5000", order), BRANCH, USER));
+            tasks.add(() -> com.storename.erp.support.SalesInvoiceFlows.createAndConfirm(salesInvoiceService, saleDto(c, "1", "5000", order), BRANCH, USER));
         }
         List<Throwable> results = runConcurrently(tasks);
 
@@ -260,9 +258,9 @@ class CoreBusinessConcurrencyPostgresIT extends PostgresIntegrationTest {
             // Phiếu trả không có hóa đơn gốc: nhập lại kho như nhập hàng (hai dòng D rồi C).
             GoodsReturnCreateDto dto = new GoodsReturnCreateDto();
             dto.setCustomerId(returnCustomer);
-            List<GoodsReturnCreateDto.LineDto> lines = new ArrayList<>();
+            List<GoodsReturnCreateDto.GoodsReturnLineDto> lines = new ArrayList<>();
             for (long pid : new long[]{d, c}) {
-                GoodsReturnCreateDto.LineDto l = new GoodsReturnCreateDto.LineDto();
+                GoodsReturnCreateDto.GoodsReturnLineDto l = new GoodsReturnCreateDto.GoodsReturnLineDto();
                 l.setProductId(pid);
                 l.setQuantity(BigDecimal.ONE);
                 l.setUnitPrice(BigDecimal.ZERO);
@@ -281,7 +279,7 @@ class CoreBusinessConcurrencyPostgresIT extends PostgresIntegrationTest {
             UUID sc = saleCustomers.get(i);
             UUID r = receipts.get(i);
             UUID gr = returns.get(i);
-            tasks.add(() -> salesInvoiceService.createAndConfirm(saleDto(sc, "1", "5000", c, d), BRANCH, USER));
+            tasks.add(() -> com.storename.erp.support.SalesInvoiceFlows.createAndConfirm(salesInvoiceService, saleDto(sc, "1", "5000", c, d), BRANCH, USER));
             tasks.add(() -> { inboundReceiptService.confirmReceipt(r, BRANCH, USER); return null; });
             tasks.add(() -> { goodsReturnService.confirmReturn(gr, BRANCH, USER); return null; });
         }
@@ -317,11 +315,15 @@ class CoreBusinessConcurrencyPostgresIT extends PostgresIntegrationTest {
     @DisplayName("10 lần thu nợ 150.000 đồng thời trên nợ 1.000.000: đúng 6 thành công, 4 bị từ chối, nợ còn 100.000")
     void concurrentPayments_neverOverdraw() throws Exception {
         UUID customer = newCustomer();
-        debtService.setOpeningBalance(customer, BRANCH, new BigDecimal("1000000"), USER, "Đầu kỳ");
+        debtService.increaseDebt(customer, BRANCH, new BigDecimal("1000000"),
+                com.storename.erp.crm.domain.ReceivableDebtMovementType.INVOICE,
+                "SALES_INVOICE", UUID.randomUUID().toString(), USER, "Nợ từ hóa đơn");
 
         List<Callable<?>> tasks = new ArrayList<>();
         for (int i = 0; i < 10; i++) {
-            tasks.add(() -> debtService.recordPayment(customer, BRANCH, new BigDecimal("150000"), USER, "Thu nợ"));
+            tasks.add(() -> debtService.decreaseDebt(customer, BRANCH, new BigDecimal("150000"),
+                    com.storename.erp.crm.domain.ReceivableDebtMovementType.PAYMENT,
+                    "SALES_INVOICE_ADVANCE", UUID.randomUUID().toString(), USER, "Trả trước"));
         }
         List<Throwable> results = runConcurrently(tasks);
 
@@ -340,7 +342,7 @@ class CoreBusinessConcurrencyPostgresIT extends PostgresIntegrationTest {
         assertThat(ledger).as("sổ biến động khớp số dư").isEqualByComparingTo("100000");
         assertThat(jdbc.queryForObject("""
                 SELECT COUNT(*) FROM receivable_debt_movement
-                WHERE customer_id = ? AND branch_id = ? AND ref_type = 'DEBT_PAYMENT'
+                WHERE customer_id = ? AND branch_id = ? AND ref_type = 'SALES_INVOICE_ADVANCE'
                 """, Integer.class, customer, BRANCH)).isEqualTo(6);
     }
 
@@ -354,7 +356,7 @@ class CoreBusinessConcurrencyPostgresIT extends PostgresIntegrationTest {
         List<Callable<?>> tasks = new ArrayList<>();
         List<SalesInvoice> invoices = java.util.Collections.synchronizedList(new ArrayList<>());
         for (int i = 0; i < 10; i++) {
-            tasks.add(() -> invoices.add(salesInvoiceService.createAndConfirm(saleDto(customer, "1", "10000", p), BRANCH, USER)));
+            tasks.add(() -> invoices.add(com.storename.erp.support.SalesInvoiceFlows.createAndConfirm(salesInvoiceService, saleDto(customer, "1", "10000", p), BRANCH, USER)));
         }
         assertAllSucceeded(runConcurrently(tasks));
 
@@ -374,10 +376,10 @@ class CoreBusinessConcurrencyPostgresIT extends PostgresIntegrationTest {
         receive(p, "10.0004", "1000");
         UUID customer = newCustomer();
 
-        salesInvoiceService.createAndConfirm(saleDto(customer, "10.0004", "2000", p), BRANCH, USER);
+        com.storename.erp.support.SalesInvoiceFlows.createAndConfirm(salesInvoiceService, saleDto(customer, "10.0004", "2000", p), BRANCH, USER);
         assertInventoryConsistent(p, "0");
 
-        assertThatThrownBy(() -> salesInvoiceService.createAndConfirm(saleDto(customer, "0.0001", "2000", p), BRANCH, USER))
+        assertThatThrownBy(() -> com.storename.erp.support.SalesInvoiceFlows.createAndConfirm(salesInvoiceService, saleDto(customer, "0.0001", "2000", p), BRANCH, USER))
                 .isInstanceOf(StockInsufficientException.class);
     }
 
@@ -387,7 +389,7 @@ class CoreBusinessConcurrencyPostgresIT extends PostgresIntegrationTest {
         long p = 97008;
         receive(p, "20", "1000");
         UUID customer = newCustomer();
-        SalesInvoice invoice = salesInvoiceService.createAndConfirm(saleDto(customer, "10", "5000", p), BRANCH, USER);
+        SalesInvoice invoice = com.storename.erp.support.SalesInvoiceFlows.createAndConfirm(salesInvoiceService, saleDto(customer, "10", "5000", p), BRANCH, USER);
 
         UUID r1 = draftReturnLines(customer, invoice.getId(), "5000", p, "6");
         UUID r2 = draftReturnLines(customer, invoice.getId(), "5000", p, "3", "3");
@@ -405,10 +407,14 @@ class CoreBusinessConcurrencyPostgresIT extends PostgresIntegrationTest {
         assertThat(returned).isEqualByComparingTo("6");
         assertInventoryConsistent(p, "16");
 
-        // Một phiếu riêng lẻ có hai dòng 6 + 6 > 10 cũng bị từ chối.
-        UUID r3 = draftReturnLines(customer, invoice.getId(), "5000", p, "6", "6");
-        assertThatThrownBy(() -> goodsReturnService.confirmReturn(r3, BRANCH, USER))
-                .isInstanceOf(IllegalArgumentException.class);
+        // Một phiếu riêng lẻ có hai dòng 6 + 6 > 10 bị từ chối ngay khi lưu nháp (cộng dồn các dòng
+        // cùng sản phẩm) và không để lại phiếu nháp nào.
+        long draftsBefore = jdbc.queryForObject("SELECT COUNT(*) FROM goods_return WHERE invoice_id = ?", Long.class, invoice.getId());
+        assertThatThrownBy(() -> draftReturnLines(customer, invoice.getId(), "5000", p, "6", "6"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("exceeds invoice sold quantity");
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM goods_return WHERE invoice_id = ?", Long.class, invoice.getId()))
+                .isEqualTo(draftsBefore);
     }
 
     @Test
@@ -418,9 +424,8 @@ class CoreBusinessConcurrencyPostgresIT extends PostgresIntegrationTest {
         receive(p, "10", "1000");
         UUID customer = newCustomer();
         SalesInvoiceCreateDto dto = saleDto(customer, "2", "100000", p);
-        dto.setPaymentMethod(PaymentMethod.CASH);
         dto.setAdvancePayment(new BigDecimal("200000"));
-        SalesInvoice invoice = salesInvoiceService.createAndConfirm(dto, BRANCH, USER);
+        SalesInvoice invoice = com.storename.erp.support.SalesInvoiceFlows.createAndConfirm(salesInvoiceService, dto, BRANCH, USER);
         assertThat(debtService.getCurrentDebt(customer, BRANCH)).isEqualByComparingTo("0");
 
         UUID r = draftReturnLines(customer, invoice.getId(), "100000", p, "1");

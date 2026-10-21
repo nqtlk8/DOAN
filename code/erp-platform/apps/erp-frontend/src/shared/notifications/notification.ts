@@ -5,7 +5,9 @@ export const notify = {
     toast.success(message);
   },
   error: (message: string) => {
+    // id = nội dung: cùng một lỗi được báo từ interceptor axios và từ form chỉ hiện một thông báo.
     toast.error(message, {
+      id: `error:${message}`,
       duration: 5000,
     });
   },

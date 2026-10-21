@@ -1,16 +1,13 @@
 package com.storename.erp.branch.api;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.storename.erp.branch.application.BranchService;
 import com.storename.erp.branch.application.dto.BranchDTO;
 import com.storename.erp.common.security.JwtAuthenticationFilter;
-import com.storename.erp.common.security.JwtAuthDetails;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors;
@@ -20,7 +17,7 @@ import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -31,8 +28,6 @@ public class BranchControllerTest {
     @Autowired
     private MockMvc mockMvc;
     
-    @Autowired
-    private ObjectMapper objectMapper;
 
     @MockBean
     private BranchService branchService;
@@ -50,42 +45,19 @@ public class BranchControllerTest {
     }
 
     @Test
-    void createBranch_ShouldReturn200_WhenAdmin() throws Exception {
+    void getAllBranches_ShouldReturn200_WhenAdmin() throws Exception {
         BranchDTO dto = new BranchDTO();
         dto.setCode("BR-01");
         dto.setName("Branch 1");
 
-        when(branchService.createBranch(any(BranchDTO.class))).thenReturn(dto);
+        when(branchService.getAllBranches()).thenReturn(List.of(dto));
 
-        JwtAuthDetails details = new JwtAuthDetails("1", "token-123");
         UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
                 "user", null, List.of(new SimpleGrantedAuthority("ADMIN")));
-        auth.setDetails(details);
 
-        mockMvc.perform(post("/api/v1/branches")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(dto))
+        mockMvc.perform(get("/api/v1/branches")
                 .with(SecurityMockMvcRequestPostProcessors.authentication(auth)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.code").value("BR-01"));
-    }
-
-    @Test
-    void createBranch_ShouldReturn403_WhenForbidden() throws Exception {
-        BranchDTO dto = new BranchDTO();
-        dto.setCode("BR-01");
-        dto.setName("Branch 1");
-
-        JwtAuthDetails details = new JwtAuthDetails("1", "token-123");
-        UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
-                "user", null, List.of(new SimpleGrantedAuthority("STAFF")));
-        auth.setDetails(details);
-
-        mockMvc.perform(post("/api/v1/branches")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(dto))
-                .with(SecurityMockMvcRequestPostProcessors.authentication(auth)))
-                .andExpect(status().isForbidden());
+                .andExpect(jsonPath("$.data[0].code").value("BR-01"));
     }
 }
-

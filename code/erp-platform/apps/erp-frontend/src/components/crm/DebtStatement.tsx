@@ -10,19 +10,24 @@ import type { components } from '@erp/api-contract';
 interface DebtStatementProps {
   customerId: string;
   customerName: string;
+  /** Ở HQ: chỉ xem sổ của một chi nhánh, để cột Dư nợ là số dư liên tục của cặp (khách, chi nhánh). */
+  branchId?: number;
+  branchName?: string;
 }
 
-export const DebtStatement: React.FC<DebtStatementProps> = ({ customerId, customerName }) => {
+export const DebtStatement: React.FC<DebtStatementProps> = ({ customerId, customerName, branchId, branchName }) => {
   const { data: response, isLoading, isError, error, refetch } = useQuery<components['schemas']['ReceivableDebtMovementResponseDto'][]>({
     queryKey: ['debt-movements', customerId],
     queryFn: () => ApiService.Debt.getMovements(customerId),
   });
 
-  const movements = response || [];
+  const movements = (response || []).filter((m) => branchId == null || Number(m.branchId) === Number(branchId));
 
-  const getMovementLabel = (type: string | undefined) => {
+  // Phiếu thu ghi PAYMENT, hủy phiếu thu ghi ADJUSTMENT: phân biệt theo refType để nhãn rõ nghĩa.
+  const getMovementLabel = (type: string | undefined, refType?: string) => {
+    if (refType === 'CASH_RECEIPT') return 'Phiếu thu';
+    if (refType === 'CASH_RECEIPT_CANCEL') return 'Hủy phiếu thu';
     switch (type) {
-      case 'OPENING_BALANCE': return 'Số dư đầu kỳ';
       case 'INVOICE': return 'Bán hàng';
       case 'PAYMENT': return 'Thanh toán/Trả trước';
       case 'RETURN': return 'Khách trả hàng';
@@ -31,9 +36,9 @@ export const DebtStatement: React.FC<DebtStatementProps> = ({ customerId, custom
     }
   };
 
-  const getMovementColor = (type: string | undefined) => {
+  const getMovementColor = (type: string | undefined, refType?: string) => {
+    if (refType === 'CASH_RECEIPT_CANCEL') return 'text-danger bg-danger-soft'; // Tăng nợ lại
     switch (type) {
-      case 'OPENING_BALANCE': return 'text-ink-muted bg-slate-100';
       case 'INVOICE': return 'text-danger bg-danger-soft'; // Tăng nợ
       case 'PAYMENT': return 'text-success bg-success-soft'; // Giảm nợ
       case 'RETURN': return 'text-warning bg-warning-soft'; // Giảm nợ
@@ -44,7 +49,7 @@ export const DebtStatement: React.FC<DebtStatementProps> = ({ customerId, custom
 
   return (
     <PageContainer>
-      <PageHeader title={`Sao kê công nợ: ${customerName}`} subtitle="Lịch sử phát sinh và dư nợ theo từng chứng từ" />
+      <PageHeader title={`Sao kê công nợ: ${customerName}${branchName ? ` — ${branchName}` : ''}`} subtitle="Lịch sử phát sinh và dư nợ theo từng chứng từ" />
       <ListTable
         colCount={6}
         isLoading={isLoading}
@@ -72,7 +77,7 @@ export const DebtStatement: React.FC<DebtStatementProps> = ({ customerId, custom
             <tr key={m.id} data-testid="debt-movement-row">
               <td className="whitespace-nowrap">{formatDateTime(m.createdAt) || '—'}</td>
               <td>
-                <span className={`badge ${getMovementColor(m.movementType)}`}>{getMovementLabel(m.movementType)}</span>
+                <span className={`badge ${getMovementColor(m.movementType, m.refType)}`}>{getMovementLabel(m.movementType, m.refType)}</span>
               </td>
               <td>{m.referenceCode || m.refId || '—'}</td>
               <td className={`num font-medium ${amount > 0 ? 'text-danger' : 'text-success'}`}>

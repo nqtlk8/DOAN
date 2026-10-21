@@ -28,7 +28,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  *
  * <p>Fixture đặt trên chi nhánh riêng {@link #BRANCH_ID} và dùng 4 sản phẩm của {@link MasterDataFixtures}
  * (SP 1..4 = id 9001..9004) để kiểm tra luôn phần làm giàu mã/tên sản phẩm qua {@code CatalogFacade}.
- * Kịch bản bao phủ đủ các quy tắc trong {@code docs/fix-dashboard/business-rules.md}:</p>
+ * Kịch bản bao phủ đủ các quy tắc cảnh báo tồn kho:</p>
  * <ul>
  *   <li>SP 1: tồn -1, không cấu hình ngưỡng → NEGATIVE_STOCK (D-05).</li>
  *   <li>SP 2: tồn 5, ngưỡng 10 → LOW_STOCK.</li>

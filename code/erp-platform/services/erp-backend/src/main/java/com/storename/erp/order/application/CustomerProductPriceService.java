@@ -51,15 +51,6 @@ public class CustomerProductPriceService {
     private final CustomerProductPriceHistoryRepository historyRepository;
     private final CatalogFacade catalogFacade;
 
-    /** Giá riêng còn hiệu lực của khách cho một sản phẩm (không tính giá niêm yết). */
-    @Transactional(readOnly = true)
-    public Optional<BigDecimal> getPrice(UUID customerId, Long productId, Long branchId) {
-        LocalDateTime now = LocalDateTime.now();
-        return priceRepository.findByCustomerIdAndProductIdAndBranchId(customerId, productId, branchId)
-                .filter(p -> p.isActiveAt(now))
-                .map(CustomerProductPrice::getUnitPrice);
-    }
-
     /** Giá áp dụng cho từng sản phẩm, giữ thứ tự productIds (bỏ trùng, bỏ null). */
     @Transactional(readOnly = true)
     public List<ResolvedPriceDto> resolvePrices(UUID customerId, Long branchId, Collection<Long> productIds) {

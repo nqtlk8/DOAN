@@ -84,7 +84,7 @@ public class InboundReceiptIdempotencyIT {
         InboundReceiptCreateDto inDto = new InboundReceiptCreateDto();
         inDto.setReceiptCode("IN-IDEM-001");
         
-        InboundReceiptCreateDto.LineDto inLine = new InboundReceiptCreateDto.LineDto();
+        InboundReceiptCreateDto.InboundReceiptLineDto inLine = new InboundReceiptCreateDto.InboundReceiptLineDto();
         inLine.setProductId(productId);
         inLine.setQuantity(new BigDecimal("50"));
         inLine.setUnitCost(new BigDecimal("2000"));

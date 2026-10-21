@@ -45,16 +45,6 @@ public class SupplierReadController {
         return ApiResponse.success(response);
     }
 
-    @GetMapping("/{id}")
-    @PreAuthorize("hasAnyAuthority('STAFF', 'ADMIN')")
-    public ApiResponse<SupplierResponseDto> getSupplier(@PathVariable UUID id) {
-        log.info("REST request to get supplier: {}", id);
-        // Không kiểm tra chi nhánh: phiếu nhập cũ có thể tham chiếu supplier đã ngừng hoạt động.
-        Supplier supplier = supplierRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Supplier not found"));
-        return ApiResponse.success(mapToResponse(supplier));
-    }
-
     private SupplierResponseDto mapToResponse(Supplier supplier) {
         return SupplierResponseDto.builder()
                 .id(supplier.getId())

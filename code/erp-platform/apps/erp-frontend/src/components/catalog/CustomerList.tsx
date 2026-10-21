@@ -2,7 +2,7 @@ import { normalizeSearch } from '../../shared/utils/format';
 import { PageHeader } from '../../shared/components/Page/PageHeader';
 import { PageContainer } from '../../shared/components/Page/PageContainer';
 import React, { useState } from 'react';
-import { Search, Plus, X, Edit2, Trash2 } from 'lucide-react';
+import { Search, Plus, X, Edit2, Trash2, Eye } from 'lucide-react';
 import { ApiService } from '../../api/ApiService';
 import type { Customer } from '../../types/catalog';
 import { useAuth, ROLES } from '../../context/AuthContext';
@@ -115,7 +115,7 @@ export const CustomerList: React.FC = () => {
       />
 
       <ListTable
-        colCount={isAdmin ? 5 : 4}
+        colCount={5}
         isLoading={loading}
         isError={isError}
         error={error}
@@ -131,7 +131,7 @@ export const CustomerList: React.FC = () => {
             <th>Tên khách hàng</th>
             <th className="w-36">Số điện thoại</th>
             <th>Địa chỉ</th>
-            {isAdmin && <th className="w-24 text-right">Thao tác</th>}
+            <th className="w-24 text-right">Thao tác</th>
           </tr>
         }
       >
@@ -141,10 +141,9 @@ export const CustomerList: React.FC = () => {
             <td className="font-medium">{c.name}</td>
             <td>{c.phone || '—'}</td>
             <td className="truncate max-w-xs">{c.address || '—'}</td>
-            {isAdmin && (
             <td className="text-right whitespace-nowrap">
                   <button type="button" onClick={() => handleOpenModal(c)} className="btn btn-ghost h-7 w-7 px-0 hover:text-primary" title={isAdmin ? 'Sửa' : 'Xem chi tiết'} aria-label={isAdmin ? 'Sửa' : 'Xem chi tiết'}>
-                    <Edit2 size={15} />
+                    {isAdmin ? <Edit2 size={15} /> : <Eye size={15} />}
                   </button>
                   {isAdmin && (
                     <button type="button" onClick={() => handleDelete(String(c.id))} className="btn btn-ghost h-7 w-7 px-0 hover:text-danger" title="Xóa" aria-label="Xóa">
@@ -152,7 +151,6 @@ export const CustomerList: React.FC = () => {
                     </button>
                   )}
                 </td>
-            )}
           </tr>
         ))}
       </ListTable>
@@ -162,7 +160,7 @@ export const CustomerList: React.FC = () => {
           <div className="bg-surface rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="flex justify-between items-center p-5 border-b border-line">
               <h3 className="text-lg font-bold text-ink">
-                {isEditing ? 'Cập Nhật Khách Hàng' : 'Thêm Khách Hàng Mới'}
+                {!isAdmin ? 'Chi Tiết Khách Hàng' : isEditing ? 'Cập Nhật Khách Hàng' : 'Thêm Khách Hàng Mới'}
               </h3>
               <button
                 onClick={handleCloseModal}

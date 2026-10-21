@@ -1,7 +1,14 @@
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { errorMessage } from '../../shared/errors/errorMessage';
+import { notify } from '../../shared/notifications/notification';
+import {
+  hasErrorCode,
+  INVALID_STATUS,
+  submitErrorMessage,
+  submitWithKey,
+  useSubmitKey,
+} from '../../shared/idempotency/submitKey';
 import { ApiService } from '../../api/ApiService';
 import { useAuth } from '../../context/AuthContext';
 import { useTabs } from '../../context/TabContext';
@@ -45,6 +52,8 @@ export interface InboundReceiptFormProps {
 
 export interface InboundReceiptFormRef {
   handleAdd: () => void;
+  /** Sửa phiếu đang ở trạng thái nháp (F3). */
+  handleEdit: () => void;
   handleSubmit: () => Promise<void>;
   handleCancel: () => void;
   handleConfirm: () => Promise<void>;
@@ -62,31 +71,28 @@ const supplierMatches = (s: SupplierLike, q: string) => {
 };
 
 
-/** Dòng hàng từ API (tùy loại phiếu có unitCost hoặc unitPrice, có/không có tên SP). */
-type LooseLine = {
-  productId?: number | string;
-  productCode?: string;
-  productName?: string;
-  quantity?: number;
-  unitCost?: number;
-  unitPrice?: number;
-  unitOfMeasure?: string;
-};
-
 const mapInitialLines = (data?: InboundReceiptDto | null): DocumentLine[] =>
   Array.isArray(data?.lines)
-    ? (data.lines as LooseLine[]).map((l) => ({
+    ? data.lines.map((l) => ({
         id: newLineId(),
         productId: l.productId != null ? String(l.productId) : '',
-        productCode: l.productCode || '',
-        productName: l.productName || '',
+        productCode: '',
+        productName: '',
         unitOfMeasure: l.unitOfMeasure || 'CAI',
         quantity: Number(l.quantity) || 0,
-        unitPrice: Number(l.unitCost ?? l.unitPrice ?? 0),
+        unitPrice: Number(l.unitCost ?? 0),
       }))
     : [];
 
 type DialogState = null | 'CANCEL' | 'EXIT';
+
+/** Nội dung phiếu lúc bấm "Sửa": bấm Hủy thì trả về đúng nội dung nháp đã lưu. */
+interface InboundSnapshot {
+  supplierId: string;
+  supplier: SupplierLike | null;
+  note: string;
+  lines: DocumentLine[];
+}
 
 export const InboundReceiptForm = forwardRef<InboundReceiptFormRef, InboundReceiptFormProps>(
   ({ mode: initialMode = 'ADD', initialData, onStateChange }, ref) => {
@@ -100,6 +106,8 @@ export const InboundReceiptForm = forwardRef<InboundReceiptFormRef, InboundRecei
     const [isLoading, setIsLoading] = useState(false);
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
     const [dialog, setDialog] = useState<DialogState>(null);
+    // Một key cho một lần lập phiếu (chống tạo trùng khi bấm Lưu lại sau lỗi mạng); đổi khi "Thêm mới".
+    const submitKey = useSubmitKey();
 
     const [receiptId, setReceiptId] = useState<string>(initialData?.id || '');
     const [receiptCode, setReceiptCode] = useState<string>(initialData?.receiptCode || '');
@@ -117,6 +125,7 @@ export const InboundReceiptForm = forwardRef<InboundReceiptFormRef, InboundRecei
     const [quickSupplier, setQuickSupplier] = useState<string | null>(null);
     const [quickProduct, setQuickProduct] = useState<{ lineId: string; name: string } | null>(null);
     const [showSupplierSearch, setShowSupplierSearch] = useState(false);
+    const editSnapshotRef = useRef<InboundSnapshot | null>(null);
 
     // Danh mục để tra tên (API phiếu nhập chỉ trả supplierId / productId).
     const { data: suppliers = [] } = useQuery<SupplierLike[]>({
@@ -153,6 +162,7 @@ export const InboundReceiptForm = forwardRef<InboundReceiptFormRef, InboundRecei
     };
 
     const resetForm = () => {
+      submitKey.renew();
       setMode('ADD');
       setReceiptId('');
       setReceiptCode('');
@@ -164,6 +174,26 @@ export const InboundReceiptForm = forwardRef<InboundReceiptFormRef, InboundRecei
       setFieldErrors({});
     };
 
+    /** Bắt đầu sửa phiếu nháp. Phiếu đã xác nhận (đã nhập kho) thì không sửa được. */
+    const handleEdit = () => {
+      if (mode !== 'VIEW' || !receiptId || status !== 'DRAFT' || isLoading) return;
+      editSnapshotRef.current = { supplierId, supplier, note, lines };
+      submitKey.renew(); // key mới cho lần sửa này
+      setFieldErrors({});
+      setMode('EDIT');
+    };
+
+    const restoreSnapshot = () => {
+      const s = editSnapshotRef.current;
+      editSnapshotRef.current = null;
+      if (!s) return;
+      setSupplierId(s.supplierId);
+      setSupplier(s.supplier);
+      setNote(s.note);
+      setLines(s.lines);
+      setFieldErrors({});
+    };
+
     const selectSupplier = (s: SupplierLike) => {
       setSupplierId(String(s.id ?? ''));
       setSupplier(s);
@@ -171,7 +201,8 @@ export const InboundReceiptForm = forwardRef<InboundReceiptFormRef, InboundRecei
     };
 
     const selectProduct = (lineId: string, p: ProductLike) => {
-      patchLine(lineId, productToLinePatch(p));
+      // Giá nhập không lấy từ giá bán niêm yết: người dùng tự nhập giá vốn cho từng dòng.
+      patchLine(lineId, { ...productToLinePatch(p), unitPrice: 0 });
       focusLineCell(lineId, 'quantity');
     };
 
@@ -189,15 +220,21 @@ export const InboundReceiptForm = forwardRef<InboundReceiptFormRef, InboundRecei
         toast.error('Vui lòng kiểm tra lại thông tin nhập.');
         return false;
       }
+      if (lines.some((l) => !(Number(l.unitPrice) > 0))) {
+        toast.error('Vui lòng nhập giá nhập (> 0) cho tất cả dòng hàng.');
+        return false;
+      }
       return true;
     };
 
     const handleSubmit = async () => {
-      if (mode !== 'ADD' || isLoading) return; // Backend chưa có API sửa phiếu nhập
+      if ((mode !== 'ADD' && mode !== 'EDIT') || isLoading) return;
+      const isEdit = mode === 'EDIT';
+      if (isEdit && !receiptId) return;
       if (!validate()) return;
       setIsLoading(true);
       try {
-        const res = await ApiService.InboundReceipt.create({
+        const payload = {
           supplierId,
           note,
           lines: lines.map((l) => ({
@@ -206,7 +243,25 @@ export const InboundReceiptForm = forwardRef<InboundReceiptFormRef, InboundRecei
             unitCost: l.unitPrice,
             unitOfMeasure: l.unitOfMeasure || 'CAI',
           })),
-        });
+        };
+        if (isEdit) {
+          // Sửa nháp: ghi đè nội dung phiếu, chưa nhập kho. Nhập kho khi bấm "Xác nhận" (F9).
+          await submitWithKey(() => ApiService.InboundReceipt.update(receiptId, payload, submitKey.key));
+          editSnapshotRef.current = null;
+          setStatus('DRAFT');
+          setMode('VIEW');
+          toast.success('Đã lưu thay đổi phiếu nhập (nháp)');
+          queryClient.invalidateQueries({ queryKey: ['inbound-receipts'] });
+          try {
+            const fresh = await ApiService.InboundReceipt.getById(receiptId);
+            if (fresh?.receiptCode) setReceiptCode(fresh.receiptCode);
+            if (fresh?.status) setStatus(fresh.status as DocStatus);
+          } catch {
+            /* Đã lưu; không tải lại được thì giữ nội dung đang hiển thị. */
+          }
+          return;
+        }
+        const res = await submitWithKey(() => ApiService.InboundReceipt.create(payload, submitKey.key));
         const newId = res?.id || '';
         // Đã tạo thành công → chuyển sang VIEW ngay, tránh người dùng bấm Lưu lần nữa tạo phiếu trùng.
         setReceiptId(newId);
@@ -224,7 +279,18 @@ export const InboundReceiptForm = forwardRef<InboundReceiptFormRef, InboundRecei
           }
         }
       } catch (error) {
-        toast.error(errorMessage(error, 'Lưu phiếu nhập thất bại'));
+        if (isEdit && hasErrorCode(error, INVALID_STATUS)) {
+          // Phiếu đã được xác nhận ở nơi khác: bỏ chỉnh sửa, hiển thị trạng thái mới nhất.
+          restoreSnapshot();
+          setMode('VIEW');
+          try {
+            const fresh = await ApiService.InboundReceipt.getById(receiptId);
+            if (fresh?.status) setStatus(fresh.status as DocStatus);
+          } catch {
+            /* giữ trạng thái đang hiển thị */
+          }
+        }
+        notify.error(submitErrorMessage(error, 'Lưu phiếu nhập thất bại'));
       } finally {
         setIsLoading(false);
       }
@@ -234,13 +300,13 @@ export const InboundReceiptForm = forwardRef<InboundReceiptFormRef, InboundRecei
       if (!receiptId || status !== 'DRAFT' || isLoading) return;
       setIsLoading(true);
       try {
-        await ApiService.InboundReceipt.confirm(receiptId);
+        await submitWithKey(() => ApiService.InboundReceipt.confirm(receiptId));
         setStatus('CONFIRMED');
         toast.success('Xác nhận phiếu nhập thành công');
         queryClient.invalidateQueries({ queryKey: ['inbound-receipts'] });
         queryClient.invalidateQueries({ queryKey: ['stocks'] });
       } catch (error) {
-        toast.error(errorMessage(error, 'Xác nhận phiếu nhập thất bại'));
+        notify.error(submitErrorMessage(error, 'Xác nhận phiếu nhập thất bại', 'confirm'));
       } finally {
         setIsLoading(false);
       }
@@ -248,6 +314,7 @@ export const InboundReceiptForm = forwardRef<InboundReceiptFormRef, InboundRecei
 
     useImperativeHandle(ref, () => ({
       handleAdd: resetForm,
+      handleEdit,
       handleSubmit,
       handleCancel: () => {
         if (!isView) setDialog('CANCEL');
@@ -373,18 +440,23 @@ export const InboundReceiptForm = forwardRef<InboundReceiptFormRef, InboundRecei
 
         <ConfirmDialog
           isOpen={dialog !== null}
-          title={dialog === 'EXIT' ? 'Thoát phiếu nhập' : 'Hủy phiếu nhập'}
+          title={dialog === 'EXIT' ? 'Thoát phiếu nhập' : mode === 'EDIT' ? 'Hủy sửa phiếu nhập' : 'Hủy phiếu nhập'}
           message={
             dialog === 'EXIT'
               ? 'Dữ liệu chưa được lưu. Bạn có chắc chắn muốn thoát?'
-              : 'Bạn có chắc chắn muốn hủy phiếu nhập này? Các thay đổi sẽ không được lưu.'
+              : mode === 'EDIT'
+                ? 'Bỏ các thay đổi chưa lưu? Phiếu nháp sẽ giữ nguyên nội dung đã lưu trước đó.'
+                : 'Bạn có chắc chắn muốn hủy phiếu nhập này? Các thay đổi sẽ không được lưu.'
           }
           confirmLabel="Đồng ý"
           cancelLabel="Quay lại"
           onConfirm={() => {
             const d = dialog;
             setDialog(null);
-            if (d === 'EXIT' || !receiptId) closeCurrentTab();
+            if (d === 'CANCEL' && mode === 'EDIT') {
+              restoreSnapshot();
+              setMode('VIEW');
+            } else if (d === 'EXIT' || !receiptId) closeCurrentTab();
             else setMode('VIEW');
           }}
           onCancel={() => setDialog(null)}

@@ -6,23 +6,30 @@
 
 export interface paths {
   "/api/v1/suppliers/{id}": {
-    get: operations["getSupplier"];
     put: operations["updateSupplier"];
     delete: operations["deleteSupplier"];
+  };
+  "/api/v1/sales-invoices/{id}": {
+    get: operations["getInvoice"];
+    put: operations["updateInvoice"];
+  };
+  "/api/v1/inventory/inbound/{id}": {
+    get: operations["getReceipt"];
+    /** Sửa phiếu nhập kho khi còn nháp (DRAFT) */
+    put: operations["updateDraft"];
+  };
+  "/api/v1/goods-returns/{id}": {
+    get: operations["getReturn"];
+    /** Sửa phiếu trả hàng khi còn nháp (DRAFT) */
+    put: operations["updateDraft_1"];
   };
   "/api/v1/customers/{id}": {
     put: operations["updateCustomer"];
     delete: operations["deleteCustomer"];
   };
   "/api/v1/catalog/products/{id}": {
-    get: operations["getProductById"];
     put: operations["updateProduct"];
     delete: operations["deleteProduct"];
-  };
-  "/api/v1/branches/{id}": {
-    get: operations["getBranchById"];
-    put: operations["updateBranch"];
-    delete: operations["deleteBranch"];
   };
   "/api/v1/suppliers": {
     get: operations["getSuppliers"];
@@ -35,9 +42,6 @@ export interface paths {
   "/api/v1/sales-invoices/{id}/confirm": {
     post: operations["confirmInvoice"];
   };
-  "/api/v1/receivable-debts/opening-balance": {
-    post: operations["setOpeningBalance"];
-  };
   "/api/v1/inventory/inbound": {
     get: operations["getReceipts"];
     /** Táº¡o phiáº¿u nháº­p kho (DRAFT) */
@@ -49,11 +53,11 @@ export interface paths {
   };
   "/api/v1/goods-returns": {
     get: operations["getReturns"];
-    /** Táº¡o phiáº¿u tráº£ hÃ ng (DRAFT) */
+    /** Tạo phiếu trả hàng (DRAFT) */
     post: operations["createDraft_1"];
   };
   "/api/v1/goods-returns/{id}/confirm": {
-    /** XÃ¡c nháº­n tráº£ hÃ ng (CONFIRM) vÃ  hoÃ n kho */
+    /** Xác nhận trả hàng (CONFIRM) và hoàn kho */
     post: operations["confirmReturn"];
   };
   "/api/v1/customers": {
@@ -64,9 +68,12 @@ export interface paths {
     get: operations["getAllProducts"];
     post: operations["createProduct"];
   };
-  "/api/v1/branches": {
-    get: operations["getAllBranches"];
-    post: operations["createBranch"];
+  "/api/v1/cash-receipts": {
+    get: operations["list"];
+    post: operations["create"];
+  };
+  "/api/v1/cash-receipts/{id}/cancel": {
+    post: operations["cancel"];
   };
   "/api/v1/auth/revoke": {
     post: operations["revoke"];
@@ -80,9 +87,6 @@ export interface paths {
   "/api/v1/stock-movements": {
     get: operations["getMovements"];
   };
-  "/api/v1/sales-invoices/{id}": {
-    get: operations["getInvoice"];
-  };
   "/api/v1/receivable-debts": {
     get: operations["getDebts"];
   };
@@ -95,23 +99,20 @@ export interface paths {
   "/api/v1/public/catalog/products": {
     get: operations["getAllProducts_1"];
   };
-  "/api/v1/public/catalog/products/{id}": {
-    get: operations["getProductById_1"];
-  };
   "/api/v1/inventory/stock": {
     get: operations["getStock"];
   };
-  "/api/v1/inventory/inbound/{id}": {
-    get: operations["getReceipt"];
-  };
-  "/api/v1/goods-returns/{id}": {
-    get: operations["getReturn"];
-  };
-  "/api/v1/customer-prices/{customerId}/product/{productId}": {
-    get: operations["getPrice"];
+  "/api/v1/customer-prices/{customerId}/resolve": {
+    get: operations["resolvePrices"];
   };
   "/api/v1/catalog/categories": {
     get: operations["getCategories"];
+  };
+  "/api/v1/cash-receipts/{id}": {
+    get: operations["get"];
+  };
+  "/api/v1/branches": {
+    get: operations["getAllBranches"];
   };
   "/api/v1/analytics/stock-alerts": {
     get: operations["getStockAlerts"];
@@ -121,9 +122,6 @@ export interface paths {
   };
   "/api/v1/analytics/dashboard": {
     get: operations["getDashboardMetrics"];
-  };
-  "/api/v1/admin/system/replication-status": {
-    get: operations["getReplicationStatus"];
   };
   "/api/health": {
     get: operations["healthCheck"];
@@ -160,6 +158,81 @@ export interface components {
       taxCode?: string;
       isActive?: boolean;
     };
+    SalesInvoiceCreateDto: {
+      invoiceCode?: string;
+      /** Format: uuid */
+      customerId: string;
+      note?: string;
+      lines: components["schemas"]["SalesInvoiceLineDto"][];
+      advancePayment?: number;
+    };
+    SalesInvoiceLineDto: {
+      /** Format: int64 */
+      productId: number;
+      productName: string;
+      quantity: number;
+      unitPrice: number;
+      unitOfMeasure: string;
+    };
+    ApiResponseSalesInvoiceCreateResponseDto: {
+      success?: boolean;
+      data?: components["schemas"]["SalesInvoiceCreateResponseDto"];
+      message?: string;
+      errors?: string[];
+    };
+    SalesInvoiceCreateResponseDto: {
+      /** Format: uuid */
+      id?: string;
+      invoiceCode?: string;
+    };
+    InboundReceiptCreateDto: {
+      receiptCode?: string;
+      note?: string;
+      /** Format: uuid */
+      supplierId?: string;
+      lines: components["schemas"]["InboundReceiptLineDto"][];
+    };
+    InboundReceiptLineDto: {
+      /** Format: int64 */
+      productId: number;
+      quantity: number;
+      unitCost: number;
+      unitOfMeasure: string;
+    };
+    ApiResponseInboundReceiptCreateResponseDto: {
+      success?: boolean;
+      data?: components["schemas"]["InboundReceiptCreateResponseDto"];
+      message?: string;
+      errors?: string[];
+    };
+    InboundReceiptCreateResponseDto: {
+      /** Format: uuid */
+      id?: string;
+    };
+    GoodsReturnCreateDto: {
+      /** Format: uuid */
+      customerId: string;
+      returnCode?: string;
+      /** Format: uuid */
+      invoiceId?: string;
+      reason?: string;
+      note?: string;
+      lines: components["schemas"]["GoodsReturnLineDto"][];
+    };
+    GoodsReturnLineDto: {
+      /** Format: int64 */
+      productId: number;
+      quantity: number;
+      unitPrice: number;
+      unitOfMeasure: string;
+    };
+    ApiResponseUUID: {
+      success?: boolean;
+      /** Format: uuid */
+      data?: string;
+      message?: string;
+      errors?: string[];
+    };
     CustomerUpdateDto: {
       name?: string;
       phone?: string;
@@ -188,7 +261,7 @@ export interface components {
       branchId?: number;
       /** Format: date-time */
       createdAt?: string;
-      deleted?: boolean;
+      isDeleted?: boolean;
     };
     ProductUpdateDto: {
       name?: string;
@@ -219,24 +292,7 @@ export interface components {
         [key: string]: Record<string, never>;
       };
       price?: number;
-      active?: boolean;
-    };
-    BranchDTO: {
-      /** Format: int64 */
-      id?: number;
-      code?: string;
-      name?: string;
-      address?: string;
-      phone?: string;
-      openingHours?: string;
-      internalUrl?: string;
-      active?: boolean;
-    };
-    ApiResponseBranchDTO: {
-      success?: boolean;
-      data?: components["schemas"]["BranchDTO"];
-      message?: string;
-      errors?: string[];
+      isActive?: boolean;
     };
     SupplierCreateDto: {
       code: string;
@@ -246,104 +302,9 @@ export interface components {
       address?: string;
       taxCode?: string;
     };
-    SalesInvoiceCreateDto: {
-      invoiceCode?: string;
-      /** Format: uuid */
-      customerId: string;
-      /** @enum {string} */
-      paymentMethod: "CASH" | "CREDIT" | "MIXED";
-      note?: string;
-      lines: components["schemas"]["SalesInvoiceLineDto"][];
-      advancePayment?: number;
-    };
-    SalesInvoiceLineDto: {
-      /** Format: int64 */
-      productId: number;
-      productName: string;
-      quantity: number;
-      unitPrice: number;
-      unitOfMeasure: string;
-    };
-    ApiResponseSalesInvoiceCreateResponseDto: {
-      success?: boolean;
-      data?: components["schemas"]["SalesInvoiceCreateResponseDto"];
-      message?: string;
-      errors?: string[];
-    };
-    SalesInvoiceCreateResponseDto: {
-      /** Format: uuid */
-      id?: string;
-      invoiceCode?: string;
-    };
-    OpeningBalanceRequestDto: {
-      /** Format: uuid */
-      customerId?: string;
-      amount?: number;
-      note?: string;
-    };
-    ApiResponseReceivableDebtResponseDto: {
-      success?: boolean;
-      data?: components["schemas"]["ReceivableDebtResponseDto"];
-      message?: string;
-      errors?: string[];
-    };
-    ReceivableDebtResponseDto: {
-      /** Format: uuid */
-      id?: string;
-      /** Format: uuid */
-      customerId?: string;
-      customerCode?: string;
-      customerName?: string;
-      phone?: string;
-      address?: string;
-      /** Format: int64 */
-      branchId?: number;
-      totalDebt?: number;
-    };
-    InboundReceiptCreateDto: {
-      receiptCode?: string;
-      note?: string;
-      /** Format: uuid */
-      supplierId?: string;
-      lines: components["schemas"]["LineDto"][];
-    };
-    LineDto: {
-      /** Format: int64 */
-      productId: number;
-      quantity: number;
-      unitCost: number;
-      unitOfMeasure: string;
-    };
-    ApiResponseInboundReceiptCreateResponseDto: {
-      success?: boolean;
-      data?: components["schemas"]["InboundReceiptCreateResponseDto"];
-      message?: string;
-      errors?: string[];
-    };
-    InboundReceiptCreateResponseDto: {
-      /** Format: uuid */
-      id?: string;
-    };
     ApiResponseVoid: {
       success?: boolean;
       data?: Record<string, never>;
-      message?: string;
-      errors?: string[];
-    };
-    GoodsReturnCreateDto: {
-      /** Format: uuid */
-      customerId: string;
-      returnCode?: string;
-      /** Format: uuid */
-      invoiceId?: string;
-      reason?: string;
-      note?: string;
-      lines: components["schemas"]["LineDto"][];
-    };
-    ApiResponseUUID: {
-      success?: boolean;
-      /** Format: uuid */
-      data?: string;
       message?: string;
       errors?: string[];
     };
@@ -367,6 +328,63 @@ export interface components {
       attributes?: {
         [key: string]: Record<string, never>;
       };
+    };
+    CashReceiptCreateDto: {
+      /** Format: uuid */
+      customerId: string;
+      amount: number;
+      /** Format: date */
+      receiptDate?: string;
+      note?: string;
+    };
+    ApiResponseCashReceiptCreateResponseDto: {
+      success?: boolean;
+      data?: components["schemas"]["CashReceiptCreateResponseDto"];
+      message?: string;
+      errors?: string[];
+    };
+    CashReceiptCreateResponseDto: {
+      /** Format: uuid */
+      id?: string;
+      receiptCode?: string;
+    };
+    CashReceiptCancelDto: {
+      reason?: string;
+    };
+    ApiResponseCashReceiptResponseDto: {
+      success?: boolean;
+      data?: components["schemas"]["CashReceiptResponseDto"];
+      message?: string;
+      errors?: string[];
+    };
+    CashReceiptResponseDto: {
+      /** Format: uuid */
+      id?: string;
+      receiptCode?: string;
+      /** Format: int64 */
+      branchId?: number;
+      /** Format: uuid */
+      customerId?: string;
+      customerCode?: string;
+      customerName?: string;
+      customerPhone?: string;
+      customerAddress?: string;
+      /** Format: date */
+      receiptDate?: string;
+      amount?: number;
+      debtBefore?: number;
+      debtAfter?: number;
+      note?: string;
+      status?: string;
+      /** Format: date-time */
+      createdAt?: string;
+      /** Format: uuid */
+      createdBy?: string;
+      /** Format: date-time */
+      cancelledAt?: string;
+      /** Format: uuid */
+      cancelledBy?: string;
+      cancelReason?: string;
     };
     TokenRefreshRequest: {
       refreshToken?: string;
@@ -416,6 +434,17 @@ export interface components {
       message?: string;
       errors?: string[];
     };
+    SalesInvoiceLineResponseDto: {
+      /** Format: uuid */
+      id?: string;
+      /** Format: int64 */
+      productId?: number;
+      productName?: string;
+      quantity?: number;
+      unitPrice?: number;
+      lineTotal?: number;
+      unitOfMeasure?: string;
+    };
     SalesInvoiceResponseDto: {
       /** Format: uuid */
       id?: string;
@@ -426,13 +455,11 @@ export interface components {
       customerName?: string;
       invoiceCode?: string;
       /** @enum {string} */
-      status?: "DRAFT" | "CONFIRMED" | "CANCELLED";
+      status?: "DRAFT" | "CONFIRMED";
       totalAmount?: number;
       previousDebt?: number;
       remainingDebt?: number;
       advancePayment?: number;
-      /** @enum {string} */
-      paymentMethod?: "CASH" | "CREDIT" | "MIXED";
       note?: string;
       /** Format: date-time */
       confirmedAt?: string;
@@ -442,7 +469,7 @@ export interface components {
       createdAt?: string;
       /** Format: date-time */
       updatedAt?: string;
-      lines?: components["schemas"]["LineDto"][];
+      lines?: components["schemas"]["SalesInvoiceLineResponseDto"][];
     };
     ApiResponseSalesInvoiceResponseDto: {
       success?: boolean;
@@ -455,6 +482,19 @@ export interface components {
       data?: components["schemas"]["ReceivableDebtResponseDto"][];
       message?: string;
       errors?: string[];
+    };
+    ReceivableDebtResponseDto: {
+      /** Format: uuid */
+      id?: string;
+      /** Format: uuid */
+      customerId?: string;
+      customerCode?: string;
+      customerName?: string;
+      phone?: string;
+      address?: string;
+      /** Format: int64 */
+      branchId?: number;
+      totalDebt?: number;
     };
     ApiResponseListReceivableDebtMovementResponseDto: {
       success?: boolean;
@@ -519,6 +559,15 @@ export interface components {
       message?: string;
       errors?: string[];
     };
+    InboundReceiptLineResponseDto: {
+      /** Format: uuid */
+      id?: string;
+      /** Format: int64 */
+      productId?: number;
+      quantity?: number;
+      unitCost?: number;
+      unitOfMeasure?: string;
+    };
     InboundReceiptResponseDto: {
       /** Format: uuid */
       id?: string;
@@ -538,7 +587,7 @@ export interface components {
       createdAt?: string;
       /** Format: date-time */
       updatedAt?: string;
-      lines?: components["schemas"]["LineDto"][];
+      lines?: components["schemas"]["InboundReceiptLineResponseDto"][];
     };
     ApiResponseInboundReceiptResponseDto: {
       success?: boolean;
@@ -559,7 +608,6 @@ export interface components {
       productId?: number;
       productCode?: string;
       productName?: string;
-      /** Format: int32 */
       quantity?: number;
       unitOfMeasure?: string;
       unitPrice?: number;
@@ -580,6 +628,7 @@ export interface components {
       totalAmount?: number;
       refundAmount?: number;
       reason?: string;
+      note?: string;
       /** Format: date-time */
       createdAt?: string;
       /** Format: uuid */
@@ -598,6 +647,21 @@ export interface components {
       message?: string;
       errors?: string[];
     };
+    ApiResponseListResolvedPriceDto: {
+      success?: boolean;
+      data?: components["schemas"]["ResolvedPriceDto"][];
+      message?: string;
+      errors?: string[];
+    };
+    ResolvedPriceDto: {
+      /** Format: int64 */
+      productId?: number;
+      unitPrice?: number;
+      /** @enum {string} */
+      source?: "CUSTOMER" | "LIST" | "NONE";
+      listPrice?: number;
+      customerPrice?: number;
+    };
     ApiResponseListCategoryResponseDto: {
       success?: boolean;
       data?: components["schemas"]["CategoryResponseDto"][];
@@ -614,11 +678,28 @@ export interface components {
       parentName?: string;
       isActive?: boolean;
     };
+    ApiResponseListCashReceiptResponseDto: {
+      success?: boolean;
+      data?: components["schemas"]["CashReceiptResponseDto"][];
+      message?: string;
+      errors?: string[];
+    };
     ApiResponseListBranchDTO: {
       success?: boolean;
       data?: components["schemas"]["BranchDTO"][];
       message?: string;
       errors?: string[];
+    };
+    BranchDTO: {
+      /** Format: int64 */
+      id?: number;
+      code?: string;
+      name?: string;
+      address?: string;
+      phone?: string;
+      openingHours?: string;
+      internalUrl?: string;
+      isActive?: boolean;
     };
     ApiResponseStockAlertSummaryDto: {
       success?: boolean;
@@ -668,6 +749,9 @@ export interface components {
       productName?: string;
       quantitySold?: number;
       revenue?: number;
+      cogs?: number;
+      grossProfit?: number;
+      costIncomplete?: boolean;
     };
     SlowMovingProductDto: {
       /** Format: int64 */
@@ -675,14 +759,6 @@ export interface components {
       productCode?: string;
       productName?: string;
       currentStock?: number;
-    };
-    ApiResponseListMapStringObject: {
-      success?: boolean;
-      data?: {
-          [key: string]: Record<string, never>;
-        }[];
-      message?: string;
-      errors?: string[];
     };
   };
   responses: never;
@@ -698,21 +774,6 @@ export type external = Record<string, never>;
 
 export interface operations {
 
-  getSupplier: {
-    parameters: {
-      path: {
-        id: string;
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ApiResponseSupplierResponseDto"];
-        };
-      };
-    };
-  };
   updateSupplier: {
     parameters: {
       path: {
@@ -744,6 +805,113 @@ export interface operations {
       200: {
         content: {
           "*/*": components["schemas"]["ApiResponseVoid"];
+        };
+      };
+    };
+  };
+  getInvoice: {
+    parameters: {
+      path: {
+        id: string;
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ApiResponseSalesInvoiceResponseDto"];
+        };
+      };
+    };
+  };
+  updateInvoice: {
+    parameters: {
+      path: {
+        id: string;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["SalesInvoiceCreateDto"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ApiResponseSalesInvoiceCreateResponseDto"];
+        };
+      };
+    };
+  };
+  getReceipt: {
+    parameters: {
+      path: {
+        id: string;
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ApiResponseInboundReceiptResponseDto"];
+        };
+      };
+    };
+  };
+  /** Sửa phiếu nhập kho khi còn nháp (DRAFT) */
+  updateDraft: {
+    parameters: {
+      path: {
+        id: string;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["InboundReceiptCreateDto"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ApiResponseInboundReceiptCreateResponseDto"];
+        };
+      };
+    };
+  };
+  getReturn: {
+    parameters: {
+      path: {
+        id: string;
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ApiResponseGoodsReturnResponseDto"];
+        };
+      };
+    };
+  };
+  /** Sửa phiếu trả hàng khi còn nháp (DRAFT) */
+  updateDraft_1: {
+    parameters: {
+      path: {
+        id: string;
+      };
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["GoodsReturnCreateDto"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ApiResponseUUID"];
         };
       };
     };
@@ -783,24 +951,6 @@ export interface operations {
       };
     };
   };
-  getProductById: {
-    parameters: {
-      query?: {
-        withBranchPrice?: boolean;
-      };
-      path: {
-        id: number;
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ApiResponseProductResponseDto"];
-        };
-      };
-    };
-  };
   updateProduct: {
     parameters: {
       path: {
@@ -822,56 +972,6 @@ export interface operations {
     };
   };
   deleteProduct: {
-    parameters: {
-      path: {
-        id: number;
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ApiResponseVoid"];
-        };
-      };
-    };
-  };
-  getBranchById: {
-    parameters: {
-      path: {
-        id: number;
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ApiResponseBranchDTO"];
-        };
-      };
-    };
-  };
-  updateBranch: {
-    parameters: {
-      path: {
-        id: number;
-      };
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["BranchDTO"];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ApiResponseBranchDTO"];
-        };
-      };
-    };
-  };
-  deleteBranch: {
     parameters: {
       path: {
         id: number;
@@ -946,22 +1046,7 @@ export interface operations {
       /** @description OK */
       200: {
         content: {
-          "*/*": components["schemas"]["ApiResponseSalesInvoiceCreateResponseDto"];
-        };
-      };
-    };
-  };
-  setOpeningBalance: {
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["OpeningBalanceRequestDto"];
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ApiResponseReceivableDebtResponseDto"];
+          "*/*": components["schemas"]["ApiResponseVoid"];
         };
       };
     };
@@ -1018,7 +1103,7 @@ export interface operations {
       };
     };
   };
-  /** Táº¡o phiáº¿u tráº£ hÃ ng (DRAFT) */
+  /** Tạo phiếu trả hàng (DRAFT) */
   createDraft_1: {
     requestBody: {
       content: {
@@ -1026,15 +1111,15 @@ export interface operations {
       };
     };
     responses: {
-      /** @description OK */
-      200: {
+      /** @description Created */
+      201: {
         content: {
           "*/*": components["schemas"]["ApiResponseUUID"];
         };
       };
     };
   };
-  /** XÃ¡c nháº­n tráº£ hÃ ng (CONFIRM) vÃ  hoÃ n kho */
+  /** Xác nhận trả hàng (CONFIRM) và hoàn kho */
   confirmReturn: {
     parameters: {
       path: {
@@ -1085,6 +1170,7 @@ export interface operations {
       query?: {
         withBranchPrice?: boolean;
         search?: string;
+        branchId?: number;
       };
     };
     responses: {
@@ -1111,27 +1197,47 @@ export interface operations {
       };
     };
   };
-  getAllBranches: {
+  list: {
     responses: {
       /** @description OK */
       200: {
         content: {
-          "*/*": components["schemas"]["ApiResponseListBranchDTO"];
+          "*/*": components["schemas"]["ApiResponseListCashReceiptResponseDto"];
         };
       };
     };
   };
-  createBranch: {
+  create: {
     requestBody: {
       content: {
-        "application/json": components["schemas"]["BranchDTO"];
+        "application/json": components["schemas"]["CashReceiptCreateDto"];
+      };
+    };
+    responses: {
+      /** @description Created */
+      201: {
+        content: {
+          "*/*": components["schemas"]["ApiResponseCashReceiptCreateResponseDto"];
+        };
+      };
+    };
+  };
+  cancel: {
+    parameters: {
+      path: {
+        id: string;
+      };
+    };
+    requestBody?: {
+      content: {
+        "application/json": components["schemas"]["CashReceiptCancelDto"];
       };
     };
     responses: {
       /** @description OK */
       200: {
         content: {
-          "*/*": components["schemas"]["ApiResponseBranchDTO"];
+          "*/*": components["schemas"]["ApiResponseCashReceiptResponseDto"];
         };
       };
     };
@@ -1196,21 +1302,6 @@ export interface operations {
       };
     };
   };
-  getInvoice: {
-    parameters: {
-      path: {
-        id: string;
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ApiResponseSalesInvoiceResponseDto"];
-        };
-      };
-    };
-  };
   getDebts: {
     responses: {
       /** @description OK */
@@ -1269,21 +1360,6 @@ export interface operations {
       };
     };
   };
-  getProductById_1: {
-    parameters: {
-      path: {
-        id: number;
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ApiResponseProductResponseDto"];
-        };
-      };
-    };
-  };
   getStock: {
     responses: {
       /** @description OK */
@@ -1294,48 +1370,20 @@ export interface operations {
       };
     };
   };
-  getReceipt: {
+  resolvePrices: {
     parameters: {
-      path: {
-        id: string;
+      query: {
+        productIds: number[];
       };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ApiResponseInboundReceiptResponseDto"];
-        };
-      };
-    };
-  };
-  getReturn: {
-    parameters: {
-      path: {
-        id: string;
-      };
-    };
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ApiResponseGoodsReturnResponseDto"];
-        };
-      };
-    };
-  };
-  getPrice: {
-    parameters: {
       path: {
         customerId: string;
-        productId: number;
       };
     };
     responses: {
       /** @description OK */
       200: {
         content: {
-          "*/*": components["schemas"]["ApiResponseBigDecimal"];
+          "*/*": components["schemas"]["ApiResponseListResolvedPriceDto"];
         };
       };
     };
@@ -1346,6 +1394,31 @@ export interface operations {
       200: {
         content: {
           "*/*": components["schemas"]["ApiResponseListCategoryResponseDto"];
+        };
+      };
+    };
+  };
+  get: {
+    parameters: {
+      path: {
+        id: string;
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ApiResponseCashReceiptResponseDto"];
+        };
+      };
+    };
+  };
+  getAllBranches: {
+    responses: {
+      /** @description OK */
+      200: {
+        content: {
+          "*/*": components["schemas"]["ApiResponseListBranchDTO"];
         };
       };
     };
@@ -1388,6 +1461,7 @@ export interface operations {
         branchId?: number;
         startDateKey?: number;
         endDateKey?: number;
+        topLimit?: number;
       };
     };
     responses: {
@@ -1395,16 +1469,6 @@ export interface operations {
       200: {
         content: {
           "*/*": components["schemas"]["ApiResponseDashboardMetricsDto"];
-        };
-      };
-    };
-  };
-  getReplicationStatus: {
-    responses: {
-      /** @description OK */
-      200: {
-        content: {
-          "*/*": components["schemas"]["ApiResponseListMapStringObject"];
         };
       };
     };

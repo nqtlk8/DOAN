@@ -17,7 +17,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(org.springframework.security.authentication.BadCredentialsException.class)
     public ResponseEntity<ApiResponse<Void>> handleBadCredentialsException(org.springframework.security.authentication.BadCredentialsException ex) {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(ApiResponse.error("Bad credentials", java.util.List.of("BAD_CREDENTIALS")));
+                .body(ApiResponse.error("Sai tên đăng nhập hoặc mật khẩu", java.util.List.of("BAD_CREDENTIALS")));
     }
 
     @ExceptionHandler(org.springframework.security.authentication.DisabledException.class)
@@ -117,6 +117,20 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(ApiResponse.error("The record was modified by another request. Please reload and try again.",
                         java.util.List.of("CONCURRENT_UPDATE")));
+    }
+
+    /** Thiếu tham số bắt buộc trên URL (ví dụ {@code productId}): lỗi của người gọi, trả 400 thay vì 500. */
+    @ExceptionHandler(org.springframework.web.bind.MissingServletRequestParameterException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMissingParameter(org.springframework.web.bind.MissingServletRequestParameterException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error("Thiếu tham số bắt buộc: " + ex.getParameterName(), java.util.List.of("MISSING_PARAMETER")));
+    }
+
+    /** Tham số URL sai kiểu (ví dụ {@code productId=abc}): trả 400 thay vì 500. */
+    @ExceptionHandler(org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiResponse<Void>> handleTypeMismatch(org.springframework.web.method.annotation.MethodArgumentTypeMismatchException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error("Tham số không hợp lệ: " + ex.getName(), java.util.List.of("INVALID_PARAMETER")));
     }
 
     @ExceptionHandler(org.springframework.web.HttpRequestMethodNotSupportedException.class)

@@ -28,9 +28,10 @@ public class DashboardController {
     public ResponseEntity<ApiResponse<DashboardMetricsDto>> getDashboardMetrics(
             @RequestParam(required = false) Long branchId,
             @RequestParam(defaultValue = "20200101") Integer startDateKey,
-            @RequestParam(defaultValue = "20301231") Integer endDateKey) {
-        
-        DashboardMetricsDto metrics = dashboardService.getDashboardMetrics(branchId, startDateKey, endDateKey);
+            @RequestParam(defaultValue = "20301231") Integer endDateKey,
+            @RequestParam(defaultValue = "10") Integer topLimit) {
+
+        DashboardMetricsDto metrics = dashboardService.getDashboardMetrics(branchId, startDateKey, endDateKey, topLimit);
         return ResponseEntity.ok(ApiResponse.success(metrics, "Dashboard metrics retrieved successfully"));
     }
     

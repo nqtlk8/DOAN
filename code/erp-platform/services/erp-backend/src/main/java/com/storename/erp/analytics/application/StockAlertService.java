@@ -20,7 +20,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * Tính danh sách cảnh báo tồn kho hiện tại cho dashboard HQ (docs/fix-dashboard/business-rules.md).
+ * Tính danh sách cảnh báo tồn kho hiện tại cho dashboard HQ.
  *
  * <p>Quy tắc: tồn âm luôn cảnh báo {@code NEGATIVE_STOCK} kể cả khi chưa cấu hình ngưỡng (D-05);
  * có cấu hình đang bật và {@code 0 <= tồn <= ngưỡng} thì cảnh báo {@code LOW_STOCK} (M-08);

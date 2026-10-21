@@ -72,13 +72,17 @@ public class AnalyticsDataAdapter implements AnalyticsDataPort {
 
     @Override
     public List<ProductPerformanceDto> getTopProductsByRevenue(Long branchId, LocalDateTime fromTs, LocalDateTime toTs, int limit) {
-        // Số lượng/doanh thu thuần theo sản phẩm: bán trong kỳ trừ hàng trả xác nhận trong kỳ.
-        // Bỏ sản phẩm có số lượng thuần <= 0 (vd bán rồi trả hết).
+        // Số lượng/doanh thu/giá vốn thuần theo sản phẩm: bán trong kỳ trừ hàng trả xác nhận trong kỳ
+        // (cùng công thức với getSalesTotals). Bỏ sản phẩm có số lượng thuần <= 0 (vd bán rồi trả hết).
+        // missing > 0: có dòng thiếu unit_cost (tính 0) -> frontend không hiển thị giá vốn/lợi nhuận.
         String sql = """
             SELECT t.product_id, MAX(t.product_name) AS product_name,
-                   SUM(t.qty) AS quantity_sold, SUM(t.rev) AS revenue
+                   SUM(t.qty) AS quantity_sold, SUM(t.rev) AS revenue,
+                   SUM(t.cost) AS cogs, SUM(t.missing) AS missing_cost_lines
             FROM (
-                SELECT l.product_id, l.product_name, l.quantity AS qty, l.line_total AS rev
+                SELECT l.product_id, l.product_name, l.quantity AS qty, l.line_total AS rev,
+                       l.quantity * COALESCE(l.unit_cost, 0) AS cost,
+                       CASE WHEN l.unit_cost IS NULL THEN 1 ELSE 0 END AS missing
                 FROM sales_invoice_line l
                 JOIN sales_invoice i ON l.invoice_id = i.id
                 WHERE (:branchId IS NULL OR i.branch_id = :branchId)
@@ -87,7 +91,9 @@ public class AnalyticsDataAdapter implements AnalyticsDataPort {
                   AND i.status = 'CONFIRMED'
                   AND l.is_deleted = false AND i.is_deleted = false
                 UNION ALL
-                SELECT rl.product_id, CAST(NULL AS VARCHAR(255)), -rl.quantity, -(rl.quantity * rl.unit_price)
+                SELECT rl.product_id, CAST(NULL AS VARCHAR(255)), -rl.quantity, -(rl.quantity * rl.unit_price),
+                       -(rl.quantity * COALESCE(rl.unit_cost, 0)),
+                       CASE WHEN rl.unit_cost IS NULL THEN 1 ELSE 0 END
                 FROM goods_return_line rl
                 JOIN goods_return r ON rl.return_id = r.id
                 WHERE (:branchId IS NULL OR r.branch_id = :branchId)
@@ -111,7 +117,12 @@ public class AnalyticsDataAdapter implements AnalyticsDataPort {
             dto.setProductId(rs.getLong("product_id"));
             dto.setProductName(rs.getString("product_name"));
             dto.setQuantitySold(rs.getBigDecimal("quantity_sold"));
-            dto.setRevenue(rs.getBigDecimal("revenue"));
+            java.math.BigDecimal revenue = rs.getBigDecimal("revenue");
+            java.math.BigDecimal cogs = rs.getBigDecimal("cogs");
+            dto.setRevenue(revenue);
+            dto.setCogs(cogs);
+            dto.setGrossProfit(revenue != null && cogs != null ? revenue.subtract(cogs) : null);
+            dto.setCostIncomplete(rs.getLong("missing_cost_lines") > 0);
             return dto;
         });
     }

@@ -29,6 +29,12 @@ export interface GenericDocumentFormProps {
   info: InfoField[];
   createdDate: string;
   onCreatedDateChange?: (v: string) => void;
+  /** Ngày lớn nhất được chọn (yyyy-MM-dd), vd không cho chọn ngày tương lai. */
+  createdDateMax?: string;
+  /** Nhãn ô ngày (mặc định "Ngày"). */
+  createdDateLabel?: string;
+  /** Tiền tố data-testid khi phiếu không có bảng hàng (lines). */
+  testIdPrefix?: string;
 
   partner: {
     label: string;
@@ -41,7 +47,11 @@ export interface GenericDocumentFormProps {
 
   summary: SummaryField[];
 
-  lines: {
+  /** Nội dung hiển thị dưới phần đầu phiếu khi phiếu không có bảng hàng (vd phiếu thu). */
+  children?: React.ReactNode;
+
+  /** Bảng hàng hóa. Không truyền => phiếu không có dòng hàng (vd phiếu thu). */
+  lines?: {
     testIdPrefix: 'sales' | 'inbound' | 'return';
     items: DocumentLine[];
     priceLabel?: string;
@@ -65,6 +75,8 @@ const PRICE_BADGE_CLASS: Record<LinePriceInfo['tone'], string> = {
   none: 'badge-warning',
 };
 
+const NO_LINES: DocumentLine[] = [];
+
 const lineAmount = (l: DocumentLine) => (Number(l.quantity) || 0) * (Number(l.unitPrice) || 0);
 
 export const GenericDocumentForm: React.FC<GenericDocumentFormProps> = ({
@@ -77,35 +89,40 @@ export const GenericDocumentForm: React.FC<GenericDocumentFormProps> = ({
   info,
   createdDate,
   onCreatedDateChange,
+  createdDateMax,
+  createdDateLabel = 'Ngày',
+  testIdPrefix,
   partner,
   summary,
+  children,
   lines,
 }) => {
   const isView = mode === 'VIEW';
-  const prefix = lines.testIdPrefix;
+  const prefix = lines?.testIdPrefix ?? testIdPrefix ?? 'doc';
+  const items = lines?.items ?? NO_LINES;
   const [activeLineId, setActiveLineId] = useState<string | null>(null);
 
   // Khi thêm dòng bằng nút "Dòng mới" hoặc Enter ở dòng cuối → focus ô sản phẩm của dòng mới.
   const focusNewLineRef = useRef(false);
-  const prevCountRef = useRef(lines.items.length);
+  const prevCountRef = useRef(items.length);
   useEffect(() => {
-    const count = lines.items.length;
+    const count = items.length;
     if (count > prevCountRef.current && focusNewLineRef.current) {
-      const last = lines.items[count - 1];
+      const last = items[count - 1];
       setActiveLineId(last.id);
       focusLineCell(last.id, 'product');
     }
     focusNewLineRef.current = false;
     prevCountRef.current = count;
-  }, [lines.items]);
+  }, [items]);
 
   const addLineAndFocus = () => {
     focusNewLineRef.current = true;
-    lines.onAdd();
+    lines?.onAdd();
   };
 
   const handlePriceEnter = (index: number) => {
-    const next = lines.items[index + 1];
+    const next = items[index + 1];
     if (next) focusLineCell(next.id, 'product');
     else addLineAndFocus();
   };
@@ -113,9 +130,12 @@ export const GenericDocumentForm: React.FC<GenericDocumentFormProps> = ({
   const renderBadge = () => <StatusBadge status={status} />;
 
   const codeDisplay = !docCode || docCode === 'AUTO-GENERATE' ? <span className="text-ink-subtle">(Tự động)</span> : docCode;
-  const totalQty = lines.items.reduce((s, l) => s + (Number(l.quantity) || 0), 0);
-  const grandTotal = lines.items.reduce((s, l) => s + lineAmount(l), 0);
+  const totalQty = items.reduce((s, l) => s + (Number(l.quantity) || 0), 0);
+  const grandTotal = items.reduce((s, l) => s + lineAmount(l), 0);
   const colCount = isView ? 7 : 8;
+
+  // Hằng số đã thu hẹp kiểu: TypeScript giữ được 'không rỗng' bên trong JSX và các callback.
+  const l = lines;
 
   return (
     <div className="flex flex-col h-full bg-surface">
@@ -124,6 +144,11 @@ export const GenericDocumentForm: React.FC<GenericDocumentFormProps> = ({
         <div className="flex items-center gap-3">
           <h1 className="text-[15px] font-semibold text-ink">{docTitle}</h1>
           {renderBadge()}
+          {mode === 'EDIT' && (
+            <span className="badge bg-primary-soft text-primary" data-testid="doc-editing-badge">
+              Đang sửa
+            </span>
+          )}
         </div>
         <div className="text-[15px] font-semibold text-primary" data-testid="doc-code">
           Số: {codeDisplay}
@@ -145,7 +170,7 @@ export const GenericDocumentForm: React.FC<GenericDocumentFormProps> = ({
         {/* Khối trái: thông tin chung (chỉ đọc) */}
         <div className="flex flex-col gap-1.5 min-w-0">
           <div className="grid grid-cols-[96px_minmax(0,1fr)] gap-x-2 items-center h-7">
-            <label className="erp-label text-right">Ngày</label>
+            <label className="erp-label text-right">{createdDateLabel}</label>
             {isView || !onCreatedDateChange ? (
               <div className="text-[13px] text-ink truncate px-2" data-testid="doc-date">
                 {formatDate(createdDate)}
@@ -155,6 +180,7 @@ export const GenericDocumentForm: React.FC<GenericDocumentFormProps> = ({
                 type="date"
                 className="erp-input h-7"
                 value={createdDate}
+                max={createdDateMax}
                 onChange={(e) => onCreatedDateChange(e.target.value)}
                 data-testid="doc-date"
               />
@@ -245,14 +271,27 @@ export const GenericDocumentForm: React.FC<GenericDocumentFormProps> = ({
                     {f.isQuantity ? formatNumber(f.value, QTY_FRACTION_DIGITS) : formatCurrency(f.value)}
                   </div>
                 ) : (
-                  <NumberInput
-                    value={f.value}
-                    onChange={f.onChange}
-                    className="h-7"
-                    allowNegative={!!f.allowNegative}
-                    data-testid={f.testId}
-                    aria-label={f.label}
-                  />
+                  <div className="flex gap-1 min-w-0">
+                    <NumberInput
+                      value={f.value}
+                      onChange={f.onChange}
+                      className="h-7 flex-1 min-w-0"
+                      allowNegative={!!f.allowNegative}
+                      data-testid={f.testId}
+                      aria-label={f.label}
+                    />
+                    {f.action && (
+                      <button
+                        type="button"
+                        onClick={f.action.onClick}
+                        disabled={f.action.disabled}
+                        data-testid={f.action.testId}
+                        className="btn btn-secondary h-7 px-2 shrink-0 text-[12px]"
+                      >
+                        {f.action.label}
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
             );
@@ -260,6 +299,8 @@ export const GenericDocumentForm: React.FC<GenericDocumentFormProps> = ({
         </div>
       </div>
 
+      {l ? (
+        <>
       {/* 3. Bảng hàng hóa — một <table> duy nhất để thead/tbody/tfoot thẳng cột */}
       <div className="flex-1 overflow-auto bg-slate-50 min-h-0">
         <table className="w-full min-w-[900px] table-fixed text-[13px] border-collapse">
@@ -269,7 +310,7 @@ export const GenericDocumentForm: React.FC<GenericDocumentFormProps> = ({
             <col />
             <col style={{ width: 70 }} />
             <col style={{ width: 96 }} />
-            <col style={{ width: lines.priceInfo ? 188 : 128 }} />
+            <col style={{ width: l.priceInfo ? 188 : 128 }} />
             <col style={{ width: 140 }} />
             {!isView && <col style={{ width: 36 }} />}
           </colgroup>
@@ -280,17 +321,17 @@ export const GenericDocumentForm: React.FC<GenericDocumentFormProps> = ({
               <th className="font-semibold px-2 border-b border-r border-line text-left">Tên hàng</th>
               <th className="font-semibold px-2 border-b border-r border-line text-center">ĐVT</th>
               <th className="font-semibold px-2 border-b border-r border-line text-right">Số lượng</th>
-              <th className="font-semibold px-2 border-b border-r border-line text-right">{lines.priceLabel || 'Đơn giá'}</th>
+              <th className="font-semibold px-2 border-b border-r border-line text-right">{l.priceLabel || 'Đơn giá'}</th>
               <th className="font-semibold px-2 border-b border-r border-line text-right">Thành tiền</th>
               {!isView && <th className="border-b border-line" aria-label="Xóa dòng" />}
             </tr>
           </thead>
           <tbody className="bg-surface">
-            {lines.items.map((item, index) => {
+            {l.items.map((item, index) => {
               const productError = !!errors[lineErrorKey(index, 'product')];
               const qtyError = !!errors[lineErrorKey(index, 'quantity')];
               const isSelected = activeLineId === item.id;
-              const priceInfo = lines.priceInfo?.(item) ?? null;
+              const priceInfo = l.priceInfo?.(item) ?? null;
               const priceEdited = !!priceInfo?.edited;
               return (
                 <tr
@@ -320,7 +361,7 @@ export const GenericDocumentForm: React.FC<GenericDocumentFormProps> = ({
                       <div className="px-2 truncate">{item.productName}</div>
                     ) : (
                       <div className="absolute inset-0" data-line-id={item.id} data-field="product">
-                        {lines.renderProductCombobox(item, index, productError)}
+                        {l.renderProductCombobox(item, index, productError)}
                       </div>
                     )}
                   </td>
@@ -332,7 +373,7 @@ export const GenericDocumentForm: React.FC<GenericDocumentFormProps> = ({
                       <div className="absolute inset-0">
                         <NumberInput
                           value={item.quantity}
-                          onChange={(v) => lines.onUpdate(item.id, 'quantity', v)}
+                          onChange={(v) => l.onUpdate(item.id, 'quantity', v)}
                           variant="cell"
                           maxFractionDigits={QTY_FRACTION_DIGITS}
                           data-testid={`${prefix}-line-quantity`}
@@ -367,10 +408,10 @@ export const GenericDocumentForm: React.FC<GenericDocumentFormProps> = ({
                         <div className="relative flex-1 h-full min-w-0">
                           <NumberInput
                             value={item.unitPrice}
-                            onChange={(v) => lines.onUpdate(item.id, 'unitPrice', v)}
+                            onChange={(v) => l.onUpdate(item.id, 'unitPrice', v)}
                             variant="cell"
                             data-testid={`${prefix}-line-price`}
-                            aria-label={`${lines.priceLabel || 'Đơn giá'} dòng ${index + 1}`}
+                            aria-label={`${l.priceLabel || 'Đơn giá'} dòng ${index + 1}`}
                             dataAttrs={{ 'data-line-id': item.id, 'data-field': 'price' }}
                             onKeyDown={(e) => {
                               if (e.key === 'Enter') {
@@ -393,7 +434,7 @@ export const GenericDocumentForm: React.FC<GenericDocumentFormProps> = ({
                     <td className="p-0 text-center">
                       <button
                         type="button"
-                        onClick={() => lines.onRemove(item.id)}
+                        onClick={() => l.onRemove(item.id)}
                         aria-label={`Xóa dòng ${index + 1}`}
                         className="w-full h-7 flex items-center justify-center text-ink-subtle hover:text-danger hover:bg-danger-soft transition-colors"
                         data-testid={`${prefix}-line-delete`}
@@ -405,17 +446,17 @@ export const GenericDocumentForm: React.FC<GenericDocumentFormProps> = ({
                 </tr>
               );
             })}
-            {lines.items.length === 0 && (
+            {l.items.length === 0 && (
               <tr>
                 <td colSpan={colCount} className="px-2 py-4 text-center text-ink-subtle border-b border-line">
                   {isView ? 'Phiếu chưa có hàng hóa.' : 'Chưa có hàng hóa. Bấm “Dòng mới” để thêm.'}
                 </td>
               </tr>
             )}
-            {!isView && lines.footerNote && (
+            {!isView && l.footerNote && (
               <tr className="bg-warning-soft border-b border-line">
                 <td colSpan={colCount} className="px-2 py-1.5 text-[12px] text-ink" data-testid={`${prefix}-price-note`}>
-                  {lines.footerNote}
+                  {l.footerNote}
                 </td>
               </tr>
             )}
@@ -454,6 +495,10 @@ export const GenericDocumentForm: React.FC<GenericDocumentFormProps> = ({
           </tfoot>
         </table>
       </div>
+        </>
+      ) : (
+        <div className="flex-1 overflow-auto bg-slate-50 min-h-0">{children}</div>
+      )}
     </div>
   );
 };

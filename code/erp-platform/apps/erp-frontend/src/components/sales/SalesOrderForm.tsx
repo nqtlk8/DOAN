@@ -2,7 +2,7 @@ import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState }
 import { useQuery } from '@tanstack/react-query';
 import { Printer, TriangleAlert, X } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { errorMessage } from '../../shared/errors/errorMessage';
+import { notify } from '../../shared/notifications/notification';
 import { ApiService } from '../../api/ApiService';
 import { PrintInvoice } from '../common/PrintInvoice';
 import { useTabs } from '../../context/TabContext';
@@ -25,6 +25,13 @@ import { SearchableCombobox } from '../common/SearchableCombobox';
 import { ConfirmDialog } from '../../shared/components/Dialog/ConfirmDialog';
 import { formatCurrency, toInputDate } from '../../shared/utils/format';
 import { useSalesInvoice } from '../../hooks/useSalesInvoice';
+import {
+  hasErrorCode,
+  INVALID_STATUS,
+  OutcomeUnknownError,
+  submitErrorMessage,
+  useSubmitKey,
+} from '../../shared/idempotency/submitKey';
 import type { DocStatus, DocumentLine, FormMode, ProductDto, SalesInvoiceDto } from '../../types/documents';
 import {
   applyResolvedPrice,
@@ -45,6 +52,8 @@ export interface SalesOrderFormProps {
 
 export interface SalesOrderFormRef {
   handleAdd: () => void;
+  /** Sửa hóa đơn đang ở trạng thái nháp (F3). */
+  handleEdit: () => void;
   handleCancel: () => void;
   handleSubmit: () => void;
   handleConfirm: () => void;
@@ -77,7 +86,6 @@ interface NormalizedInvoice {
   note?: string;
   oldDebt: number;
   advancePayment: number;
-  paymentMethod?: 'CASH' | 'CREDIT' | 'MIXED';
   address?: string;
   phone?: string;
   contactPerson?: string;
@@ -85,16 +93,6 @@ interface NormalizedInvoice {
   creator?: string;
   products: { id?: number | string; code?: string; name?: string; qty: number; price: number; unitOfMeasure?: string }[];
 }
-
-type LooseLine = {
-  productId?: number | string;
-  productCode?: string;
-  productName?: string;
-  quantity?: number;
-  unitCost?: number;
-  unitPrice?: number;
-  unitOfMeasure?: string;
-};
 
 const normalizeInitialData = (data?: SalesInvoiceDto | null): NormalizedInvoice | null => {
   if (!data) return null;
@@ -105,22 +103,37 @@ const normalizeInitialData = (data?: SalesInvoiceDto | null): NormalizedInvoice 
     customerId: data.customerId,
     customerName: data.customerName,
     note: data.note,
-    paymentMethod: data.paymentMethod,
-    createdDate: data.createdAt ? String(data.createdAt).slice(0, 10) : undefined,
+    // createdAt có độ lệch múi giờ: quy đổi sang ngày địa phương thay vì cắt chuỗi (ngày UTC).
+    createdDate: data.createdAt ? toInputDate(new Date(String(data.createdAt))) : undefined,
     oldDebt: Number(data.previousDebt ?? 0),
     advancePayment: Number(data.advancePayment ?? 0),
-    products: ((data.lines ?? []) as LooseLine[]).map((l) => ({
+    products: (data.lines ?? []).map((l) => ({
       id: l.productId,
-      code: l.productCode,
       name: l.productName,
       qty: Number(l.quantity),
-      price: Number(l.unitPrice ?? l.unitCost ?? 0),
+      price: Number(l.unitPrice ?? 0),
       unitOfMeasure: l.unitOfMeasure,
     })),
   };
 };
 
 type DialogState = null | 'CANCEL' | 'EXIT';
+
+/** Nội dung phiếu lúc bấm "Sửa": bấm Hủy thì trả form về đúng nội dung nháp đã lưu. */
+interface SalesSnapshot {
+  customerId: string;
+  customerCode: string;
+  customerName: string;
+  address: string;
+  phone: string;
+  contactPerson: string;
+  note: string;
+  advancePayment: number;
+  oldDebt: number;
+  discount: number;
+  tax: number;
+  items: DocumentLine[];
+}
 
 
 export const SalesOrderForm = forwardRef<SalesOrderFormRef, SalesOrderFormProps>(
@@ -153,7 +166,6 @@ export const SalesOrderForm = forwardRef<SalesOrderFormRef, SalesOrderFormProps>
     const [contactPerson, setContactPerson] = useState<string>(initialData?.contactPerson || '');
 
     // Khối phải: tài chính
-    const [paymentMethod] = useState<'CASH' | 'CREDIT' | 'MIXED'>(initialData?.paymentMethod || 'CASH');
     const [advancePayment, setAdvancePayment] = useState<number>(initialData?.advancePayment || 0);
     const [oldDebt, setOldDebt] = useState<number>(initialData?.oldDebt || 0);
     const [discount, setDiscount] = useState<number>(0);
@@ -180,18 +192,19 @@ export const SalesOrderForm = forwardRef<SalesOrderFormRef, SalesOrderFormProps>
     const [quickCustomer, setQuickCustomer] = useState<string | null>(null);
     const [quickProduct, setQuickProduct] = useState<{ lineId: string; name: string } | null>(null);
 
-    // Xem lại hóa đơn cũ mà API không trả tên/mã SP → tra từ danh mục.
+    // Xem lại hóa đơn cũ mà API không trả mã SP (hoặc tên) → tra từ danh mục.
     const { data: products = [] } = useQuery<ProductDto[]>({
       queryKey: ['products'],
       queryFn: () => ApiService.Catalog.getProducts(),
-      enabled: items.some((l) => l.productId && !l.productName),
+      enabled: items.some((l) => l.productId && (!l.productName || !l.productCode)),
     });
     const displayItems = useMemo(
       () =>
         items.map((l) => {
-          if (l.productName || !l.productId) return l;
+          // Hóa đơn mở lại từ danh sách chỉ có tên SP (API không trả mã) → bổ sung mã/tên từ danh mục.
+          if (!l.productId || (l.productName && l.productCode)) return l;
           const p = products.find((x) => String(x.id) === l.productId);
-          return p ? { ...l, productName: p.name ?? '', productCode: p.code ?? '' } : l;
+          return p ? { ...l, productName: l.productName || p.name || '', productCode: l.productCode || p.code || '' } : l;
         }),
       [items, products],
     );
@@ -225,12 +238,30 @@ export const SalesOrderForm = forwardRef<SalesOrderFormRef, SalesOrderFormProps>
     const hasCustomer = !!customerId;
     const editedPriceCount = isView ? 0 : displayItems.filter((l) => isLinePriceEdited(l, hasCustomer)).length;
 
-    const { createMutation, confirmMutation } = useSalesInvoice();
+    const { createDraftMutation, updateDraftMutation, confirmMutation } = useSalesInvoice();
+    const editSnapshotRef = useRef<SalesSnapshot | null>(null);
+    // Một key cho một lần lập phiếu: mọi lần bấm Lưu (kể cả gửi lại sau khi mạng lỗi) gửi cùng key,
+    // nên backend chỉ tạo đúng một hóa đơn. Chỉ đổi key khi bắt đầu phiếu mới (handleAdd).
+    const submitKey = useSubmitKey();
 
     const statusForUi: DocStatus | undefined = currentInvoiceId ? invoiceStatus : undefined;
     useEffect(() => {
       onStateChange?.(mode, isLoading, statusForUi);
     }, [mode, isLoading, statusForUi, onStateChange]);
+
+    // Hóa đơn nháp chưa chụp nợ cũ (chỉ chụp khi xác nhận) -> hiển thị công nợ hiện tại của khách.
+    useEffect(() => {
+      if (initialData?.status !== 'DRAFT' || !initialData.customerId) return;
+      let cancelled = false;
+      ApiService.Debt.getBalance(initialData.customerId)
+        .then((debt) => {
+          if (!cancelled) setOldDebt(Number(debt) || 0);
+        })
+        .catch(() => undefined);
+      return () => {
+        cancelled = true;
+      };
+    }, [initialData]);
 
     const totalAmount = sumLines(items);
     const finalAmount = totalAmount - discount + tax;
@@ -242,6 +273,7 @@ export const SalesOrderForm = forwardRef<SalesOrderFormRef, SalesOrderFormProps>
     };
 
     const handleAdd = () => {
+      submitKey.renew();
       setMode('ADD');
       setCurrentInvoiceId(null);
       setInvoiceStatus('DRAFT');
@@ -261,6 +293,51 @@ export const SalesOrderForm = forwardRef<SalesOrderFormRef, SalesOrderFormProps>
       setPhone('');
       setContactPerson('');
       setItems([]);
+    };
+
+    /** Bắt đầu sửa hóa đơn nháp. Hóa đơn đã xác nhận (đã trừ kho, ghi công nợ) thì không sửa được. */
+    const handleEdit = () => {
+      if (mode !== 'VIEW' || !currentInvoiceId || invoiceStatus !== 'DRAFT' || isLoading) return;
+      editSnapshotRef.current = {
+        customerId,
+        customerCode,
+        customerName,
+        address,
+        phone,
+        contactPerson,
+        note,
+        advancePayment,
+        oldDebt,
+        discount,
+        tax,
+        items,
+      };
+      submitKey.renew(); // key mới cho lần sửa này
+      setError(null);
+      setFieldErrors({});
+      setMode('EDIT');
+    };
+
+    /** Bỏ các thay đổi chưa lưu, trả về nội dung nháp lúc bấm "Sửa". */
+    const restoreSnapshot = () => {
+      const s = editSnapshotRef.current;
+      editSnapshotRef.current = null;
+      if (!s) return;
+      setCustomerId(s.customerId);
+      customerIdRef.current = s.customerId;
+      setCustomerCode(s.customerCode);
+      setCustomerName(s.customerName);
+      setAddress(s.address);
+      setPhone(s.phone);
+      setContactPerson(s.contactPerson);
+      setNote(s.note);
+      setAdvancePayment(s.advancePayment);
+      setOldDebt(s.oldDebt);
+      setDiscount(s.discount);
+      setTax(s.tax);
+      setItems(s.items);
+      setFieldErrors({});
+      setError(null);
     };
 
     const selectCustomer = async (c: CustomerLike) => {
@@ -298,7 +375,9 @@ export const SalesOrderForm = forwardRef<SalesOrderFormRef, SalesOrderFormProps>
     };
 
     const handleSubmit = async () => {
-      if (mode !== 'ADD' || isLoading) return; // Backend chưa có API sửa hóa đơn
+      if ((mode !== 'ADD' && mode !== 'EDIT') || isLoading) return;
+      const isEdit = mode === 'EDIT';
+      if (isEdit && !currentInvoiceId) return;
       setError(null);
 
       const newErrors: Record<string, string> = {};
@@ -319,7 +398,6 @@ export const SalesOrderForm = forwardRef<SalesOrderFormRef, SalesOrderFormProps>
       try {
         const payload = {
           customerId,
-          paymentMethod,
           note,
           advancePayment,
           lines: items.map((i) => ({
@@ -330,43 +408,87 @@ export const SalesOrderForm = forwardRef<SalesOrderFormRef, SalesOrderFormProps>
             unitOfMeasure: i.unitOfMeasure || 'CAI',
           })),
         };
-        // Backend tạo và xác nhận đơn trong cùng 1 giao dịch: bấm "Lưu" là trừ tồn kho + cộng công nợ ngay.
-        const response = await createMutation.mutateAsync(payload as components['schemas']['SalesInvoiceCreateDto']);
+        if (isEdit && currentInvoiceId) {
+          // Sửa nháp: ghi đè nội dung phiếu, vẫn chưa trừ kho / ghi công nợ.
+          await updateDraftMutation.mutateAsync({
+            id: currentInvoiceId,
+            payload: payload as components['schemas']['SalesInvoiceCreateDto'],
+            editSession: submitKey.key,
+          });
+          editSnapshotRef.current = null;
+          setInvoiceStatus('DRAFT');
+          setMode('VIEW');
+          notify.success('Đã lưu thay đổi phiếu bán hàng (nháp). Bấm "Xác nhận" (F9) để xuất kho và ghi công nợ.');
+          try {
+            const fresh = await ApiService.SalesInvoice.getById(currentInvoiceId);
+            if (fresh?.invoiceCode) setOrderCode(fresh.invoiceCode);
+            if (fresh?.status) setInvoiceStatus(fresh.status as DocStatus);
+          } catch {
+            /* Đã lưu; không tải lại được thì giữ nội dung đang hiển thị. */
+          }
+          return;
+        }
+        // Bước 1: lưu nháp (chưa trừ kho, chưa ghi công nợ). Bước 2 là nút "Xác nhận" (F9).
+        const response = await createDraftMutation.mutateAsync({
+          payload: payload as components['schemas']['SalesInvoiceCreateDto'],
+          idempotencyKey: submitKey.key,
+        });
         if (response?.invoiceCode) setOrderCode(response.invoiceCode);
         if (response?.id) setCurrentInvoiceId(response.id);
-        setInvoiceStatus('CONFIRMED');
+        setInvoiceStatus('DRAFT');
         setMode('VIEW');
+        notify.success('Đã lưu phiếu bán hàng (nháp). Bấm "Xác nhận" (F9) để xuất kho và ghi công nợ.');
       } catch (err) {
         console.error(err);
-        toast.error(errorMessage(err, 'Lỗi khi lưu đơn hàng'));
+        const msg = submitErrorMessage(err, 'Lỗi khi lưu đơn hàng');
+        if (isEdit && currentInvoiceId && hasErrorCode(err, INVALID_STATUS)) {
+          // Phiếu đã được xác nhận ở nơi khác: bỏ chỉnh sửa, hiển thị trạng thái mới nhất.
+          restoreSnapshot();
+          setMode('VIEW');
+          try {
+            const fresh = await ApiService.SalesInvoice.getById(currentInvoiceId);
+            if (fresh?.status) setInvoiceStatus(fresh.status as DocStatus);
+          } catch {
+            /* giữ trạng thái đang hiển thị */
+          }
+        }
+        // Chưa rõ kết quả: giữ thông báo trên form để người dùng biết bấm Lưu lại là an toàn.
+        if (err instanceof OutcomeUnknownError) setError(msg);
+        notify.error(msg);
       } finally {
         setIsLoading(false);
       }
     };
 
     const handleConfirm = async () => {
-      if (!currentInvoiceId) {
-        toast.error('Chưa có ID hóa đơn, vui lòng lưu trước khi xác nhận.');
-        return;
-      }
-      if (invoiceStatus === 'CONFIRMED') {
-        toast.error('Đơn hàng đã được xác nhận (đã trừ tồn kho và cộng công nợ).');
-        return;
-      }
+      if (!currentInvoiceId || invoiceStatus !== 'DRAFT' || isLoading) return;
+      setError(null);
       setIsLoading(true);
       try {
         await confirmMutation.mutateAsync(currentInvoiceId);
         setInvoiceStatus('CONFIRMED');
+        notify.success('Đã xác nhận phiếu bán hàng: đã xuất kho và ghi công nợ.');
+        try {
+          // Nợ cũ được chụp lúc xác nhận -> hiển thị đúng số đã chụp trên hóa đơn.
+          const fresh = await ApiService.SalesInvoice.getById(currentInvoiceId);
+          if (fresh?.previousDebt != null) setOldDebt(Number(fresh.previousDebt));
+        } catch {
+          /* Đã xác nhận; không tải lại được thì giữ số đang hiển thị. */
+        }
       } catch (err) {
         console.error(err);
-        toast.error(errorMessage(err, 'Lỗi khi xác nhận đơn hàng'));
+        const msg = submitErrorMessage(err, 'Xác nhận phiếu bán hàng thất bại', 'confirm');
+        if (err instanceof OutcomeUnknownError) setError(msg);
+        notify.error(msg);
       } finally {
         setIsLoading(false);
       }
     };
 
+
     useImperativeHandle(ref, () => ({
       handleAdd,
+      handleEdit,
       handleCancel: () => {
         if (!isView) setDialog('CANCEL');
       },
@@ -562,12 +684,17 @@ export const SalesOrderForm = forwardRef<SalesOrderFormRef, SalesOrderFormProps>
           message={
             dialog === 'EXIT'
               ? 'Dữ liệu chưa được lưu. Bạn có chắc chắn muốn thoát và mất các thay đổi không?'
-              : 'Bạn có chắc chắn muốn hủy các thay đổi chưa lưu không?'
+              : mode === 'EDIT'
+                ? 'Bỏ các thay đổi chưa lưu? Phiếu nháp sẽ giữ nguyên nội dung đã lưu trước đó.'
+                : 'Bạn có chắc chắn muốn hủy các thay đổi chưa lưu không?'
           }
           onConfirm={() => {
             const d = dialog;
             setDialog(null);
-            if (d === 'EXIT' || (initialMode === 'ADD' && !currentInvoiceId)) closeCurrentTab();
+            if (d === 'CANCEL' && mode === 'EDIT') {
+              restoreSnapshot();
+              setMode('VIEW');
+            } else if (d === 'EXIT' || (initialMode === 'ADD' && !currentInvoiceId)) closeCurrentTab();
             else setMode('VIEW');
           }}
           onCancel={() => setDialog(null)}

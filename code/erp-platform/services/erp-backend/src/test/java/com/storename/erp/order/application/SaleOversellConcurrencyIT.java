@@ -69,22 +69,20 @@ public class SaleOversellConcurrencyIT {
         stockOnHandRepository.save(soh);
         costLayerRepository.save(CostLayer.fromInbound(PRODUCT_ID, BRANCH_ID, new BigDecimal("10"), new BigDecimal("500"), null));
 
-        List<UUID> invoiceIds = new ArrayList<>();
+        // Mỗi hóa đơn là một lần tạo+xác nhận đơn bán (không còn bước nháp).
+        List<com.storename.erp.order.application.dto.SalesInvoiceCreateDto> invoiceDtos = new ArrayList<>();
         for (int i = 0; i < 3; i++) {
-            SalesInvoice invoice = new SalesInvoice();
-            invoice.setBranchId(BRANCH_ID);
-            invoice.setCustomerId(customerId);
-            invoice.setInvoiceCode("INV-OS-" + i + "-" + UUID.randomUUID().toString().substring(0, 5));
-            SalesInvoiceLine line = new SalesInvoiceLine();
+            com.storename.erp.order.application.dto.SalesInvoiceLineDto line = new com.storename.erp.order.application.dto.SalesInvoiceLineDto();
             line.setProductId(PRODUCT_ID);
             line.setProductName("SP oversell");
             line.setQuantity(new BigDecimal("6"));
             line.setUnitPrice(new BigDecimal("1000"));
-            line.setLineTotal(new BigDecimal("6000"));
             line.setUnitOfMeasure("Cái");
-            invoice.addLine(line);
-            invoice.calculateTotal();
-            invoiceIds.add(invoiceRepository.save(invoice).getId());
+            com.storename.erp.order.application.dto.SalesInvoiceCreateDto invoiceDto = new com.storename.erp.order.application.dto.SalesInvoiceCreateDto();
+            invoiceDto.setCustomerId(customerId);
+            invoiceDto.setInvoiceCode("INV-OS-" + i + "-" + UUID.randomUUID().toString().substring(0, 5));
+            invoiceDto.setLines(List.of(line));
+            invoiceDtos.add(invoiceDto);
         }
 
         ExecutorService executor = Executors.newFixedThreadPool(3);
@@ -92,11 +90,11 @@ public class SaleOversellConcurrencyIT {
         CountDownLatch done = new CountDownLatch(3);
         AtomicInteger success = new AtomicInteger();
         AtomicInteger insufficient = new AtomicInteger();
-        for (UUID invoiceId : invoiceIds) {
+        for (com.storename.erp.order.application.dto.SalesInvoiceCreateDto invoiceDto : invoiceDtos) {
             executor.submit(() -> {
                 try {
                     start.await();
-                    salesInvoiceService.confirmInvoice(invoiceId, UUID.randomUUID(), BRANCH_ID);
+                    com.storename.erp.support.SalesInvoiceFlows.createAndConfirm(salesInvoiceService, invoiceDto, BRANCH_ID, UUID.randomUUID());
                     success.incrementAndGet();
                 } catch (StockInsufficientException e) {
                     insufficient.incrementAndGet();

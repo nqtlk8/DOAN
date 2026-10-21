@@ -33,6 +33,8 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.not;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -105,24 +107,18 @@ class ProductCatalogRulesIT {
     void productJson_usesIsActiveKey() throws Exception {
         Product discontinued = newProduct("TC-P03", false, leaf);
 
-        mockMvc.perform(get("/api/v1/catalog/products/{id}", discontinued.getId()).header("Authorization", adminToken))
+        String list = mockMvc.perform(get("/api/v1/catalog/products").header("Authorization", adminToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.isActive").value(false))
-                .andExpect(jsonPath("$.data.active").doesNotExist());
+                .andReturn().getResponse().getContentAsString();
+        JsonNode item = findById(objectMapper.readTree(list).get("data"), discontinued.getId());
+        assertNotNull(item, "Sản phẩm phải có trong danh sách");
+        assertFalse(item.get("isActive").asBoolean());
+        assertNull(item.get("active"));
     }
 
     @Test
-    @DisplayName("TC-P04: xem sản phẩm kèm giá chi nhánh với id không tồn tại -> 404")
-    void getProductWithBranchPrice_unknownId_returns404() throws Exception {
-        mockMvc.perform(get("/api/v1/catalog/products/{id}", 987654321L)
-                        .param("withBranchPrice", "true").header("Authorization", staffToken))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.errors[0]").value("NOT_FOUND"));
-    }
-
-    @Test
-    @DisplayName("TC-P05: danh sách và chi tiết sản phẩm trả đúng giá niêm yết của chi nhánh trong token")
-    void branchPrice_listAndDetail_returnBranchPrice() throws Exception {
+    @DisplayName("TC-P05: danh sách sản phẩm trả đúng giá niêm yết của chi nhánh trong token")
+    void branchPrice_list_returnsBranchPrice() throws Exception {
         Product product = newProduct("TC-P05", true, leaf);
         priceListRepo.saveAndFlush(newPrice(product, BRANCH_ID, "150000"));
         priceListRepo.saveAndFlush(newPrice(product, 2L, "999999")); // giá chi nhánh khác, không được lấy
@@ -134,13 +130,6 @@ class ProductCatalogRulesIT {
         JsonNode item = findById(objectMapper.readTree(list).get("data"), product.getId());
         assertNotNull(item, "Sản phẩm phải có trong danh sách");
         assertEquals(0, new BigDecimal("150000").compareTo(item.get("price").decimalValue()));
-
-        String detail = mockMvc.perform(get("/api/v1/catalog/products/{id}", product.getId())
-                        .param("withBranchPrice", "true").header("Authorization", staffToken))
-                .andExpect(status().isOk())
-                .andReturn().getResponse().getContentAsString();
-        assertEquals(0, new BigDecimal("150000")
-                .compareTo(objectMapper.readTree(detail).at("/data/price").decimalValue()));
     }
 
     @Test
@@ -212,19 +201,6 @@ class ProductCatalogRulesIT {
                 .andExpect(status().isBadRequest());
         mockMvc.perform(get("/api/v1/public/catalog/products").param("page", "-1"))
                 .andExpect(status().isBadRequest());
-    }
-
-    @Test
-    @DisplayName("TC-P11: chi tiết công khai của sản phẩm ngừng bán -> 404, đang bán -> 200")
-    void publicDetail_hidesDiscontinuedProduct() throws Exception {
-        Product off = newProduct("TC-P11-OFF", false, leaf);
-        Product on = newProduct("TC-P11-ON", true, leaf);
-
-        mockMvc.perform(get("/api/v1/public/catalog/products/{id}", off.getId()))
-                .andExpect(status().isNotFound());
-        mockMvc.perform(get("/api/v1/public/catalog/products/{id}", on.getId()))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.code").value("TC-P11-ON"));
     }
 
     // ---------------------------------------------------------------- helpers

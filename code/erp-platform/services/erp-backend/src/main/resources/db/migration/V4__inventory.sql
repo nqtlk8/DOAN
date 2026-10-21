@@ -4,9 +4,10 @@
 --   stock_on_hand            : owner Branch, replicate Branch -> HQ (row filter branch_id)
 --   stock_movement, cost_layer, inbound_receipt(_line) : owner Branch, replicate Branch -> HQ
 --   inventory_alert_config   : owner HQ, replicate HQ -> Branch
+-- Mọi số lượng tồn kho dùng NUMERIC(19,4).
 -- ============================================================================
 
--- Snapshot tồn hiện tại theo (sản phẩm, chi nhánh). Unique key này cũng là REPLICA IDENTITY (V8).
+-- Snapshot tồn hiện tại theo (sản phẩm, chi nhánh).
 CREATE TABLE stock_on_hand (
     id          UUID          PRIMARY KEY,
     product_id  BIGINT        NOT NULL,
@@ -21,12 +22,16 @@ CREATE TABLE stock_on_hand (
     CONSTRAINT uk_stock_product_branch UNIQUE (product_id, branch_id)
 );
 
+-- Replicate bằng publication có row filter branch_id: REPLICA IDENTITY phải chứa branch_id
+-- (xem receivable_debt ở V3).
+ALTER TABLE stock_on_hand REPLICA IDENTITY USING INDEX uk_stock_product_branch;
+
 CREATE TABLE stock_movement (
     id              UUID          PRIMARY KEY,
     product_id      BIGINT        NOT NULL,
     branch_id       BIGINT        NOT NULL,
     movement_type   VARCHAR(20)   NOT NULL,
-    quantity        NUMERIC(18,3) NOT NULL,   -- dương = vào, âm = ra
+    quantity        NUMERIC(19,4) NOT NULL,   -- dương = vào, âm = ra
     ref_type        VARCHAR(50)   NOT NULL,   -- 'inbound_receipt' | 'sales_invoice' | 'goods_return'
     ref_id          VARCHAR(100)  NOT NULL,   -- UUID chứng từ dạng chuỗi
     ref_line_id     UUID,
@@ -46,8 +51,8 @@ CREATE TABLE cost_layer (
     product_id           BIGINT        NOT NULL,
     branch_id            BIGINT        NOT NULL,
     unit_cost            NUMERIC(18,4) NOT NULL,
-    initial_qty          NUMERIC(18,3) NOT NULL,
-    remaining_qty        NUMERIC(18,3) NOT NULL,
+    initial_qty          NUMERIC(19,4) NOT NULL,
+    remaining_qty        NUMERIC(19,4) NOT NULL,
     inbound_movement_id  UUID,
     cost_basis           VARCHAR(20)   NOT NULL DEFAULT 'NORMAL',
     version              BIGINT        NOT NULL DEFAULT 0,
@@ -65,6 +70,7 @@ COMMENT ON TABLE cost_layer IS
     'Nguồn tính giá vốn FIFO. Mỗi INBOUND tạo 1 entry. remaining_qty giảm khi bán.';
 
 -- supplier_id tham chiếu supplier (dùng chung) — không đặt FK vì supplier thuộc module catalog.
+-- request_key: khóa lập phiếu (xem sales_invoice.request_key ở V5).
 CREATE TABLE inbound_receipt (
     id              UUID         PRIMARY KEY,
     receipt_code    VARCHAR(255) NOT NULL UNIQUE,
@@ -74,13 +80,15 @@ CREATE TABLE inbound_receipt (
     note            VARCHAR(255),
     confirmed_at    TIMESTAMP(6) WITHOUT TIME ZONE,
     confirmed_by    UUID,
+    request_key     VARCHAR(255),
     version         INTEGER      NOT NULL,
     is_deleted      BOOLEAN      NOT NULL,
     created_at      TIMESTAMP(6) WITHOUT TIME ZONE,
     updated_at      TIMESTAMP(6) WITHOUT TIME ZONE,
     created_by      UUID,
     updated_by      UUID,
-    CONSTRAINT ck_inbound_receipt_status CHECK (status IN ('DRAFT', 'CONFIRMED'))
+    CONSTRAINT ck_inbound_receipt_status CHECK (status IN ('DRAFT', 'CONFIRMED')),
+    CONSTRAINT uk_inbound_receipt_request_key UNIQUE (request_key)
 );
 
 CREATE TABLE inbound_receipt_line (

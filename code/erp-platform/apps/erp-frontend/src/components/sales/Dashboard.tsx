@@ -13,6 +13,7 @@ import { DataState } from '../../shared/components/DataState/DataState';
 import { formatCompact, formatCurrency, formatNumber } from '../../shared/utils/format';
 import { PERIOD_OPTIONS, type PeriodKey, getPeriodRange } from './dashboardPeriod';
 import type { DashboardMetricsDto } from '../../types/analytics';
+import { CHART_TOP_COUNT, DEFAULT_TOP_LIMIT, TOP_LIMIT_OPTIONS } from '../../config/dashboard';
 
 type TopProduct = DashboardMetricsDto['topSellingProducts'][number];
 
@@ -56,7 +57,27 @@ const ChartTooltip = ({ active, payload }: { active?: boolean; payload?: { paylo
       <p className="font-semibold text-ink mb-1">{p.productName}</p>
       <p className="text-ink">Doanh thu: {formatCurrency(p.revenue)}</p>
       <p className="text-ink-muted">Số lượng: {formatNumber(p.quantitySold)} SP</p>
+      {!p.costIncomplete && p.grossProfit != null && <p className="text-ink-muted">Lợi nhuận gộp: {formatCurrency(p.grossProfit)}</p>}
     </div>
+  );
+};
+
+const MISSING_COST_TITLE = 'Có dòng bán hoặc trả hàng chưa có giá vốn — không tính được giá vốn và lợi nhuận chính xác';
+
+/** Ô giá vốn / lợi nhuận: "—" khi sản phẩm có dòng thiếu giá vốn (tránh báo lợi nhuận cao giả). */
+const CostCell: React.FC<{ value?: number | null; incomplete?: boolean; profit?: boolean; testId: string }> = ({ value, incomplete, profit, testId }) => {
+  if (incomplete || value == null) {
+    return (
+      <td className="num text-ink-subtle" title={MISSING_COST_TITLE} data-testid={testId}>
+        —
+      </td>
+    );
+  }
+  const tone = profit ? (value < 0 ? 'text-danger font-medium' : 'text-success font-medium') : '';
+  return (
+    <td className={`num ${tone}`} data-testid={testId}>
+      {formatNumber(value)}
+    </td>
   );
 };
 
@@ -75,6 +96,7 @@ export const Dashboard: React.FC = () => {
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
   const [exporting, setExporting] = useState(false);
+  const [topLimit, setTopLimit] = useState<number>(DEFAULT_TOP_LIMIT);
 
   // Tham số thực sự dùng để gọi API (kỳ "Tùy chọn" chỉ áp dụng khi bấm "Áp dụng").
   const [queryParams, setQueryParams] = useState<{ start: number; end: number }>(() => getPeriodRange('month'));
@@ -92,7 +114,7 @@ export const Dashboard: React.FC = () => {
     refetch: refetchMetrics,
     isFetching,
     dataUpdatedAt: metricsUpdatedAt,
-  } = useDashboardMetrics(branchId, queryParams.start, queryParams.end);
+  } = useDashboardMetrics(branchId, queryParams.start, queryParams.end, topLimit);
 
   const {
     data: alertsSummary,
@@ -235,7 +257,10 @@ export const Dashboard: React.FC = () => {
   );
 
   const top: TopProduct[] = metrics?.topSellingProducts ?? [];
-  const chartHeight = Math.max(240, top.length * 44);
+  // Biểu đồ luôn top 10 (danh sách đã sắp theo doanh thu giảm dần); bảng theo lựa chọn Top.
+  const chartTop = top.slice(0, CHART_TOP_COUNT);
+  const chartHeight = Math.max(240, chartTop.length * 44);
+  const hasMissingCost = top.some((p) => p.costIncomplete);
 
   return (
     <PageContainer data-testid="dashboard-page">
@@ -293,14 +318,14 @@ export const Dashboard: React.FC = () => {
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
               {/* Biểu đồ cột ngang: một chuỗi (doanh thu), một màu, một trục */}
-              <div className="lg:col-span-7 card p-4" data-testid="top-products-chart">
-                <h3 className="text-[15px] font-semibold text-ink mb-3">Top sản phẩm theo doanh thu</h3>
-                {top.length === 0 ? (
+              <div className="lg:col-span-12 card p-4" data-testid="top-products-chart">
+                <h3 className="text-[15px] font-semibold text-ink mb-3">Top {CHART_TOP_COUNT} sản phẩm theo doanh thu</h3>
+                {chartTop.length === 0 ? (
                   <EmptyTop />
                 ) : (
                   <div style={{ height: chartHeight }}>
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={top} layout="vertical" margin={{ top: 0, right: 24, left: 0, bottom: 0 }}>
+                      <BarChart data={chartTop} layout="vertical" margin={{ top: 0, right: 24, left: 0, bottom: 0 }}>
                         <CartesianGrid horizontal={false} stroke="var(--color-line)" />
                         <XAxis
                           type="number"
@@ -327,37 +352,61 @@ export const Dashboard: React.FC = () => {
               </div>
 
               {/* Bảng chi tiết — cũng là "table view" cho người không đọc được biểu đồ */}
-              <div className="lg:col-span-5 card overflow-hidden flex flex-col" data-testid="top-products-table">
-                <div className="px-4 h-12 flex items-center justify-between border-b border-line">
+              <div className="lg:col-span-12 card overflow-hidden flex flex-col" data-testid="top-products-table">
+                <div className="px-4 h-12 flex items-center justify-between gap-3 border-b border-line">
                   <h3 className="text-[15px] font-semibold text-ink">Chi tiết top sản phẩm</h3>
-                  <span className="badge-neutral">Top {top.length}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="badge-neutral" data-testid="top-products-count">{top.length} sản phẩm</span>
+                    <select
+                      data-testid="dashboard-top-limit"
+                      aria-label="Số sản phẩm hiển thị"
+                      value={topLimit}
+                      onChange={(e) => setTopLimit(Number(e.target.value))}
+                      className={selectClass}
+                    >
+                      {TOP_LIMIT_OPTIONS.map((o) => (
+                        <option key={o.value} value={o.value}>
+                          {o.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
                 {top.length === 0 ? (
                   <EmptyTop />
                 ) : (
-                  <div className="overflow-auto">
+                  <div className="overflow-auto max-h-[440px]">
                     <table className="erp-table">
-                      <thead>
+                      <thead className="sticky top-0 z-10 bg-white">
                         <tr>
                           <th className="w-10 text-center">#</th>
                           <th>Sản phẩm</th>
                           <th className="num w-24">SL bán</th>
                           <th className="num w-36">Doanh thu</th>
+                          <th className="num w-36">Giá vốn</th>
+                          <th className="num w-36">Lợi nhuận gộp</th>
                         </tr>
                       </thead>
                       <tbody>
                         {top.map((p, i) => (
                           <tr key={p.productId ?? i} data-testid="top-product-row">
                             <td className="text-center text-ink-subtle">{i + 1}</td>
-                            <td className="truncate max-w-[220px]" title={p.productName}>
+                            <td className="truncate max-w-[320px]" title={p.productName}>
                               {p.productName}
                             </td>
                             <td className="num">{formatNumber(p.quantitySold)}</td>
                             <td className="num font-medium">{formatNumber(p.revenue)}</td>
+                            <CostCell value={p.cogs} incomplete={p.costIncomplete} testId="top-product-cogs" />
+                            <CostCell value={p.grossProfit} incomplete={p.costIncomplete} profit testId="top-product-profit" />
                           </tr>
                         ))}
                       </tbody>
                     </table>
+                  </div>
+                )}
+                {hasMissingCost && (
+                  <div className="px-4 py-2 border-t border-line text-[12px] text-ink-muted" data-testid="top-products-missing-cost">
+                    "—": sản phẩm có dòng bán hoặc trả hàng chưa có giá vốn, nên không hiển thị giá vốn và lợi nhuận.
                   </div>
                 )}
               </div>

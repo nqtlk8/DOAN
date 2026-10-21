@@ -53,35 +53,6 @@ public class CustomerProductPriceServiceTest {
 
     // ------------------------------------------------------------------ getPrice
 
-    @Test
-    void getPrice_WhenActive_ReturnsPrice() {
-        when(priceRepo.findByCustomerIdAndProductIdAndBranchId(customerId, 1L, branchId))
-                .thenReturn(Optional.of(customerPrice(1L, "150.00")));
-
-        Optional<BigDecimal> result = priceService.getPrice(customerId, 1L, branchId);
-
-        assertTrue(result.isPresent());
-        assertEquals(0, new BigDecimal("150.00").compareTo(result.get()));
-    }
-
-    @Test
-    void getPrice_WhenNotExists_ReturnsEmpty() {
-        when(priceRepo.findByCustomerIdAndProductIdAndBranchId(customerId, 1L, branchId))
-                .thenReturn(Optional.empty());
-
-        assertFalse(priceService.getPrice(customerId, 1L, branchId).isPresent());
-    }
-
-    @Test
-    void getPrice_WhenExpired_ReturnsEmpty() {
-        CustomerProductPrice expired = customerPrice(1L, "150.00");
-        expired.setEffectiveTo(LocalDateTime.now().minusDays(1));
-        when(priceRepo.findByCustomerIdAndProductIdAndBranchId(customerId, 1L, branchId))
-                .thenReturn(Optional.of(expired));
-
-        assertFalse(priceService.getPrice(customerId, 1L, branchId).isPresent());
-    }
-
     // ------------------------------------------------------------------ resolvePrices
 
     @Test

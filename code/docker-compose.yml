@@ -4,7 +4,7 @@
 # Chạy HQ + TP1 (mặc định):        docker compose up -d --build
 # Bật thêm TP2:                    scripts/branch.sh on tp2      (= compose --profile tp2 up + bật subscription)
 # Tắt TP2:                         scripts/branch.sh off tp2     (= tắt subscription ở HQ + dừng container)
-# Khởi tạo từ đầu (DB trống):      scripts/bootstrap.sh          (xem docs/architecture/REPLICATION_RUNBOOK.md)
+# Khởi tạo từ đầu (DB trống):      scripts/bootstrap.sh
 #
 # Mật khẩu/user lấy từ file .env (mẫu: .env.example). Không có .env thì dùng giá trị mặc định bên dưới.
 # Role DB (docker/postgres/init/01-roles.sh, chạy khi volume mới tạo):

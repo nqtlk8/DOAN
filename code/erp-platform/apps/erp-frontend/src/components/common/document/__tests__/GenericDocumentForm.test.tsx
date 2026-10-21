@@ -42,7 +42,7 @@ describe('GenericDocumentForm', () => {
     const props = makeProps();
     render(<GenericDocumentForm {...props} />);
     fireEvent.click(screen.getByTestId('sales-add-line'));
-    expect(props.lines.onAdd).toHaveBeenCalledTimes(1);
+    expect(props.lines!.onAdd).toHaveBeenCalledTimes(1);
   });
 
   it('U-GDF-03: chế độ VIEW không có nút thêm/xóa dòng và số lượng không kèm ₫', () => {
@@ -64,7 +64,7 @@ describe('GenericDocumentForm', () => {
     const price = screen.getAllByTestId('sales-line-price')[0] as HTMLInputElement;
     expect(price.value).toBe('50.000');
     fireEvent.change(price, { target: { value: '40000' } });
-    expect(props.lines.onUpdate).toHaveBeenCalledWith('a', 'unitPrice', 40000);
+    expect(props.lines!.onUpdate).toHaveBeenCalledWith('a', 'unitPrice', 40000);
   });
 
   it('U-GDF-06: lỗi dòng (key line_i_quantity) tô đỏ ô số lượng', () => {
@@ -86,15 +86,15 @@ describe('GenericDocumentForm', () => {
     render(<GenericDocumentForm {...props} />);
     const lastPrice = screen.getAllByTestId('sales-line-price')[1];
     fireEvent.keyDown(lastPrice, { key: 'Enter' });
-    expect(props.lines.onAdd).toHaveBeenCalledTimes(1);
+    expect(props.lines!.onAdd).toHaveBeenCalledTimes(1);
   });
   it('U-GDF-09: priceInfo hiển thị nhãn nguồn giá, tô nổi dòng đã sửa giá và ghi chú', () => {
     const props = makeProps();
-    props.lines.priceInfo = (l) =>
+    props.lines!.priceInfo = (l) =>
       l.id === 'a'
         ? { label: 'Giá KH', tone: 'customer', title: 'Giá niêm yết: 60.000 ₫' }
         : { label: 'Niêm yết', tone: 'list', title: 'Giá niêm yết: 90.000 ₫\nGiá này sẽ được lưu', edited: true };
-    props.lines.footerNote = <span>1 dòng đã sửa giá</span>;
+    props.lines!.footerNote = <span>1 dòng đã sửa giá</span>;
     render(<GenericDocumentForm {...props} />);
 
     const badges = screen.getAllByTestId('sales-line-price-source');

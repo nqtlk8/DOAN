@@ -1,6 +1,5 @@
 package com.storename.erp.order.application.dto;
 
-import com.storename.erp.order.domain.PaymentMethod;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
@@ -18,9 +17,6 @@ public class SalesInvoiceCreateDto {
     @NotNull(message = "Customer ID is required")
     private UUID customerId;
     
-    @NotNull(message = "Payment method is required")
-    private PaymentMethod paymentMethod;
-
     private String note;
 
     @NotEmpty(message = "Invoice lines cannot be empty")

@@ -20,8 +20,8 @@ export const SalesModule: React.FC<SalesModuleProps> = ({
 }) => {
   const [activeSubView, setActiveSubView] = useState<SubViewType>(initialSubView);
   const [currentMode, setCurrentMode] = useState<FormMode>(initialMode);
-  const [status, setStatus] = useState<DocStatus | undefined>(initialData?.status);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [status, setStatus] = useState<DocStatus | undefined>(initialData?.status);
   const formRef = useRef<SalesOrderFormRef>(null);
   const [formData, setFormData] = useState<SalesInvoiceDto | null | undefined>(initialData);
   const [formKey, setFormKey] = useState(0);
@@ -48,7 +48,9 @@ export const SalesModule: React.FC<SalesModuleProps> = ({
     }
   };
 
-  // Backend chưa có API sửa / xóa hóa đơn → không hiển thị nút Sửa, Xóa (tránh thao tác "giả").
+  // Chưa có API xóa hóa đơn → không hiển thị nút Xóa.
+  // Hai bước như phiếu nhập / phiếu trả: Lưu (nháp) → [Sửa (F3) → Lưu]* → Xác nhận (F9).
+  // Nút Sửa và Xác nhận chỉ hiện khi phiếu đang là nháp.
   return (
     <MdiModuleLayout
       activeSubView={activeSubView}
@@ -57,6 +59,8 @@ export const SalesModule: React.FC<SalesModuleProps> = ({
       isLoading={isLoading}
       hideConfirm={status !== 'DRAFT'}
       onAdd={() => formRef.current?.handleAdd()}
+      // Chỉ phiếu nháp (chưa xác nhận) mới được sửa; sửa xong Lưu rồi Xác nhận (F9) như bình thường.
+      onEdit={status === 'DRAFT' ? () => formRef.current?.handleEdit() : undefined}
       onSave={() => formRef.current?.handleSubmit()}
       onCancel={() => formRef.current?.handleCancel()}
       onConfirm={() => formRef.current?.handleConfirm()}

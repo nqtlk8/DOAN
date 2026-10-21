@@ -68,26 +68,6 @@ public class SupplierSharedVisibilityIT {
                 .andExpect(jsonPath("$.data[*].code", containsInAnyOrder("SUP-A", "SUP-B")));
     }
 
-    @Test
-    void staffCanOpenSharedSupplierDetail() throws Exception {
-        mockMvc.perform(get("/api/v1/suppliers/" + activeA.getId()).header("Authorization", staffToken))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.code").value("SUP-A"));
-    }
-
-    @Test
-    void staffCanOpenInactiveSupplierReferencedByOldReceipts() throws Exception {
-        mockMvc.perform(get("/api/v1/suppliers/" + inactive.getId()).header("Authorization", staffToken))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.isActive").value(false));
-    }
-
-    @Test
-    void unknownSupplierReturns404() throws Exception {
-        mockMvc.perform(get("/api/v1/suppliers/" + UUID.randomUUID()).header("Authorization", staffToken))
-                .andExpect(status().isNotFound());
-    }
-
     private static Supplier newSupplier(String code, String name, boolean active) {
         Supplier s = new Supplier();
         s.setCode(code);

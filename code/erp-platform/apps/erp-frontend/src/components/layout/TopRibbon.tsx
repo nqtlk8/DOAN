@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ShoppingCart, PackageSearch, Truck, CreditCard, LogOut, Settings, Users, Box, Users2, BarChart2, UserCircle2 } from 'lucide-react';
+import { ShoppingCart, PackageSearch, Truck, CreditCard, LogOut, Settings, Users, Box, Users2, BarChart2, UserCircle2, Wallet } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useTabs } from '../../context/TabContext';
 import { Dashboard } from '../sales/Dashboard';
@@ -11,6 +11,7 @@ import { CustomerList } from '../catalog/CustomerList';
 import { SupplierList } from '../catalog/SupplierList';
 import { StockList } from '../inventory/StockList';
 import { DebtList } from '../crm/DebtList';
+import { CashReceiptModule } from '../crm/CashReceiptModule';
 import { BranchList } from '../admin/BranchList';
 
 import { allTabs } from '../../config/menuConfig';
@@ -83,8 +84,6 @@ export const TopRibbon: React.FC = () => {
             
             <div className="w-[1px] h-[80%] my-auto bg-line mx-1 shrink-0"></div>
             
-            {/* TODO: Xuất trả hàng mua — chưa có API */}
-            
             <button 
               data-testid="ribbon-btn-return"
               onClick={() => handleOpenTab('goods-return', 'NHẬP LẠI HÀNG BÁN', <GoodsReturnModule mode="ADD" />)}
@@ -101,6 +100,17 @@ export const TopRibbon: React.FC = () => {
             >
               <Truck size={20} className="text-primary" />
               <span className="text-[12px] whitespace-nowrap leading-none text-ink">Nhập Hàng</span>
+            </button>
+
+            <div className="w-[1px] h-[80%] my-auto bg-line mx-1 shrink-0"></div>
+
+            <button
+              data-testid="ribbon-btn-cash-receipt"
+              onClick={() => handleOpenTab('cash-receipt', 'PHIẾU THU', <CashReceiptModule />)}
+              className="flex flex-col items-center justify-center p-1 min-w-[60px] shrink-0 hover:bg-primary-soft rounded-[4px] gap-1"
+            >
+              <Wallet size={20} className="text-primary" />
+              <span className="text-[12px] whitespace-nowrap leading-none text-ink">Phiếu Thu</span>
             </button>
           </>
         )}

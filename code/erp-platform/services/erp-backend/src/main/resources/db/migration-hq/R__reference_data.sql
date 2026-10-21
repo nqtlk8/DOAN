@@ -9,16 +9,22 @@
 -- Mọi lệnh đều "chèn nếu chưa có" — KHÔNG ghi đè dữ liệu đã bị sửa qua giao diện.
 --
 -- Ngoài dữ liệu hệ thống, file chứa sẵn cây DANH MỤC SẢN PHẨM (bảng category) dùng chung với
--- website bán hàng (apps/web-public). Không chứa sản phẩm, NCC, khách hàng hay giao dịch —
--- dữ liệu demo: scripts/seed-demo.py (chạy tay, qua API).
+-- website bán hàng (apps/web-public). Không chứa sản phẩm, NCC, khách hàng hay giao dịch:
+--   * master data demo: R__seed_data.sql (chạy SAU file này vì Flyway xếp R__ theo tên);
+--   * giao dịch demo: scripts/seed-demo.py (chạy tay, qua API chi nhánh).
 -- ============================================================================
 
 -- 1. Chi nhánh. id cố định vì biến môi trường BRANCH_ID của app chi nhánh
 --    (docker-compose.yml) và claim branchId trong JWT phải khớp id này.
-INSERT INTO branch (id, code, name, internal_url, is_active, created_at, updated_at) VALUES
-    (1, 'TP1', 'Chi nhánh Trung Tâm (TP1)', 'http://localhost:81', true, now(), now()),
-    (2, 'TP2', 'Chi nhánh Quận 7 (TP2)',    'http://localhost:82', true, now(), now())
+INSERT INTO branch (id, code, name, address, internal_url, is_active, created_at, updated_at) VALUES
+    (1, 'TP1', 'Chi nhánh Trung Tâm (TP1)', 'Quận 1, TP.HCM', 'http://localhost:81', true, now(), now()),
+    (2, 'TP2', 'Chi nhánh Quận 7 (TP2)',    'Quận 7, TP.HCM', 'http://localhost:82', true, now(), now())
 ON CONFLICT (code) DO NOTHING;
+
+-- Bổ sung địa chỉ demo cho CSDL đã tạo trước khi có cột address trong dữ liệu khởi tạo.
+-- Chỉ điền khi đang trống, không ghi đè địa chỉ đã sửa.
+UPDATE branch SET address = 'Quận 1, TP.HCM', updated_at = now() WHERE code = 'TP1' AND address IS NULL;
+UPDATE branch SET address = 'Quận 7, TP.HCM', updated_at = now() WHERE code = 'TP2' AND address IS NULL;
 
 SELECT setval(pg_get_serial_sequence('branch', 'id'), GREATEST((SELECT MAX(id) FROM branch), 1));
 

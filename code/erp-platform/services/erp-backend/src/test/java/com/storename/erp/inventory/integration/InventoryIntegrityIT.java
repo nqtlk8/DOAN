@@ -51,7 +51,7 @@ public class InventoryIntegrityIT {
     public void inbound_createsMovementAndCostLayer() {
         InboundReceiptCreateDto dto = new InboundReceiptCreateDto();
         dto.setReceiptCode("NK001");
-        InboundReceiptCreateDto.LineDto lineDto = new InboundReceiptCreateDto.LineDto();
+        InboundReceiptCreateDto.InboundReceiptLineDto lineDto = new InboundReceiptCreateDto.InboundReceiptLineDto();
         lineDto.setProductId(productId);
         lineDto.setQuantity(new BigDecimal("100"));
         lineDto.setUnitCost(new BigDecimal("10000"));
@@ -79,7 +79,7 @@ public class InventoryIntegrityIT {
     public void sumMovement_equalsStockOnHand() {
         // Inbound 100
         InboundReceiptCreateDto dto = new InboundReceiptCreateDto();
-        InboundReceiptCreateDto.LineDto lineDto = new InboundReceiptCreateDto.LineDto();
+        InboundReceiptCreateDto.InboundReceiptLineDto lineDto = new InboundReceiptCreateDto.InboundReceiptLineDto();
         lineDto.setProductId(productId);
         lineDto.setQuantity(new BigDecimal("100"));
         lineDto.setUnitCost(new BigDecimal("10000"));
@@ -104,7 +104,7 @@ public class InventoryIntegrityIT {
     @Test
     public void fifo_consumesOldestFirst() {
         InboundReceiptCreateDto dto1 = new InboundReceiptCreateDto();
-        InboundReceiptCreateDto.LineDto lineDto1 = new InboundReceiptCreateDto.LineDto();
+        InboundReceiptCreateDto.InboundReceiptLineDto lineDto1 = new InboundReceiptCreateDto.InboundReceiptLineDto();
         lineDto1.setProductId(productId);
         lineDto1.setQuantity(new BigDecimal("100"));
         lineDto1.setUnitCost(new BigDecimal("10000"));
@@ -114,7 +114,7 @@ public class InventoryIntegrityIT {
         inboundService.confirmReceipt(receiptId1, branchId, userId);
 
         InboundReceiptCreateDto dto2 = new InboundReceiptCreateDto();
-        InboundReceiptCreateDto.LineDto lineDto2 = new InboundReceiptCreateDto.LineDto();
+        InboundReceiptCreateDto.InboundReceiptLineDto lineDto2 = new InboundReceiptCreateDto.InboundReceiptLineDto();
         lineDto2.setProductId(productId);
         lineDto2.setQuantity(new BigDecimal("50"));
         lineDto2.setUnitCost(new BigDecimal("12000"));
@@ -138,7 +138,7 @@ public class InventoryIntegrityIT {
 
     private void inbound(String qty, String unitCost) {
         InboundReceiptCreateDto dto = new InboundReceiptCreateDto();
-        InboundReceiptCreateDto.LineDto line = new InboundReceiptCreateDto.LineDto();
+        InboundReceiptCreateDto.InboundReceiptLineDto line = new InboundReceiptCreateDto.InboundReceiptLineDto();
         line.setProductId(productId);
         line.setQuantity(new BigDecimal(qty));
         line.setUnitCost(new BigDecimal(unitCost));

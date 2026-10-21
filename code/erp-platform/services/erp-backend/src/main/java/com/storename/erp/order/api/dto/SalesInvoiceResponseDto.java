@@ -1,6 +1,5 @@
 package com.storename.erp.order.api.dto;
 
-import com.storename.erp.order.domain.PaymentMethod;
 import com.storename.erp.order.domain.SalesInvoice;
 import com.storename.erp.order.domain.SalesInvoiceLine;
 import com.storename.erp.order.domain.SalesInvoiceStatus;
@@ -24,17 +23,16 @@ public class SalesInvoiceResponseDto {
     private BigDecimal previousDebt;
     private BigDecimal remainingDebt;
     private BigDecimal advancePayment;
-    private PaymentMethod paymentMethod;
     private String note;
     private LocalDateTime confirmedAt;
     private UUID confirmedBy;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     
-    private List<LineDto> lines;
+    private List<SalesInvoiceLineResponseDto> lines;
 
     @Data
-    public static class LineDto {
+    public static class SalesInvoiceLineResponseDto {
         private UUID id;
         private Long productId;
         private String productName;
@@ -43,8 +41,8 @@ public class SalesInvoiceResponseDto {
         private BigDecimal lineTotal;
         private String unitOfMeasure;
 
-        public static LineDto fromEntity(SalesInvoiceLine entity) {
-            LineDto dto = new LineDto();
+        public static SalesInvoiceLineResponseDto fromEntity(SalesInvoiceLine entity) {
+            SalesInvoiceLineResponseDto dto = new SalesInvoiceLineResponseDto();
             dto.setId(entity.getId());
             dto.setProductId(entity.getProductId());
             dto.setProductName(entity.getProductName());
@@ -68,7 +66,6 @@ public class SalesInvoiceResponseDto {
         dto.setPreviousDebt(entity.getPreviousDebt());
         dto.setRemainingDebt(entity.getRemainingDebt());
         dto.setAdvancePayment(entity.getAdvancePayment());
-        dto.setPaymentMethod(entity.getPaymentMethod());
         dto.setNote(entity.getNote());
         dto.setConfirmedAt(entity.getConfirmedAt());
         dto.setConfirmedBy(entity.getConfirmedBy());
@@ -77,7 +74,7 @@ public class SalesInvoiceResponseDto {
         
         if (entity.getLines() != null) {
             dto.setLines(entity.getLines().stream()
-                    .map(LineDto::fromEntity)
+                    .map(SalesInvoiceLineResponseDto::fromEntity)
                     .collect(Collectors.toList()));
         }
         return dto;

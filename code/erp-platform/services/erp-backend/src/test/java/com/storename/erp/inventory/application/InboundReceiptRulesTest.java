@@ -68,7 +68,7 @@ class InboundReceiptRulesTest {
     @DisplayName("Khóa dòng tồn theo productId tăng dần; chưa có dòng tồn thì tạo và flush ngay")
     void confirm_locksInProductIdOrder_andCreatesMissingRow() {
         InboundReceipt r = receipt(30L, 10L);
-        when(inboundRepo.findById(receiptId)).thenReturn(Optional.of(r));
+        when(inboundRepo.findByIdForUpdate(receiptId)).thenReturn(Optional.of(r));
         StockOnHand existing = new StockOnHand(10L, branchId);
         when(stockRepo.findForUpdate(10L, branchId)).thenReturn(Optional.of(existing));
         when(stockRepo.findForUpdate(30L, branchId)).thenReturn(Optional.empty());
@@ -88,11 +88,11 @@ class InboundReceiptRulesTest {
     @Test
     @DisplayName("Không tìm thấy -> 404; khác chi nhánh -> 403; không có chi nhánh -> 403")
     void errors() {
-        when(inboundRepo.findById(receiptId)).thenReturn(Optional.empty());
+        when(inboundRepo.findByIdForUpdate(receiptId)).thenReturn(Optional.empty());
         assertThatThrownBy(() -> service.confirmReceipt(receiptId, branchId, UUID.randomUUID()))
                 .isInstanceOf(ResourceNotFoundException.class);
 
-        when(inboundRepo.findById(receiptId)).thenReturn(Optional.of(receipt(1L)));
+        when(inboundRepo.findByIdForUpdate(receiptId)).thenReturn(Optional.of(receipt(1L)));
         assertThatThrownBy(() -> service.confirmReceipt(receiptId, 2L, UUID.randomUUID()))
                 .isInstanceOf(AccessDeniedException.class);
 
@@ -105,7 +105,7 @@ class InboundReceiptRulesTest {
     void confirmTwice_is409() {
         InboundReceipt r = receipt(1L);
         r.confirm(UUID.randomUUID());
-        when(inboundRepo.findById(receiptId)).thenReturn(Optional.of(r));
+        when(inboundRepo.findByIdForUpdate(receiptId)).thenReturn(Optional.of(r));
 
         assertThatThrownBy(() -> service.confirmReceipt(receiptId, branchId, UUID.randomUUID()))
                 .isInstanceOf(BusinessConflictException.class)

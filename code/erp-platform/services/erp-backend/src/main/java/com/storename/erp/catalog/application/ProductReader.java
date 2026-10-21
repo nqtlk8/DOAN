@@ -9,7 +9,6 @@ import com.storename.erp.common.exception.ResourceNotFoundException;
 import com.storename.erp.common.security.JwtAuthDetails;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -31,7 +30,6 @@ public class ProductReader {
     private final PriceListRepository priceListRepository;
 
     @Transactional(readOnly = true)
-    @Cacheable(value = "products")
     public List<ProductResponseDto> getAllProducts() {
         log.info("Fetching all products");
         return productRepository.findAll().stream()
@@ -40,18 +38,21 @@ public class ProductReader {
     }
 
     @Transactional(readOnly = true)
-    @Cacheable(value = "products", key = "#id")
-    public ProductResponseDto getProductById(Long id) {
-        log.info("Fetching product with id: {}", id);
-        Product product = productRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Product not found"));
-        return mapToResponse(product);
+    public List<ProductResponseDto> getAllProductsWithBranchPrice() {
+        return getAllProductsWithBranchPrice(null);
     }
 
+    /**
+     * Danh sách sản phẩm kèm giá niêm yết của một chi nhánh.
+     * Người dùng gắn chi nhánh (nhân viên) luôn nhận giá chi nhánh trong token; {@code requestedBranchId}
+     * bị bỏ qua để không xem được bảng giá chi nhánh khác. Người dùng không gắn chi nhánh (quản trị viên HQ)
+     * chọn chi nhánh qua {@code requestedBranchId}; không truyền thì giá để trống.
+     */
     @Transactional(readOnly = true)
-    public List<ProductResponseDto> getAllProductsWithBranchPrice() {
+    public List<ProductResponseDto> getAllProductsWithBranchPrice(Long requestedBranchId) {
         log.info("Fetching all products with branch price");
-        Long branchId = getCurrentBranchId();
+        Long tokenBranchId = getCurrentBranchId();
+        Long branchId = tokenBranchId != null ? tokenBranchId : requestedBranchId;
 
         List<Product> products = productRepository.findAll();
         List<Long> productIds = products.stream().map(Product::getId).collect(Collectors.toList());
@@ -64,18 +65,6 @@ public class ProductReader {
                     return dto;
                 })
                 .collect(Collectors.toList());
-    }
-
-    @Transactional(readOnly = true)
-    public ProductResponseDto getProductByIdWithBranchPrice(Long id) {
-        log.info("Fetching product with id: {} and branch price", id);
-        Long branchId = getCurrentBranchId();
-
-        Product product = productRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Product not found"));
-        ProductResponseDto dto = mapToResponse(product);
-        dto.setPrice(loadBranchPrices(branchId, List.of(id)).get(id));
-        return dto;
     }
 
     /**

@@ -40,7 +40,26 @@ public class GoodsReturnService {
      */
     @Transactional
     public UUID createDraft(Long branchId, GoodsReturnCreateDto dto) {
+        return createDraft(branchId, dto, null);
+    }
+
+    /**
+     * Tạo phiếu trả DRAFT. {@code requestKey} (khóa lập phiếu, xem {@code IdempotencyContext}) được ghi vào
+     * phiếu trong cùng transaction: gửi lại cùng khóa thì trả lại phiếu đã lưu, không tạo phiếu thứ hai.
+     */
+    @Transactional
+    public UUID createDraft(Long branchId, GoodsReturnCreateDto dto, String requestKey) {
         SalesInvoiceService.requireBranch(branchId);
+        if (requestKey != null) {
+            java.util.Optional<GoodsReturn> existing = returnRepository.findByRequestKey(requestKey);
+            if (existing.isPresent()) {
+                if (!existing.get().getBranchId().equals(branchId)) {
+                    throw new AccessDeniedException("Return does not belong to this branch");
+                }
+                log.info("Goods return {} already created with this request key, returning it", existing.get().getReturnCode());
+                return existing.get().getId();
+            }
+        }
         String code = dto.getReturnCode(); 
         if (dto.getReturnCode() == null || dto.getReturnCode().trim().isEmpty()) { 
             code = "TH" + UUID.randomUUID().toString().substring(0, 8).toUpperCase(); 
@@ -59,8 +78,9 @@ public class GoodsReturnService {
         goodsReturn.setInvoiceId(dto.getInvoiceId());
         goodsReturn.setReason(dto.getReason());
         goodsReturn.setNote(dto.getNote());
+        goodsReturn.setRequestKey(requestKey);
 
-        for (GoodsReturnCreateDto.LineDto lineDto : dto.getLines()) {
+        for (GoodsReturnCreateDto.GoodsReturnLineDto lineDto : dto.getLines()) {
             GoodsReturnLine line = new GoodsReturnLine();
             line.setProductId(lineDto.getProductId());
             line.setQuantity(lineDto.getQuantity());
@@ -69,10 +89,78 @@ public class GoodsReturnService {
             goodsReturn.addLine(line);
         }
 
+        // Kiểm tra sớm ngay khi lưu nháp (cùng quy tắc với bước xác nhận) để không để lại phiếu nháp
+        // không thể xác nhận được. Bước xác nhận vẫn kiểm tra lại dưới khóa hóa đơn, vì giữa hai bước
+        // có thể đã có phiếu trả khác được xác nhận.
+        if (dto.getInvoiceId() != null) {
+            SalesInvoice invoice = invoiceRepository.findById(dto.getInvoiceId())
+                    .orElseThrow(() -> new IllegalArgumentException("Original invoice not found"));
+            checkInvoiceReturnable(invoice, goodsReturn);
+        }
+
         goodsReturn.calculateTotal();
         goodsReturn = returnRepository.save(goodsReturn);
         log.info("Created DRAFT Goods Return {} for branch {}", goodsReturn.getId(), branchId);
         return goodsReturn.getId();
+    }
+
+    /**
+     * Sửa phiếu trả khi còn nháp: thay khách, hóa đơn gốc, lý do, ghi chú và toàn bộ dòng hàng. Chưa nhập kho, chưa
+     * giảm công nợ. Kiểm tra lại số lượng trả theo hóa đơn gốc như lúc lưu nháp.
+     *
+     * <p>Khóa phiếu trả trước khi kiểm tra trạng thái (cùng khóa với {@link #confirmReturn}). Phiếu đã xác nhận ->
+     * 409 {@code INVALID_STATUS}. Mã phiếu không đổi.</p>
+     */
+    @org.springframework.retry.annotation.Retryable(
+        retryFor = {
+            org.springframework.orm.ObjectOptimisticLockingFailureException.class,
+            org.springframework.dao.PessimisticLockingFailureException.class
+        },
+        maxAttempts = 3,
+        backoff = @org.springframework.retry.annotation.Backoff(delay = 100)
+    )
+    @Transactional
+    public GoodsReturn updateDraft(UUID returnId, Long branchId, GoodsReturnCreateDto dto) {
+        SalesInvoiceService.requireBranch(branchId);
+        GoodsReturn goodsReturn = returnRepository.findByIdForUpdate(returnId)
+                .orElseThrow(() -> new ResourceNotFoundException("Return not found: " + returnId));
+        if (!goodsReturn.getBranchId().equals(branchId)) {
+            throw new AccessDeniedException("Return does not belong to this branch");
+        }
+        if (goodsReturn.getStatus() != com.storename.erp.order.domain.GoodsReturnStatus.DRAFT) {
+            throw new com.storename.erp.common.exception.BusinessConflictException(SalesInvoice.INVALID_STATUS,
+                    "Chỉ phiếu trả nháp (DRAFT) mới được sửa. Phiếu " + goodsReturn.getReturnCode()
+                            + " đã được xác nhận (đã nhập kho, giảm công nợ).");
+        }
+        if (!crmFacade.customerExists(dto.getCustomerId())) {
+            throw new IllegalArgumentException("Customer not found");
+        }
+
+        goodsReturn.setCustomerId(dto.getCustomerId());
+        goodsReturn.setInvoiceId(dto.getInvoiceId());
+        goodsReturn.setReason(dto.getReason());
+        goodsReturn.setNote(dto.getNote());
+        goodsReturn.getLines().clear();
+        for (GoodsReturnCreateDto.GoodsReturnLineDto lineDto : dto.getLines()) {
+            GoodsReturnLine line = new GoodsReturnLine();
+            line.setProductId(lineDto.getProductId());
+            line.setQuantity(lineDto.getQuantity());
+            line.setUnitPrice(lineDto.getUnitPrice());
+            line.setUnitOfMeasure(lineDto.getUnitOfMeasure());
+            goodsReturn.addLine(line);
+        }
+
+        // Cùng quy tắc với lưu nháp: không để lại phiếu nháp không xác nhận được.
+        if (dto.getInvoiceId() != null) {
+            SalesInvoice invoice = invoiceRepository.findById(dto.getInvoiceId())
+                    .orElseThrow(() -> new IllegalArgumentException("Original invoice not found"));
+            checkInvoiceReturnable(invoice, goodsReturn);
+        }
+
+        goodsReturn.calculateTotal();
+        goodsReturn = returnRepository.save(goodsReturn);
+        log.info("Updated DRAFT Goods Return {} ({} lines)", goodsReturn.getReturnCode(), goodsReturn.getLines().size());
+        return goodsReturn;
     }
 
     /**
@@ -98,7 +186,9 @@ public class GoodsReturnService {
     @Transactional
     public void confirmReturn(UUID returnId, Long branchId, UUID userId) {
         SalesInvoiceService.requireBranch(branchId);
-        GoodsReturn goodsReturn = returnRepository.findById(returnId)
+        // Khóa phiếu trả trước (thứ tự khóa: phiếu trả -> hóa đơn gốc -> dòng tồn -> dòng công nợ): hai lần xác
+        // nhận đồng thời xếp hàng, lần sau nhận 409 INVALID_STATUS; không thể xác nhận xen giữa lúc đang sửa.
+        GoodsReturn goodsReturn = returnRepository.findByIdForUpdate(returnId)
                 .orElseThrow(() -> new ResourceNotFoundException("Return not found: " + returnId));
 
         if (!goodsReturn.getBranchId().equals(branchId)) {
@@ -110,13 +200,7 @@ public class GoodsReturnService {
             invoice = invoiceRepository.findByIdForUpdate(goodsReturn.getInvoiceId())
                     .orElseThrow(() -> new IllegalArgumentException("Original invoice not found"));
 
-            if (!invoice.getBranchId().equals(branchId) || !invoice.getCustomerId().equals(goodsReturn.getCustomerId())) {
-                throw new IllegalArgumentException("Invoice does not belong to the correct branch/customer");
-            }
-            if (invoice.getStatus() != com.storename.erp.order.domain.SalesInvoiceStatus.CONFIRMED) {
-                throw new IllegalArgumentException("Cannot return goods for unconfirmed invoice");
-            }
-            validateReturnQuantities(invoice, goodsReturn);
+            checkInvoiceReturnable(invoice, goodsReturn);
         }
 
         goodsReturn.confirm(userId);
@@ -143,6 +227,17 @@ public class GoodsReturnService {
 
         returnRepository.save(goodsReturn);
         log.info("Confirmed Goods Return {}", returnId);
+    }
+
+    /** Hóa đơn gốc phải cùng chi nhánh, cùng khách, đã xác nhận, và số lượng trả không vượt số đã bán. */
+    private void checkInvoiceReturnable(SalesInvoice invoice, GoodsReturn goodsReturn) {
+        if (!invoice.getBranchId().equals(goodsReturn.getBranchId()) || !invoice.getCustomerId().equals(goodsReturn.getCustomerId())) {
+            throw new IllegalArgumentException("Invoice does not belong to the correct branch/customer");
+        }
+        if (invoice.getStatus() != com.storename.erp.order.domain.SalesInvoiceStatus.CONFIRMED) {
+            throw new IllegalArgumentException("Cannot return goods for unconfirmed invoice");
+        }
+        validateReturnQuantities(invoice, goodsReturn);
     }
 
     /** Khóa so khớp dòng trả với dòng hóa đơn: cùng sản phẩm và cùng ĐVT (không quy đổi đơn vị). */

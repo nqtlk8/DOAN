@@ -33,9 +33,24 @@ public class DashboardService {
     private final AnalyticsProperties analyticsProperties;
     private final CatalogFacade catalogFacade;
     
+    /** Số dòng mặc định của bảng top sản phẩm. */
+    public static final int DEFAULT_TOP_LIMIT = 10;
+    /** Lựa chọn hợp lệ của bảng top sản phẩm; 0 = tất cả (giới hạn an toàn {@link #MAX_TOP_PRODUCTS}). */
+    public static final Set<Integer> ALLOWED_TOP_LIMITS = Set.of(0, 10, 20, 50, 100);
+    public static final int MAX_TOP_PRODUCTS = 1000;
+
     @Transactional(readOnly = true)
     public DashboardMetricsDto getDashboardMetrics(Long branchId, Integer startDateKey, Integer endDateKey) {
-        log.info("Fetching dashboard metrics for branch: {}, startDate: {}, endDate: {}", branchId, startDateKey, endDateKey);
+        return getDashboardMetrics(branchId, startDateKey, endDateKey, DEFAULT_TOP_LIMIT);
+    }
+
+    @Transactional(readOnly = true)
+    public DashboardMetricsDto getDashboardMetrics(Long branchId, Integer startDateKey, Integer endDateKey, Integer topLimit) {
+        log.info("Fetching dashboard metrics for branch: {}, startDate: {}, endDate: {}, top: {}", branchId, startDateKey, endDateKey, topLimit);
+        int top = topLimit == null ? DEFAULT_TOP_LIMIT : topLimit;
+        if (!ALLOWED_TOP_LIMITS.contains(top)) {
+            throw new IllegalArgumentException("topLimit chỉ nhận 10, 20, 50, 100 hoặc 0 (tất cả)");
+        }
         
         if (startDateKey > endDateKey) {
             throw new IllegalArgumentException("startDateKey must be less than or equal to endDateKey");
@@ -65,7 +80,8 @@ public class DashboardService {
         BigDecimal cogs = salesTotals.getCogs() != null ? salesTotals.getCogs() : BigDecimal.ZERO;
         BigDecimal grossProfit = totalRevenue.subtract(cogs);
 
-        List<ProductPerformanceDto> topSelling = analyticsDataPort.getTopProductsByRevenue(branchId, fromTs, toTs, 10);
+        List<ProductPerformanceDto> topSelling = analyticsDataPort.getTopProductsByRevenue(branchId, fromTs, toTs,
+                top == 0 ? MAX_TOP_PRODUCTS : top);
 
         BigDecimal inventoryValue = analyticsDataPort.getInventoryValue(branchId);
         BigDecimal inventoryTurnover = BigDecimal.ZERO;

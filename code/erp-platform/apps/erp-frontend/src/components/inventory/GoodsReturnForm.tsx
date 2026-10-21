@@ -1,7 +1,14 @@
-import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { errorMessage } from '../../shared/errors/errorMessage';
+import { notify } from '../../shared/notifications/notification';
+import {
+  hasErrorCode,
+  INVALID_STATUS,
+  submitErrorMessage,
+  submitWithKey,
+  useSubmitKey,
+} from '../../shared/idempotency/submitKey';
 import { ApiService } from '../../api/ApiService';
 import { useAuth } from '../../context/AuthContext';
 import { useTabs } from '../../context/TabContext';
@@ -23,7 +30,7 @@ import { QuickCreateCustomer } from '../common/quick-create/QuickCreateCustomer'
 import { QuickCreateProduct } from '../common/quick-create/QuickCreateProduct';
 import { ConfirmDialog } from '../../shared/components/Dialog/ConfirmDialog';
 import { formatCurrency, toInputDate } from '../../shared/utils/format';
-import type { DocStatus, DocumentLine, FormMode, GoodsReturnResponse } from '../../types/documents';
+import type { DocStatus, DocumentLine, FormMode, GoodsReturnResponse, ProductDto } from '../../types/documents';
 
 export type { FormMode };
 
@@ -43,6 +50,8 @@ export interface GoodsReturnFormProps {
 
 export interface GoodsReturnFormRef {
   handleAdd: () => void;
+  /** Sửa phiếu đang ở trạng thái nháp (F3). */
+  handleEdit: () => void;
   handleSubmit: () => Promise<void>;
   handleCancel: () => void;
   handleConfirm: () => Promise<void>;
@@ -61,6 +70,14 @@ const mapInitialLines = (data?: GoodsReturnResponse | null): DocumentLine[] =>
   }));
 
 type DialogState = null | 'CANCEL' | 'EXIT';
+
+/** Nội dung phiếu lúc bấm "Sửa": bấm Hủy thì trả về đúng nội dung nháp đã lưu. */
+interface ReturnSnapshot {
+  customer: CustomerLike | null;
+  reason: string;
+  note: string;
+  lines: DocumentLine[];
+}
 
 export const GoodsReturnForm = forwardRef<GoodsReturnFormRef, GoodsReturnFormProps>(
   ({ mode: initialMode = 'ADD', initialData, onStateChange }, ref) => {
@@ -84,7 +101,9 @@ export const GoodsReturnForm = forwardRef<GoodsReturnFormRef, GoodsReturnFormPro
       initialData?.customerId ? { id: initialData.customerId, name: initialData.customerName } : null,
     );
     const [reason, setReason] = useState<string>(initialData?.reason || '');
-    const [note, setNote] = useState<string>('');
+    const [note, setNote] = useState<string>(initialData?.note || '');
+    // Hóa đơn gốc của phiếu trả (nếu có): giữ nguyên khi sửa nháp để backend kiểm tra lại số lượng trả.
+    const [invoiceId, setInvoiceId] = useState<string | undefined>(initialData?.invoiceId || undefined);
     const { lines, setLines, addLine, removeLine, updateLine, patchLine } = useDocumentLines(() =>
       mapInitialLines(initialData),
     );
@@ -92,6 +111,25 @@ export const GoodsReturnForm = forwardRef<GoodsReturnFormRef, GoodsReturnFormPro
     const [quickCustomer, setQuickCustomer] = useState<string | null>(null);
     const [quickProduct, setQuickProduct] = useState<{ lineId: string; name: string } | null>(null);
     const [showCustomerSearch, setShowCustomerSearch] = useState(false);
+    const editSnapshotRef = useRef<ReturnSnapshot | null>(null);
+
+    // API phiếu trả chỉ trả productId cho từng dòng -> tra mã / tên sản phẩm từ danh mục để hiển thị và sửa.
+    const { data: products = [] } = useQuery<ProductDto[]>({
+      queryKey: ['products'],
+      queryFn: () => ApiService.Catalog.getProducts(),
+      enabled: lines.some((l) => l.productId && (!l.productName || !l.productCode)),
+    });
+    const displayLines = useMemo(
+      () =>
+        lines.map((l) => {
+          if (!l.productId || (l.productName && l.productCode)) return l;
+          const p = products.find((x) => String(x.id) === l.productId);
+          return p ? { ...l, productName: l.productName || p.name || '', productCode: l.productCode || p.code || '' } : l;
+        }),
+      [lines, products],
+    );
+    // Một key cho một lần lập phiếu (chống tạo trùng khi bấm Lưu lại sau lỗi mạng); đổi khi "Thêm mới".
+    const submitKey = useSubmitKey();
 
     useEffect(() => {
       onStateChange?.(mode, isLoading, status);
@@ -102,6 +140,7 @@ export const GoodsReturnForm = forwardRef<GoodsReturnFormRef, GoodsReturnFormPro
     };
 
     const resetForm = () => {
+      submitKey.renew();
       setMode('ADD');
       setReturnId('');
       setReturnCode('');
@@ -109,7 +148,28 @@ export const GoodsReturnForm = forwardRef<GoodsReturnFormRef, GoodsReturnFormPro
       setCustomer(null);
       setReason('');
       setNote('');
+      setInvoiceId(undefined);
       setLines([]);
+      setFieldErrors({});
+    };
+
+    /** Bắt đầu sửa phiếu nháp. Phiếu đã xác nhận (đã nhập kho, giảm công nợ) thì không sửa được. */
+    const handleEdit = () => {
+      if (mode !== 'VIEW' || !returnId || status !== 'DRAFT' || isLoading) return;
+      editSnapshotRef.current = { customer, reason, note, lines };
+      submitKey.renew(); // key mới cho lần sửa này
+      setFieldErrors({});
+      setMode('EDIT');
+    };
+
+    const restoreSnapshot = () => {
+      const s = editSnapshotRef.current;
+      editSnapshotRef.current = null;
+      if (!s) return;
+      setCustomer(s.customer);
+      setReason(s.reason);
+      setNote(s.note);
+      setLines(s.lines);
       setFieldErrors({});
     };
 
@@ -141,12 +201,15 @@ export const GoodsReturnForm = forwardRef<GoodsReturnFormRef, GoodsReturnFormPro
     };
 
     const handleSubmit = async () => {
-      if (mode !== 'ADD' || isLoading) return; // Backend chưa có API sửa phiếu trả
+      if ((mode !== 'ADD' && mode !== 'EDIT') || isLoading) return;
+      const isEdit = mode === 'EDIT';
+      if (isEdit && !returnId) return;
       if (!validate()) return;
       setIsLoading(true);
       try {
-        const res = await ApiService.GoodsReturn.create({
+        const payload = {
           customerId: String(customer!.id),
+          invoiceId: invoiceId || undefined,
           reason: reason || undefined,
           note: note || undefined,
           lines: lines.map((l) => ({
@@ -155,7 +218,25 @@ export const GoodsReturnForm = forwardRef<GoodsReturnFormRef, GoodsReturnFormPro
             unitPrice: l.unitPrice,
             unitOfMeasure: l.unitOfMeasure || 'CAI',
           })),
-        });
+        };
+        if (isEdit) {
+          // Sửa nháp: ghi đè nội dung phiếu, chưa nhập kho. Nhập kho khi bấm "Xác nhận" (F9).
+          await submitWithKey(() => ApiService.GoodsReturn.update(returnId, payload, submitKey.key));
+          editSnapshotRef.current = null;
+          setStatus('DRAFT');
+          setMode('VIEW');
+          toast.success('Đã lưu thay đổi phiếu trả (nháp)');
+          queryClient.invalidateQueries({ queryKey: ['goods-returns'] });
+          try {
+            const fresh = await ApiService.GoodsReturn.getById(returnId);
+            if (fresh?.returnCode) setReturnCode(fresh.returnCode);
+            if (fresh?.status) setStatus(fresh.status);
+          } catch {
+            /* Đã lưu; không tải lại được thì giữ nội dung đang hiển thị. */
+          }
+          return;
+        }
+        const res = await submitWithKey(() => ApiService.GoodsReturn.create(payload, submitKey.key));
         const newId = typeof res === 'string' ? res : '';
         setReturnId(newId);
         setStatus('DRAFT');
@@ -172,7 +253,18 @@ export const GoodsReturnForm = forwardRef<GoodsReturnFormRef, GoodsReturnFormPro
           }
         }
       } catch (error) {
-        toast.error(errorMessage(error, 'Lưu phiếu trả thất bại'));
+        if (isEdit && hasErrorCode(error, INVALID_STATUS)) {
+          // Phiếu đã được xác nhận ở nơi khác: bỏ chỉnh sửa, hiển thị trạng thái mới nhất.
+          restoreSnapshot();
+          setMode('VIEW');
+          try {
+            const fresh = await ApiService.GoodsReturn.getById(returnId);
+            if (fresh?.status) setStatus(fresh.status);
+          } catch {
+            /* giữ trạng thái đang hiển thị */
+          }
+        }
+        notify.error(submitErrorMessage(error, 'Lưu phiếu trả thất bại'));
       } finally {
         setIsLoading(false);
       }
@@ -182,13 +274,13 @@ export const GoodsReturnForm = forwardRef<GoodsReturnFormRef, GoodsReturnFormPro
       if (!returnId || status !== 'DRAFT' || isLoading) return;
       setIsLoading(true);
       try {
-        await ApiService.GoodsReturn.confirm(returnId);
+        await submitWithKey(() => ApiService.GoodsReturn.confirm(returnId));
         setStatus('CONFIRMED');
         toast.success('Xác nhận trả hàng thành công');
         queryClient.invalidateQueries({ queryKey: ['goods-returns'] });
         queryClient.invalidateQueries({ queryKey: ['stocks'] });
       } catch (error) {
-        toast.error(errorMessage(error, 'Xác nhận trả hàng thất bại'));
+        notify.error(submitErrorMessage(error, 'Xác nhận trả hàng thất bại', 'confirm'));
       } finally {
         setIsLoading(false);
       }
@@ -196,6 +288,7 @@ export const GoodsReturnForm = forwardRef<GoodsReturnFormRef, GoodsReturnFormPro
 
     useImperativeHandle(ref, () => ({
       handleAdd: resetForm,
+      handleEdit,
       handleSubmit,
       handleCancel: () => {
         if (!isView) setDialog('CANCEL');
@@ -255,7 +348,7 @@ export const GoodsReturnForm = forwardRef<GoodsReturnFormRef, GoodsReturnFormPro
             { key: 'totalAmount', label: 'Tổng tiền trả', value: sumLines(lines), strong: true, tone: 'primary', testId: 'sum-total' },
           ]}
           lines={{
-            items: lines,
+            items: displayLines,
             testIdPrefix: 'return',
             priceLabel: 'Đơn giá',
             onAdd: addLine,
@@ -317,18 +410,23 @@ export const GoodsReturnForm = forwardRef<GoodsReturnFormRef, GoodsReturnFormPro
 
         <ConfirmDialog
           isOpen={dialog !== null}
-          title={dialog === 'EXIT' ? 'Thoát phiếu trả hàng' : 'Hủy phiếu trả hàng'}
+          title={dialog === 'EXIT' ? 'Thoát phiếu trả hàng' : mode === 'EDIT' ? 'Hủy sửa phiếu trả hàng' : 'Hủy phiếu trả hàng'}
           message={
             dialog === 'EXIT'
               ? 'Dữ liệu chưa được lưu. Bạn có chắc chắn muốn thoát?'
-              : 'Bạn có chắc chắn muốn hủy phiếu trả này? Các thay đổi sẽ không được lưu.'
+              : mode === 'EDIT'
+                ? 'Bỏ các thay đổi chưa lưu? Phiếu nháp sẽ giữ nguyên nội dung đã lưu trước đó.'
+                : 'Bạn có chắc chắn muốn hủy phiếu trả này? Các thay đổi sẽ không được lưu.'
           }
           confirmLabel="Đồng ý"
           cancelLabel="Quay lại"
           onConfirm={() => {
             const d = dialog;
             setDialog(null);
-            if (d === 'EXIT' || !returnId) closeCurrentTab();
+            if (d === 'CANCEL' && mode === 'EDIT') {
+              restoreSnapshot();
+              setMode('VIEW');
+            } else if (d === 'EXIT' || !returnId) closeCurrentTab();
             else setMode('VIEW');
           }}
           onCancel={() => setDialog(null)}

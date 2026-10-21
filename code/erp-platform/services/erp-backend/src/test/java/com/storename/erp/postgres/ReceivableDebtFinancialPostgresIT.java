@@ -54,8 +54,9 @@ public class ReceivableDebtFinancialPostgresIT extends PostgresIntegrationTest {
 
     @Test
     void testFinancialConsistencyOverMultipleTransactions() {
-        // opening = +5m
-        debtService.setOpeningBalance(customerId, branchId, new BigDecimal("5000000"), adminUserId, "Opening");
+        // invoice = +5m
+        debtService.increaseDebt(customerId, branchId, new BigDecimal("5000000"),
+                ReceivableDebtMovementType.INVOICE, "INVOICE", "INV-099", adminUserId, "Invoice created");
 
         // invoice = +10m
         debtService.increaseDebt(customerId, branchId, new BigDecimal("10000000"),

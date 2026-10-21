@@ -1,6 +1,8 @@
 import { PageHeader } from '../../shared/components/Page/PageHeader';
 import { PageContainer } from '../../shared/components/Page/PageContainer';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { ApiService } from '../../api/ApiService';
 import { Search, Plus, X, Edit2, Trash2 } from 'lucide-react';
 import type { Product } from '../../types/catalog';
 import { useAuth, ROLES } from '../../context/AuthContext';
@@ -21,7 +23,20 @@ export const ProductList: React.FC = () => {
   const [formData, setFormData] = useState<Partial<Product>>({});
   const [isEditing, setIsEditing] = useState(false);
 
-  const { query, createMutation, updateMutation, deleteMutation } = useProducts();
+  // Giá niêm yết thuộc từng chi nhánh. Nhân viên xem giá chi nhánh của mình; quản trị viên chọn chi nhánh.
+  const branchesQuery = useQuery({
+    queryKey: ['branches'],
+    queryFn: () => ApiService.Branch.getAll(),
+    enabled: isAdmin,
+  });
+  const branches: any[] = branchesQuery.data || [];
+  const [priceBranchId, setPriceBranchId] = useState<number | undefined>(undefined);
+  useEffect(() => {
+    if (isAdmin && priceBranchId === undefined && branches.length > 0) setPriceBranchId(Number(branches[0].id));
+  }, [isAdmin, branches, priceBranchId]);
+  const priceBranchName = branches.find((b) => Number(b.id) === priceBranchId)?.name;
+
+  const { query, createMutation, updateMutation, deleteMutation } = useProducts(isAdmin ? priceBranchId : undefined);
   const { data: response, isLoading: loading, isError, error, refetch } = query;
 
   const products: Product[] = (response as any) || [];
@@ -79,6 +94,18 @@ export const ProductList: React.FC = () => {
         title="Danh Mục Sản Phẩm"
         actions={
           <div className="flex items-center gap-2">
+            {isAdmin && branches.length > 0 && (
+              <select
+                aria-label="Bảng giá chi nhánh"
+                value={priceBranchId ?? ''}
+                onChange={(e) => setPriceBranchId(Number(e.target.value))}
+                className="erp-input h-8 w-[220px]"
+              >
+                {branches.map((b) => (
+                  <option key={b.id} value={b.id}>Giá niêm yết: {b.name}</option>
+                ))}
+              </select>
+            )}
             <div className="relative">
               <Search size={16} className="absolute left-2.5 top-2 text-ink-subtle" />
               <input
@@ -128,7 +155,7 @@ export const ProductList: React.FC = () => {
             <td>{p.code || '—'}</td>
             <td className="font-medium">{p.name}</td>
             <td className="text-ink-muted">{p.categoryName || '—'}</td>
-            <td className="num">{formatNumber(p.price ?? 0)}</td>
+            <td className="num">{p.price != null ? formatNumber(p.price) : '—'}</td>
             <td>{p.baseUnit || '—'}</td>
             <td className="text-right whitespace-nowrap">
                   <button type="button" onClick={() => handleOpenModal(p)} className="btn btn-ghost h-7 w-7 px-0 hover:text-primary" title={isAdmin ? 'Sửa' : 'Xem chi tiết'} aria-label={isAdmin ? 'Sửa' : 'Xem chi tiết'}>
@@ -148,7 +175,7 @@ export const ProductList: React.FC = () => {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-surface rounded-xl shadow-xl w-full max-w-3xl">
             <div className="flex justify-between items-center p-4 border-b border-line">
-              <h3 className="text-lg font-bold text-ink">{isEditing ? 'Cập nhật' : 'Thêm mới'} Sản Phẩm</h3>
+              <h3 className="text-lg font-bold text-ink">{!isAdmin ? 'Chi tiết' : isEditing ? 'Cập nhật' : 'Thêm mới'} Sản Phẩm</h3>
               <button onClick={handleCloseModal} className="text-ink hover:text-ink-muted">
                 <X size={24} />
               </button>
@@ -177,10 +204,10 @@ export const ProductList: React.FC = () => {
               </div>
               {isEditing && (
                 <div>
-                  <label className="block text-xs font-medium text-ink-subtle mb-1">Đơn giá bán (Từ Price List)</label>
+                  <label className="block text-xs font-medium text-ink-subtle mb-1">Giá niêm yết{isAdmin && priceBranchName ? ` (${priceBranchName})` : ' của chi nhánh'}</label>
                   <input
-                    type="number"
-                    value={formData.price ?? ''}
+                    type="text"
+                    value={formData.price != null ? formatNumber(formData.price) : 'Chưa có giá niêm yết'}
                     disabled={true}
                     className="w-full px-3 py-2 border border-line-strong rounded-lg bg-slate-100 text-ink-subtle cursor-not-allowed"
                   />

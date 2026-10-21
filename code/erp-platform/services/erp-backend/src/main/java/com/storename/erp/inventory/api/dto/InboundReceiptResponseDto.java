@@ -24,18 +24,18 @@ public class InboundReceiptResponseDto {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
-    private List<LineDto> lines;
+    private List<InboundReceiptLineResponseDto> lines;
 
     @Data
-    public static class LineDto {
+    public static class InboundReceiptLineResponseDto {
         private UUID id;
         private Long productId;
         private BigDecimal quantity;
         private BigDecimal unitCost;
         private String unitOfMeasure;
 
-        public static LineDto fromEntity(InboundReceiptLine entity) {
-            LineDto dto = new LineDto();
+        public static InboundReceiptLineResponseDto fromEntity(InboundReceiptLine entity) {
+            InboundReceiptLineResponseDto dto = new InboundReceiptLineResponseDto();
             dto.setId(entity.getId());
             dto.setProductId(entity.getProductId());
             dto.setQuantity(entity.getQuantity());
@@ -60,7 +60,7 @@ public class InboundReceiptResponseDto {
 
         if (entity.getLines() != null) {
             dto.setLines(entity.getLines().stream()
-                    .map(LineDto::fromEntity)
+                    .map(InboundReceiptLineResponseDto::fromEntity)
                     .collect(Collectors.toList()));
         }
         return dto;

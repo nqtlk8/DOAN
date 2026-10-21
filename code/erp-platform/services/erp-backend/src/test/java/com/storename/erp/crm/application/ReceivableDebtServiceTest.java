@@ -153,26 +153,4 @@ public class ReceivableDebtServiceTest {
 
         assertEquals(0, new BigDecimal("1234.5").compareTo(result));
     }
-
-    @Test
-    void setOpeningBalance_ShouldThrowException_WhenMovementsExist() {
-        when(movementRepository.existsByCustomerIdAndBranchId(customerId, branchId)).thenReturn(true);
-        assertThrows(RuntimeException.class, () -> receivableDebtService.setOpeningBalance(customerId, branchId, new BigDecimal("100"), UUID.randomUUID(), "Note"));
-    }
-
-    @Test
-    void setOpeningBalance_ShouldSetBalance_WhenNoMovementsExist() {
-        BigDecimal amount = new BigDecimal("1000.0");
-        when(movementRepository.existsByCustomerIdAndBranchId(customerId, branchId)).thenReturn(false);
-        when(debtRepository.findForUpdate(customerId, branchId)).thenReturn(Optional.empty());
-        when(customerRepository.findById(customerId)).thenReturn(Optional.of(mockCustomer));
-        when(debtRepository.save(any(ReceivableDebt.class))).thenAnswer(i -> i.getArgument(0));
-
-        ReceivableDebt result = receivableDebtService.setOpeningBalance(customerId, branchId, amount, UUID.randomUUID(), "Initial Balance");
-
-        assertNotNull(result);
-        assertEquals(0, amount.compareTo(result.getTotalDebt()));
-        verify(movementRepository).save(any());
-        verify(debtRepository).save(any(ReceivableDebt.class));
-    }
 }

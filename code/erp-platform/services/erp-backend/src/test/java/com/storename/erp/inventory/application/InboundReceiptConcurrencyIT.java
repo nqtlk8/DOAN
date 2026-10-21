@@ -48,7 +48,7 @@ public class InboundReceiptConcurrencyIT {
         com.storename.erp.inventory.domain.StockOnHand soh = new com.storename.erp.inventory.domain.StockOnHand(2L, 1L);
         stockOnHandRepository.save(soh);
         
-        InboundReceiptCreateDto.LineDto line = new InboundReceiptCreateDto.LineDto();
+        InboundReceiptCreateDto.InboundReceiptLineDto line = new InboundReceiptCreateDto.InboundReceiptLineDto();
         line.setProductId(2L);
         line.setQuantity(new BigDecimal("10.0"));
         line.setUnitCost(new BigDecimal("100.0"));

@@ -18,17 +18,6 @@ public interface InventoryFacade {
     BigDecimal getAvailableQuantity(Long productId, Long branchId);
 
     /**
-     * (Dự phòng Sprint 2.2+)
-     * Xác nhận giữ chỗ tồn kho (Reservation) cho đơn hàng Sales đang xử lý.
-     * @param productId ID sản phẩm.
-     * @param branchId ID chi nhánh.
-     * @param quantity Số lượng cần giữ chỗ.
-     * @param referenceId ID của SalesOrder.
-     * @return true nếu giữ chỗ thành công, false nếu không đủ hàng.
-     */
-    boolean reserveStock(Long productId, Long branchId, BigDecimal quantity, UUID referenceId);
-
-    /**
      * Ghi nhận xuất kho bán hàng (SALE): Tiêu thụ FIFO, giảm tồn kho, ghi nhận movement.
      * Không cho tồn âm: ném {@link com.storename.erp.inventory.domain.StockInsufficientException}
      * (HTTP 409, mã INSUFFICIENT_STOCK) nếu tồn kho không đủ.

@@ -21,6 +21,10 @@ public class GoodsReturn extends BaseEntity {
     @Column(name = "branch_id", nullable = false)
     private Long branchId;
 
+    /** Khóa lập phiếu (Idempotency-Key kèm phạm vi người dùng); UNIQUE, xem db/migration/V5__sales.sql. */
+    @Column(name = "request_key", unique = true, length = 255)
+    private String requestKey;
+
     @Column(name = "customer_id", nullable = false)
     private UUID customerId;
 

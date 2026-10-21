@@ -100,18 +100,6 @@ class HqProfileIT {
     }
 
     @Test
-    void hqCannotWriteReceivableDebtOpeningBalance() throws Exception {
-        // Opening balance cần branchId trong JWT; HQ không có -> 403
-        authenticateAs("ADMIN");
-
-        mockMvc.perform(post("/api/v1/receivable-debts/opening-balance")
-                .with(SecurityMockMvcRequestPostProcessors.csrf())
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"customerId\":\"11111111-1111-1111-1111-111111111111\",\"amount\":1000}"))
-                .andExpect(status().isForbidden());
-    }
-
-    @Test
     void hqCannotWriteInventoryInbound() throws Exception {
         authenticateAs("ADMIN");
 

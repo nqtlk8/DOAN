@@ -17,6 +17,14 @@ RUN rm -rf node_modules apps/*/node_modules packages/*/node_modules package-lock
 # npm 11 resolve được (kiểm 2026-10-01 với npm 11.21.0).
 RUN npm install -g npm@11.21.0
 
+# Mạng chập chờn (ECONNRESET) khi tải vài trăm gói: cho npm thử lại nhiều lần, chờ lâu hơn.
+# maxsockets thấp: ít kết nối song song hơn, ít bị ngắt hơn qua Wi-Fi / VPN / proxy.
+RUN npm config set fetch-retries 6 \
+ && npm config set fetch-retry-mintimeout 20000 \
+ && npm config set fetch-retry-maxtimeout 180000 \
+ && npm config set fetch-timeout 600000 \
+ && npm config set maxsockets 4
+
 # Install dependencies (will resolve workspace links)
 RUN npm install --no-audit --no-fund
 

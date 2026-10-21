@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { CustomerList } from '../CustomerList';
 import { useAuth } from '../../../context/AuthContext';
@@ -50,6 +50,26 @@ describe('CustomerList', () => {
     render(<CustomerList />);
 
     expect(screen.queryByTestId('customer-create-button')).not.toBeInTheDocument();
+  });
+
+  it('lets STAFF open customer details read-only, without delete', () => {
+    (useAuth as any).mockReturnValue({
+      hasRole: (role: string) => false,
+    });
+
+    (useCustomers as any).mockReturnValue({
+      customers: [{ id: '1', code: 'CUS-001', name: 'Test Customer', isActive: true }],
+      isLoading: false,
+      isError: false,
+    });
+
+    render(<CustomerList />);
+
+    expect(screen.getByText('Thao tác')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Xóa' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Xem chi tiết' }));
+    expect(screen.getByText('Chi Tiết Khách Hàng')).toBeInTheDocument();
+    expect(screen.queryByText('Lưu lại')).not.toBeInTheDocument();
   });
 });
 

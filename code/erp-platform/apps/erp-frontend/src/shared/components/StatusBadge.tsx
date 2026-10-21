@@ -3,6 +3,7 @@ import React from 'react';
 const MAP: Record<string, { label: string; className: string }> = {
   DRAFT: { label: 'Nháp', className: 'badge-warning' },
   CONFIRMED: { label: 'Đã xác nhận', className: 'badge-success' },
+  POSTED: { label: 'Đã ghi sổ', className: 'badge-success' },
   CANCELLED: { label: 'Đã hủy', className: 'badge-danger' },
 };
 

@@ -27,6 +27,11 @@ public class InboundReceipt extends BaseEntity {
     @Column(name = "branch_id", nullable = false)
     private Long branchId;
 
+    /** Khóa lập phiếu (Idempotency-Key kèm phạm vi người dùng); UNIQUE, xem db/migration/V5__sales.sql. */
+    @Column(name = "request_key", unique = true, length = 255)
+    @Setter
+    private String requestKey;
+
     @Column(name = "receipt_code", nullable = false, unique = true)
     private String receiptCode;
 
@@ -63,8 +68,23 @@ public class InboundReceipt extends BaseEntity {
         line.setReceipt(this);
     }
 
+    /**
+     * Sửa nội dung phiếu nháp: nhà cung cấp, ghi chú và thay toàn bộ dòng hàng. Phiếu đã xác nhận (đã nhập kho,
+     * tạo lớp giá vốn) thì không được sửa -> 409 INVALID_STATUS.
+     */
+    public void updateDraft(UUID supplierId, String note, List<InboundReceiptLine> newLines) {
+        if (this.status != ReceiptStatus.DRAFT) {
+            throw new com.storename.erp.common.exception.BusinessConflictException("INVALID_STATUS",
+                    "Chỉ phiếu nhập nháp (DRAFT) mới được sửa. Phiếu " + receiptCode + " đã được xác nhận (đã nhập kho).");
+        }
+        this.supplierId = supplierId;
+        this.note = note;
+        this.lines.clear();
+        newLines.forEach(this::addLine);
+    }
+
     public void confirm(UUID userId) {
-        if (this.status == ReceiptStatus.CONFIRMED) {
+        if (this.status != ReceiptStatus.DRAFT) {
             throw new com.storename.erp.common.exception.BusinessConflictException("INVALID_STATUS",
                     "Phiếu nhập " + receiptCode + " đã được xác nhận trước đó");
         }

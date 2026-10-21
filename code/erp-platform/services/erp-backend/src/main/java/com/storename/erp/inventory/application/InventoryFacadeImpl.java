@@ -45,17 +45,6 @@ public class InventoryFacadeImpl implements InventoryFacade {
     }
 
     /**
-     * Xác nhận giữ chỗ tồn kho (Reservation).
-     */
-    @Override
-    @Transactional
-    public boolean reserveStock(Long productId, Long branchId, BigDecimal quantity, UUID referenceId) {
-        log.debug("Reserving stock for product {} at branch {} ref {}", productId, branchId, referenceId);
-        // Dự phòng cho Sprint 2.2+, hiện tại luôn trả về true
-        return true;
-    }
-
-    /**
      * Ghi nhận xuất kho bán hàng (SALE): Tiêu thụ FIFO, giảm tồn kho, ghi nhận movement.
      */
     @Override

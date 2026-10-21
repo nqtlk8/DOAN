@@ -8,7 +8,6 @@ import com.storename.erp.inventory.infrastructure.StockOnHandRepository;
 import com.storename.erp.order.application.SalesInvoiceService;
 import com.storename.erp.order.application.dto.SalesInvoiceCreateDto;
 import com.storename.erp.order.application.dto.SalesInvoiceLineDto;
-import com.storename.erp.order.domain.PaymentMethod;
 import com.storename.erp.order.domain.SalesInvoice;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -89,7 +88,6 @@ public class DebtReconciliationIT {
         SalesInvoiceCreateDto dto = new SalesInvoiceCreateDto();
         dto.setInvoiceCode("INV-DEBT-001");
         dto.setCustomerId(customer.getId());
-        dto.setPaymentMethod(PaymentMethod.CREDIT);
 
         SalesInvoiceLineDto line = new SalesInvoiceLineDto();
         line.setProductId(productId);
@@ -99,12 +97,11 @@ public class DebtReconciliationIT {
         line.setUnitOfMeasure("PCS");
         dto.setLines(Collections.singletonList(line));
 
-        SalesInvoice draft = invoiceService.createDraft(dto, branchId);
         
         BigDecimal debtBefore = debtService.getCurrentDebt(customer.getId(), branchId);
         assertEquals(0, debtBefore.compareTo(BigDecimal.ZERO));
 
-        SalesInvoice confirmed = invoiceService.confirmInvoice(draft.getId(), UUID.randomUUID(), branchId);
+        SalesInvoice confirmed = com.storename.erp.support.SalesInvoiceFlows.createAndConfirm(invoiceService, dto, branchId, UUID.randomUUID());
 
         BigDecimal debtAfter = debtService.getCurrentDebt(customer.getId(), branchId);
         assertEquals(0, debtAfter.compareTo(new BigDecimal("2000")));

@@ -23,6 +23,10 @@ public class SalesInvoice extends BaseEntity {
     @Column(name = "branch_id", nullable = false)
     private Long branchId;
 
+    /** Khóa lập phiếu (Idempotency-Key kèm phạm vi người dùng); UNIQUE, xem db/migration/V5__sales.sql. */
+    @Column(name = "request_key", unique = true, length = 255)
+    private String requestKey;
+
     @Column(name = "customer_id", nullable = false)
     private UUID customerId;
 
@@ -41,10 +45,6 @@ public class SalesInvoice extends BaseEntity {
 
     @Column(name = "remaining_debt", nullable = false, precision = 19, scale = 4)
     private BigDecimal remainingDebt = BigDecimal.ZERO;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "payment_method", length = 50)
-    private PaymentMethod paymentMethod;
 
     @Column(columnDefinition = "TEXT")
     private String note;

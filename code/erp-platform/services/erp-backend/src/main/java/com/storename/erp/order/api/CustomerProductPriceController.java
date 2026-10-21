@@ -26,20 +26,6 @@ public class CustomerProductPriceController {
         this.priceService = priceService;
     }
 
-    /** Giá riêng còn hiệu lực của khách cho một sản phẩm (null nếu không có). */
-    @GetMapping("/{customerId}/product/{productId}")
-    @PreAuthorize("hasAnyAuthority('STAFF', 'ADMIN')")
-    public ApiResponse<BigDecimal> getPrice(
-            @PathVariable UUID customerId,
-            @PathVariable Long productId) {
-
-        Long branchId = AuthUtils.getBranchId();
-
-        return priceService.getPrice(customerId, productId, branchId)
-                .map(price -> ApiResponse.success(price, "Price found"))
-                .orElseGet(() -> ApiResponse.success(null, "No special price found"));
-    }
-
     /**
      * Giá áp dụng cho nhiều sản phẩm khi bán cho khách tại chi nhánh hiện tại.
      * Ưu tiên giá riêng của khách, sau đó giá niêm yết chi nhánh.

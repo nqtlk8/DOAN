@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component;
 import java.time.ZoneId;
 
 /**
- * Cấu hình múi giờ cho báo cáo analytics (quyết định M-06, docs/fix-dashboard/00-PLAN.md).
+ * Cấu hình múi giờ cho báo cáo analytics.
  *
  * <p>{@code businessZone}: múi giờ của "ngày nghiệp vụ" mà người dùng chọn trên dashboard (mặc định Asia/Ho_Chi_Minh).
  * {@code storageZone}: múi giờ mà {@code confirmed_at} được ghi ({@code LocalDateTime.now()} theo giờ JVM của instance

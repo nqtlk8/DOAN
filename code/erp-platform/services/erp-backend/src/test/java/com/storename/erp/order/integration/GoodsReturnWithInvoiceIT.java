@@ -78,7 +78,6 @@ public class GoodsReturnWithInvoiceIT {
         invoice.setBranchId(branchId);
         invoice.setCustomerId(customer.getId());
         invoice.setInvoiceCode("INV-RET-01");
-        invoice.setPaymentMethod(com.storename.erp.order.domain.PaymentMethod.CASH);
         com.storename.erp.order.domain.SalesInvoiceLine invLine = new com.storename.erp.order.domain.SalesInvoiceLine();
         invLine.setProductId(productId);
         invLine.setQuantity(new BigDecimal("5.0"));
@@ -107,7 +106,7 @@ public class GoodsReturnWithInvoiceIT {
         dto.setReturnCode("RET-1001");
         dto.setInvoiceId(invoiceId);
         
-        GoodsReturnCreateDto.LineDto line = new GoodsReturnCreateDto.LineDto();
+        GoodsReturnCreateDto.GoodsReturnLineDto line = new GoodsReturnCreateDto.GoodsReturnLineDto();
         line.setProductId(productId);
         line.setQuantity(new BigDecimal("2.0"));
         line.setUnitPrice(new BigDecimal("100000"));

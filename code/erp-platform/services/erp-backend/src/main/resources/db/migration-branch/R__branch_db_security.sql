@@ -28,6 +28,7 @@ DECLARE
         'stock_movement', 'cost_layer',
         'stock_on_hand', 'receivable_debt', 'receivable_debt_movement',
         'customer_product_price', 'customer_product_price_history',
+        'cash_receipt',
         -- cục bộ, không replicate
         'idempotency_record',
         'fact_sales', 'fact_stock_movement'

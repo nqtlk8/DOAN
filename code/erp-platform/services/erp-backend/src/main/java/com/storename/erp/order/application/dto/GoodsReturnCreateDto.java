@@ -27,10 +27,10 @@ public class GoodsReturnCreateDto {
 
     @NotEmpty(message = "Return must have at least one line")
     @Valid
-    private List<LineDto> lines;
+    private List<GoodsReturnLineDto> lines;
 
     @Data
-    public static class LineDto {
+    public static class GoodsReturnLineDto {
         @NotNull(message = "Product ID is required")
         private Long productId;
 

@@ -55,7 +55,7 @@ public class DashboardControllerTest {
                 .totalRevenue(new BigDecimal("5000"))
                 .build();
 
-        when(dashboardService.getDashboardMetrics(any(), any(), any())).thenReturn(dto);
+        when(dashboardService.getDashboardMetrics(any(), any(), any(), any())).thenReturn(dto);
 
         JwtAuthDetails details = new JwtAuthDetails("1", "token-123");
         UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
@@ -82,7 +82,7 @@ public class DashboardControllerTest {
 
     @Test
     void getDashboardMetrics_ShouldReturn400_WhenStartDateGreaterThanEndDate() throws Exception {
-        when(dashboardService.getDashboardMetrics(any(), any(), any()))
+        when(dashboardService.getDashboardMetrics(any(), any(), any(), any()))
                 .thenThrow(new IllegalArgumentException("startDateKey must be less than or equal to endDateKey"));
 
         JwtAuthDetails details = new JwtAuthDetails("1", "token-123");
@@ -97,7 +97,7 @@ public class DashboardControllerTest {
 
     @Test
     void getDashboardMetrics_ShouldReturn400_WhenDateIsInvalid() throws Exception {
-        when(dashboardService.getDashboardMetrics(any(), any(), any()))
+        when(dashboardService.getDashboardMetrics(any(), any(), any(), any()))
                 .thenThrow(new IllegalArgumentException("Invalid date format for startDateKey or endDateKey"));
 
         JwtAuthDetails details = new JwtAuthDetails("1", "token-123");

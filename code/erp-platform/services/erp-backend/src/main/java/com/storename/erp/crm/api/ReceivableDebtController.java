@@ -10,8 +10,6 @@ import com.storename.erp.crm.infrastructure.ReceivableDebtRepository;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -28,6 +26,7 @@ public class ReceivableDebtController {
     private final com.storename.erp.crm.application.ReceivableDebtService debtService;
     private final BranchFacade branchFacade;
     private final OrderFacade orderFacade;
+    private final com.storename.erp.crm.application.CashReceiptService cashReceiptService;
 
     @GetMapping
     @PreAuthorize("hasAnyAuthority('STAFF', 'ADMIN')")
@@ -45,24 +44,6 @@ public class ReceivableDebtController {
                 .toList();
         
         return ApiResponse.success(response);
-    }
-
-    @PostMapping("/opening-balance")
-    @PreAuthorize("hasAuthority('ADMIN')")
-    public ApiResponse<com.storename.erp.crm.application.dto.ReceivableDebtResponseDto> setOpeningBalance(
-            @RequestBody com.storename.erp.crm.api.dto.OpeningBalanceRequestDto request) {
-        
-        Long branchId = com.storename.erp.common.security.AuthUtils.getBranchIdOrNull();
-        if (branchId == null) {
-            throw new SecurityException("Branch ID is required to set opening balance");
-        }
-        
-        java.util.UUID userId = com.storename.erp.common.security.AuthUtils.getUserId();
-        
-        ReceivableDebt debt = debtService.setOpeningBalance(
-                request.getCustomerId(), branchId, request.getAmount(), userId, request.getNote());
-                
-        return ApiResponse.success(com.storename.erp.crm.application.dto.ReceivableDebtResponseDto.fromEntity(debt));
     }
 
     @GetMapping("/{customerId}/movements")
@@ -83,6 +64,7 @@ public class ReceivableDebtController {
                 
         java.util.Set<java.util.UUID> invoiceIds = new java.util.HashSet<>();
         java.util.Set<java.util.UUID> returnIds = new java.util.HashSet<>();
+        java.util.Set<java.util.UUID> receiptIds = new java.util.HashSet<>();
         
         for (ReceivableDebtMovement m : movements) {
             if (m.getRefId() != null && !m.getRefId().equals("INIT")) {
@@ -92,6 +74,8 @@ public class ReceivableDebtController {
                         invoiceIds.add(refUuid);
                     } else if ("GOODS_RETURN".equals(m.getRefType())) {
                         returnIds.add(refUuid);
+                    } else if (isCashReceiptRef(m.getRefType())) {
+                        receiptIds.add(refUuid);
                     }
                 } catch (Exception e) {
                     // ignore invalid UUID
@@ -105,6 +89,8 @@ public class ReceivableDebtController {
         java.util.Map<java.util.UUID, String> invoiceCodeMap = orderFacade.getInvoiceCodes(invoiceIds);
                 
         java.util.Map<java.util.UUID, String> returnCodeMap = orderFacade.getReturnCodes(returnIds);
+
+        java.util.Map<java.util.UUID, String> receiptCodeMap = cashReceiptService.getReceiptCodes(receiptIds);
         
         // 3. Construct response
         List<com.storename.erp.crm.application.dto.ReceivableDebtMovementResponseDto> response = movements.stream()
@@ -120,9 +106,8 @@ public class ReceivableDebtController {
                                 dto.setReferenceCode(invoiceCodeMap.get(refUuid));
                             } else if ("GOODS_RETURN".equals(m.getRefType())) {
                                 dto.setReferenceCode(returnCodeMap.get(refUuid));
-                            } else if (com.storename.erp.crm.application.ReceivableDebtService.REF_DEBT_PAYMENT.equals(m.getRefType())) {
-                                // Thu nợ độc lập không có chứng từ riêng: mã hiển thị TN + 8 ký tự đầu của refId.
-                                dto.setReferenceCode("TN" + m.getRefId().substring(0, 8).toUpperCase());
+                            } else if (isCashReceiptRef(m.getRefType())) {
+                                dto.setReferenceCode(receiptCodeMap.get(refUuid));
                             }
                         } catch (Exception e) {}
                     }
@@ -131,6 +116,12 @@ public class ReceivableDebtController {
                 .toList();
 
         return ApiResponse.success(response);
+    }
+
+    /** Biến động do phiếu thu: lập phiếu (PAYMENT) hoặc hủy phiếu (ADJUSTMENT). */
+    private static boolean isCashReceiptRef(String refType) {
+        return com.storename.erp.crm.application.CashReceiptService.REF_RECEIPT.equals(refType)
+                || com.storename.erp.crm.application.CashReceiptService.REF_RECEIPT_CANCEL.equals(refType);
     }
 
     @GetMapping("/{customerId}/balance")

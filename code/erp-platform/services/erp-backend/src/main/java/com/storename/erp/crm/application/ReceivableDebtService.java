@@ -20,12 +20,8 @@ import com.storename.erp.crm.infrastructure.ReceivableDebtMovementRepository;
 @Slf4j
 public class ReceivableDebtService {
 
-    /** Mã lỗi (HTTP 409): thao tác làm công nợ âm, ví dụ thu nợ vượt số nợ hiện có. */
+    /** Mã lỗi (HTTP 409): thao tác làm công nợ âm (giảm nợ vượt số dư hiện có). */
     public static final String DEBT_NEGATIVE = "DEBT_NEGATIVE";
-    /** Mã lỗi (HTTP 409): đặt số dư đầu kỳ khi khách đã có biến động công nợ. */
-    public static final String OPENING_BALANCE_EXISTS = "OPENING_BALANCE_EXISTS";
-    /** refType của biến động thu nợ độc lập (không gắn với hóa đơn). */
-    public static final String REF_DEBT_PAYMENT = "DEBT_PAYMENT";
 
     private final ReceivableDebtRepository debtRepository;
     private final CustomerRepository customerRepository;
@@ -81,22 +77,6 @@ public class ReceivableDebtService {
         return applied;
     }
 
-    /**
-     * Thu nợ độc lập: khách trả tiền cho khoản nợ đã có, không gắn với hóa đơn mới.
-     * Ghi biến động PAYMENT (refType {@value #REF_DEBT_PAYMENT}, refId sinh mới cho mỗi lần thu).
-     * Thu vượt số nợ hiện có bị từ chối (HTTP 409, mã {@value #DEBT_NEGATIVE}).
-     */
-    @Transactional
-    public ReceivableDebt recordPayment(UUID customerId, Long branchId, BigDecimal amount, UUID userId, String note) {
-        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("Số tiền thu nợ phải lớn hơn 0");
-        }
-        String paymentRef = UUID.randomUUID().toString();
-        String text = (note == null || note.isBlank()) ? "Thu nợ" : note;
-        return decreaseDebt(customerId, branchId, amount, ReceivableDebtMovementType.PAYMENT,
-                REF_DEBT_PAYMENT, paymentRef, userId, text);
-    }
-
     private ReceivableDebt processDebtChange(UUID customerId, Long branchId, BigDecimal signedAmount,
                                              ReceivableDebtMovementType type, String refType, String refId, 
                                              UUID userId, String note) {
@@ -120,37 +100,9 @@ public class ReceivableDebtService {
         return saved;
     }
 
-    @Transactional
-    public ReceivableDebt setOpeningBalance(UUID customerId, Long branchId, BigDecimal amount, UUID userId, String note) {
-        if (movementRepository.existsByCustomerIdAndBranchId(customerId, branchId)) {
-            throw new BusinessConflictException(OPENING_BALANCE_EXISTS,
-                    "Cannot set opening balance because movements already exist for this customer.");
-        }
-
-        ReceivableDebt debt = debtRepository.findForUpdate(customerId, branchId)
-                .orElseGet(() -> createDebtRecord(customerId, branchId));
-        
-        BigDecimal balanceBefore = BigDecimal.ZERO;
-        BigDecimal balanceAfter = amount;
-        
-        if (balanceAfter.compareTo(BigDecimal.ZERO) < 0) {
-            throw new IllegalArgumentException("Số dư đầu kỳ không được âm");
-        }
-
-        debt.setTotalDebt(balanceAfter);
-        ReceivableDebt saved = debtRepository.save(debt);
-        
-        recordMovement(saved.getCustomer(), branchId, ReceivableDebtMovementType.OPENING_BALANCE, amount, balanceBefore, balanceAfter, 
-                       "OPENING_BALANCE", "INIT", userId, note);
-        return saved;
-    }
-
     private void recordMovement(Customer customer, Long branchId, ReceivableDebtMovementType type, BigDecimal amount, 
                                 BigDecimal balanceBefore, BigDecimal balanceAfter, String refType, String refId, UUID userId, String note) {
         String idempotencyKey = type.name() + ":" + refType + ":" + refId;
-        if (type == ReceivableDebtMovementType.OPENING_BALANCE) {
-            idempotencyKey += ":" + customer.getId() + ":" + branchId;
-        }
 
         ReceivableDebtMovement movement = ReceivableDebtMovement.create(
                 branchId, customer, type, amount, balanceBefore, balanceAfter, refType, refId, userId, note, idempotencyKey

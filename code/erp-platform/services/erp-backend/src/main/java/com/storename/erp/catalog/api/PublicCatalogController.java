@@ -53,17 +53,6 @@ public class PublicCatalogController {
         return ResponseEntity.ok(ApiResponse.success(products));
     }
 
-    @GetMapping("/products/{id}")
-    public ResponseEntity<ApiResponse<ProductResponseDto>> getProductById(@PathVariable Long id) {
-        log.info("Public REST request to get product: {}", id);
-        ProductResponseDto product = productReader.getProductById(id);
-        if (!product.isActive()) {
-            // Sản phẩm ngừng bán không hiển thị công khai.
-            throw new ResourceNotFoundException("Product not found");
-        }
-        return ResponseEntity.ok(ApiResponse.success(product));
-    }
-
     private static boolean contains(String value, String term) {
         return value != null && value.toLowerCase(Locale.ROOT).contains(term);
     }

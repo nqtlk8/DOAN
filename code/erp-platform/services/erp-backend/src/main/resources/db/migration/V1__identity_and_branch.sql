@@ -49,6 +49,9 @@ CREATE TABLE user_account (
     email           VARCHAR(200),
     phone           VARCHAR(20),
     is_active       BOOLEAN      NOT NULL,
+    -- Phiên bản phiên đăng nhập (claim "tv" trong JWT). Tăng 1 khi đăng xuất hoặc phát hiện
+    -- refresh token bị dùng lại: mọi token cũ hết hiệu lực.
+    token_version   INTEGER      NOT NULL DEFAULT 0,
     created_at      TIMESTAMP(6) WITH TIME ZONE NOT NULL,
     updated_at      TIMESTAMP(6) WITH TIME ZONE NOT NULL
 );

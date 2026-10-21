@@ -18,7 +18,6 @@ import java.util.Map;
 
 import com.storename.erp.common.exception.BusinessConflictException;
 import com.storename.erp.common.exception.ResourceNotFoundException;
-import org.springframework.cache.annotation.CacheEvict;
 
 @Slf4j
 @Service
@@ -30,7 +29,6 @@ public class ProductWriter {
     private final CategoryRepository categoryRepository;
 
     @Transactional
-    @CacheEvict(value = "products", allEntries = true)
     public ProductResponseDto createProduct(ProductCreateDto dto) {
         log.info("Creating new product with code: {}", dto.getCode());
 
@@ -66,7 +64,6 @@ public class ProductWriter {
     }
 
     @Transactional
-    @CacheEvict(value = "products", allEntries = true)
     public ProductResponseDto updateProduct(Long id, ProductUpdateDto dto) {
         log.info("Updating product with id: {}", id);
 
@@ -134,7 +131,6 @@ public class ProductWriter {
     }
 
     @Transactional
-    @CacheEvict(value = "products", allEntries = true)
     public void softDeleteProduct(Long id) {
         log.info("Soft-deleting product with id: {}", id);
         Product product = productRepository.findById(id)

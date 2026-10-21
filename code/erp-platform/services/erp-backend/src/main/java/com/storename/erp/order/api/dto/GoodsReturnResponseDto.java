@@ -23,6 +23,8 @@ public class GoodsReturnResponseDto {
     private BigDecimal totalAmount;
     private BigDecimal refundAmount;
     private String reason;
+    /** Ghi chú của phiếu (cần để form sửa nháp không làm mất ghi chú khi lưu lại). */
+    private String note;
     private java.time.LocalDateTime createdAt;
     private UUID createdBy;
 
@@ -70,6 +72,7 @@ public class GoodsReturnResponseDto {
                 // Tiền hoàn lại cho khách (phần không trừ được vào công nợ khi xác nhận); 0 khi còn nháp.
                 .refundAmount(entity.getRefundAmount())
                 .reason(entity.getReason())
+                .note(entity.getNote())
                 .createdAt(entity.getCreatedAt())
                 .createdBy(entity.getCreatedBy())
                 .lines(lineDtos)

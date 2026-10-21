@@ -2,6 +2,7 @@ package com.storename.erp.common.aop;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.storename.erp.common.domain.IdempotencyRecord;
+import com.storename.erp.common.exception.BusinessConflictException;
 import com.storename.erp.common.infrastructure.IdempotencyRecordRepository;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.reflect.MethodSignature;
@@ -10,14 +11,12 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
-import org.springframework.http.HttpStatus;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.util.DigestUtils;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -38,7 +37,9 @@ import static org.mockito.Mockito.*;
  */
 class IdempotencyAspectStaleTest {
 
-    private static final String KEY = "key-123";
+    private static final String HEADER_KEY = "key-123";
+    /** Key lưu trong DB = phạm vi người dùng + ":" + header (không đăng nhập -> "anonymous"). */
+    private static final String KEY = "anonymous:" + HEADER_KEY;
     private static final String URI = "/api/v1/sales-invoices";
     private static final String ARG = "payload";
 
@@ -52,7 +53,7 @@ class IdempotencyAspectStaleTest {
     @SuppressWarnings("unchecked")
     void setUp() throws Exception {
         MockHttpServletRequest request = new MockHttpServletRequest("POST", URI);
-        request.addHeader("Idempotency-Key", KEY);
+        request.addHeader("Idempotency-Key", HEADER_KEY);
         RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
 
         when(tx.execute(any())).thenAnswer(inv -> ((TransactionCallback<Object>) inv.getArgument(0)).doInTransaction(null));
@@ -65,6 +66,7 @@ class IdempotencyAspectStaleTest {
     @AfterEach
     void tearDown() {
         RequestContextHolder.resetRequestAttributes();
+        org.springframework.security.core.context.SecurityContextHolder.clearContext();
     }
 
     /** Cùng công thức với IdempotencyAspect: md5(method:URI:json(args)). */
@@ -111,9 +113,8 @@ class IdempotencyAspectStaleTest {
         when(repo.deleteStaleInProgress(eq(KEY), anyString(), any())).thenReturn(0);
 
         assertThatThrownBy(() -> aspect.checkIdempotency(joinPoint))
-                .isInstanceOf(ResponseStatusException.class)
-                .satisfies(e -> assertThat(((ResponseStatusException) e).getStatusCode()).isEqualTo(HttpStatus.CONFLICT))
-                .hasMessageContaining("currently processing");
+                .isInstanceOf(BusinessConflictException.class)
+                .satisfies(e -> assertThat(((BusinessConflictException) e).getCode()).isEqualTo(IdempotencyAspect.IN_PROGRESS));
         verify(joinPoint, never()).proceed();
     }
 
@@ -124,8 +125,8 @@ class IdempotencyAspectStaleTest {
         when(repo.deleteStaleInProgress(eq(KEY), anyString(), any())).thenReturn(0);
 
         assertThatThrownBy(() -> aspect.checkIdempotency(joinPoint))
-                .isInstanceOf(ResponseStatusException.class)
-                .hasMessageContaining("reused for different request");
+                .isInstanceOf(BusinessConflictException.class)
+                .satisfies(e -> assertThat(((BusinessConflictException) e).getCode()).isEqualTo(IdempotencyAspect.KEY_REUSED));
         verify(joinPoint, never()).proceed();
     }
 
@@ -141,6 +142,75 @@ class IdempotencyAspectStaleTest {
 
         assertThat(result).isEqualTo("CACHED");
         verify(joinPoint, never()).proceed();
+    }
+
+    @Test
+    @DisplayName("Key lưu theo người dùng: người khác gửi cùng header không đụng bản ghi của người trước")
+    void key_isScopedByAuthenticatedUser() throws Throwable {
+        org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(
+                new org.springframework.security.authentication.UsernamePasswordAuthenticationToken("user-A", null, List.of()));
+        when(repo.findByIdempotencyKey(anyString())).thenReturn(Optional.empty());
+        when(joinPoint.proceed()).thenReturn("OK");
+
+        aspect.checkIdempotency(joinPoint);
+
+        ArgumentCaptor<IdempotencyRecord> saved = ArgumentCaptor.forClass(IdempotencyRecord.class);
+        verify(repo).saveAndFlush(saved.capture());
+        assertThat(saved.getValue().getIdempotencyKey()).isEqualTo("user-A:" + HEADER_KEY);
+        assertThat(saved.getValue().getResponseSnapshot()).isEqualTo("IN_PROGRESS");
+    }
+
+    @Test
+    @DisplayName("Trong lúc chạy nghiệp vụ, IdempotencyContext trả về key đã gắn phạm vi (để ghi request_key)")
+    void requestKey_isBoundDuringBusinessCall() throws Throwable {
+        when(repo.findByIdempotencyKey(anyString())).thenReturn(Optional.empty());
+        String[] seen = new String[1];
+        when(joinPoint.proceed()).thenAnswer(inv -> {
+            seen[0] = IdempotencyContext.currentRequestKey();
+            return "OK";
+        });
+
+        aspect.checkIdempotency(joinPoint);
+
+        assertThat(seen[0]).isEqualTo(KEY);
+    }
+
+    @Test
+    @DisplayName("Không gửi header: chạy nghiệp vụ bình thường, không ghi bản ghi, không có request_key")
+    void noHeader_proceedsWithoutRecord() throws Throwable {
+        RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(new MockHttpServletRequest("POST", URI)));
+        String[] seen = {"unset"};
+        when(joinPoint.proceed()).thenAnswer(inv -> {
+            seen[0] = IdempotencyContext.currentRequestKey();
+            return "OK";
+        });
+
+        assertThat(aspect.checkIdempotency(joinPoint)).isEqualTo("OK");
+        assertThat(seen[0]).isNull();
+        verifyNoInteractions(repo);
+    }
+
+    @Test
+    @DisplayName("Header quá dài -> 400, không chạy nghiệp vụ")
+    void tooLongKey_isRejected() throws Throwable {
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", URI);
+        request.addHeader("Idempotency-Key", "x".repeat(IdempotencyAspect.MAX_KEY_LENGTH + 1));
+        RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
+
+        assertThatThrownBy(() -> aspect.checkIdempotency(joinPoint)).isInstanceOf(IllegalArgumentException.class);
+        verify(joinPoint, never()).proceed();
+        verifyNoInteractions(repo);
+    }
+
+    @Test
+    @DisplayName("Nghiệp vụ lỗi: xóa bản ghi IN_PROGRESS để gửi lại cùng key chạy được")
+    void businessFailure_releasesKey() throws Throwable {
+        IdempotencyRecord inserted = inProgress(expectedHash());
+        when(repo.findByIdempotencyKey(KEY)).thenReturn(Optional.empty()).thenReturn(Optional.of(inserted));
+        when(joinPoint.proceed()).thenThrow(new IllegalStateException("thiếu hàng"));
+
+        assertThatThrownBy(() -> aspect.checkIdempotency(joinPoint)).isInstanceOf(IllegalStateException.class);
+        verify(repo).delete(inserted);
     }
 
     /** Phương thức mẫu để aspect đọc kiểu trả về khi deserialize snapshot. */

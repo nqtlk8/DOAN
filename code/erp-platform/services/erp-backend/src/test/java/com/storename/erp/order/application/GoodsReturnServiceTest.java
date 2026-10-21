@@ -61,7 +61,7 @@ public class GoodsReturnServiceTest {
     void createDraft_ShouldSaveAndReturnId() {
         GoodsReturnCreateDto dto = new GoodsReturnCreateDto();
         dto.setCustomerId(customerId);
-        GoodsReturnCreateDto.LineDto line = new GoodsReturnCreateDto.LineDto();
+        GoodsReturnCreateDto.GoodsReturnLineDto line = new GoodsReturnCreateDto.GoodsReturnLineDto();
         line.setProductId(10L);
         line.setQuantity(new BigDecimal("2.0"));
         line.setUnitPrice(new BigDecimal("50.0"));
@@ -82,6 +82,40 @@ public class GoodsReturnServiceTest {
             gr.getStatus() == GoodsReturnStatus.DRAFT &&
             gr.getTotalAmount().compareTo(new BigDecimal("100.0")) == 0
         ));
+    }
+
+    @Test
+    void createDraft_rejectsQuantityOverSoldBeforeSaving() {
+        UUID invoiceId = UUID.randomUUID();
+        SalesInvoice invoice = new SalesInvoice();
+        org.springframework.test.util.ReflectionTestUtils.setField(invoice, "id", invoiceId);
+        invoice.setBranchId(branchId);
+        invoice.setCustomerId(customerId);
+        invoice.setStatus(SalesInvoiceStatus.CONFIRMED);
+        SalesInvoiceLine invoiceLine = new SalesInvoiceLine();
+        invoiceLine.setProductId(10L);
+        invoiceLine.setUnitOfMeasure("Cai");
+        invoiceLine.setQuantity(new BigDecimal("4"));
+        invoice.addLine(invoiceLine);
+
+        GoodsReturnCreateDto dto = new GoodsReturnCreateDto();
+        dto.setCustomerId(customerId);
+        dto.setInvoiceId(invoiceId);
+        GoodsReturnCreateDto.GoodsReturnLineDto line = new GoodsReturnCreateDto.GoodsReturnLineDto();
+        line.setProductId(10L);
+        line.setQuantity(new BigDecimal("5"));
+        line.setUnitPrice(new BigDecimal("50"));
+        line.setUnitOfMeasure("Cai");
+        dto.setLines(List.of(line));
+
+        when(crmFacade.customerExists(customerId)).thenReturn(true);
+        when(invoiceRepository.findById(invoiceId)).thenReturn(Optional.of(invoice));
+        when(returnRepository.getTotalReturnedQuantity(invoiceId, 10L, "Cai")).thenReturn(BigDecimal.ZERO);
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> goodsReturnService.createDraft(branchId, dto));
+        assertTrue(ex.getMessage().contains("exceeds invoice sold quantity"));
+        verify(returnRepository, never()).save(any());
     }
 
     @Test
@@ -118,7 +152,7 @@ public class GoodsReturnServiceTest {
         invoiceLine.setUnitCost(new BigDecimal("30.0")); // giá vốn đã snapshot lúc bán
         invoice.addLine(invoiceLine);
 
-        when(returnRepository.findById(returnId)).thenReturn(Optional.of(goodsReturn));
+        when(returnRepository.findByIdForUpdate(returnId)).thenReturn(Optional.of(goodsReturn));
         when(invoiceRepository.findByIdForUpdate(invoiceId)).thenReturn(Optional.of(invoice));
         when(returnRepository.getTotalReturnedQuantity(invoiceId, 10L, "Cai")).thenReturn(BigDecimal.ZERO);
         when(debtService.decreaseDebtUpToBalance(eq(customerId), eq(branchId), any(), any(), anyString(), anyString(), any(), anyString()))

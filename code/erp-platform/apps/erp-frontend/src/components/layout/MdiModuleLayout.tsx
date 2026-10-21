@@ -19,6 +19,8 @@ export interface MdiModuleLayoutProps {
   onExit?: () => void;
   isLoading?: boolean;
   hideConfirm?: boolean;
+  /** Nhãn nút F8 (mặc định "Xóa"), vd "Hủy phiếu thu". */
+  deleteLabel?: string;
 }
 
 const Kbd = ({ children }: { children: React.ReactNode }) => (
@@ -40,6 +42,7 @@ export const MdiModuleLayout: React.FC<MdiModuleLayoutProps> = ({
   onExit,
   isLoading = false,
   hideConfirm = false,
+  deleteLabel = 'Xóa',
 }) => {
   const isView = mode === 'VIEW';
 
@@ -152,7 +155,7 @@ export const MdiModuleLayout: React.FC<MdiModuleLayoutProps> = ({
               )}
               {isView && onDelete && (
                 <button type="button" onClick={onDelete} data-testid="btn-delete" className="btn btn-danger shrink-0">
-                  <Trash2 size={14} /> Xóa <Kbd>F8</Kbd>
+                  <Trash2 size={14} /> {deleteLabel} <Kbd>F8</Kbd>
                 </button>
               )}
               {isView && onConfirm && !hideConfirm && (

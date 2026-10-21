@@ -155,4 +155,53 @@ class DashboardServiceTest {
         assertThat(fromCaptor.getValue()).isEqualTo(LocalDateTime.of(2026, 9, 1, 17, 0));
         assertThat(toCaptor.getValue()).isEqualTo(LocalDateTime.of(2026, 9, 2, 17, 0));
     }
+
+    private void stubEmptyPeriod(Long branchId) {
+        org.mockito.Mockito.lenient().when(analyticsDataPort.getSalesTotals(eq(branchId), any(LocalDateTime.class), any(LocalDateTime.class)))
+                .thenReturn(new SalesTotals(BigDecimal.ZERO, BigDecimal.ZERO));
+        org.mockito.Mockito.lenient().when(analyticsDataPort.getStockLevels(branchId)).thenReturn(List.of());
+        org.mockito.Mockito.lenient().when(analyticsDataPort.getProductIdsSoldInPeriod(eq(branchId), any(LocalDateTime.class), any(LocalDateTime.class))).thenReturn(List.of());
+        org.mockito.Mockito.lenient().when(catalogFacade.getProductBasicInfo(anyCollection())).thenReturn(Map.of());
+    }
+
+    @Test
+    void getDashboardMetrics_topLimit_truyenDungSoDong_vaTatCaDungGioiHanAnToan() {
+        Long branchId = 1L;
+        stubEmptyPeriod(branchId);
+
+        dashboardService.getDashboardMetrics(branchId, 20260901, 20260930, 50);
+        verify(analyticsDataPort).getTopProductsByRevenue(eq(branchId), any(LocalDateTime.class), any(LocalDateTime.class), eq(50));
+
+        dashboardService.getDashboardMetrics(branchId, 20260901, 20260930, 0);
+        verify(analyticsDataPort).getTopProductsByRevenue(eq(branchId), any(LocalDateTime.class), any(LocalDateTime.class), eq(DashboardService.MAX_TOP_PRODUCTS));
+
+        dashboardService.getDashboardMetrics(branchId, 20260901, 20260930, null);
+        dashboardService.getDashboardMetrics(branchId, 20260901, 20260930);
+        verify(analyticsDataPort, org.mockito.Mockito.times(2)).getTopProductsByRevenue(eq(branchId), any(LocalDateTime.class), any(LocalDateTime.class), eq(10));
+    }
+
+    @Test
+    void getDashboardMetrics_topLimitKhongHopLe_bi400() {
+        assertThatThrownBy(() -> dashboardService.getDashboardMetrics(1L, 20260901, 20260930, 7))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> dashboardService.getDashboardMetrics(1L, 20260901, 20260930, -1))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void getDashboardMetrics_topProducts_giuNguyenGiaVonVaLoiNhuanTuPort() {
+        Long branchId = 1L;
+        stubEmptyPeriod(branchId);
+        ProductPerformanceDto p = ProductPerformanceDto.builder().productId(1L).productName("SP")
+                .quantitySold(BigDecimal.valueOf(2)).revenue(BigDecimal.valueOf(10000))
+                .cogs(BigDecimal.valueOf(6000)).grossProfit(BigDecimal.valueOf(4000)).costIncomplete(false).build();
+        when(analyticsDataPort.getTopProductsByRevenue(eq(branchId), any(LocalDateTime.class), any(LocalDateTime.class), eq(20))).thenReturn(List.of(p));
+
+        DashboardMetricsDto result = dashboardService.getDashboardMetrics(branchId, 20260901, 20260930, 20);
+
+        assertThat(result.getTopSellingProducts()).hasSize(1);
+        assertThat(result.getTopSellingProducts().get(0).getCogs()).isEqualByComparingTo("6000");
+        assertThat(result.getTopSellingProducts().get(0).getGrossProfit()).isEqualByComparingTo("4000");
+        assertThat(result.getTopSellingProducts().get(0).isCostIncomplete()).isFalse();
+    }
 }

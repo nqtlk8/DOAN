@@ -4,6 +4,5 @@ public enum ReceivableDebtMovementType {
     INVOICE,
     PAYMENT,
     RETURN,
-    ADJUSTMENT,
-    OPENING_BALANCE
+    ADJUSTMENT
 }

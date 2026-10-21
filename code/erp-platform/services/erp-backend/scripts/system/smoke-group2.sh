@@ -73,11 +73,11 @@ if [ -z "${CAT_ID:-}" ]; then
 fi
 [ -z "$CAT_ID" ] && { echo "Không tìm thấy danh mục con, đặt CAT_ID=<id>"; exit 2; }
 
-# ---------------------------------------------------------------- V12 trên PostgreSQL
-V12=$(docker compose exec -T hq-db psql -U "${POSTGRES_USER:-erp_user}" -d erp_hq -tAc \
+# ---------------------------------------------------------------- Ràng buộc giá niêm yết trên PostgreSQL
+PRICE_UK=$(docker compose exec -T hq-db psql -U "${POSTGRES_USER:-erp_user}" -d erp_hq -tAc \
     "SELECT count(*) FROM pg_constraint WHERE conname = 'uk_price_list_product_branch'" 2>/dev/null | tr -d '[:space:]')
-CODE="$V12"; BODY=""
-check SMK-00 "migration V12 tạo ràng buộc uk_price_list_product_branch" "1"
+CODE="$PRICE_UK"; BODY=""
+check SMK-00 "migration V2 tạo ràng buộc uk_price_list_product_branch" "1"
 
 # ---------------------------------------------------------------- sản phẩm (TC-P01..P04)
 P="SMK-P-$S"

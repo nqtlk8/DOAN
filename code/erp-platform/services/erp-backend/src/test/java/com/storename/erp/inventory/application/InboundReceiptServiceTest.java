@@ -47,7 +47,7 @@ public class InboundReceiptServiceTest {
     void createDraft_ShouldSaveAndReturnId() {
         InboundReceiptCreateDto dto = new InboundReceiptCreateDto();
         dto.setReceiptCode("NK-TEST");
-        InboundReceiptCreateDto.LineDto lineDto = new InboundReceiptCreateDto.LineDto();
+        InboundReceiptCreateDto.InboundReceiptLineDto lineDto = new InboundReceiptCreateDto.InboundReceiptLineDto();
         lineDto.setProductId(10L);
         lineDto.setQuantity(new BigDecimal("50.0"));
         lineDto.setUnitCost(new BigDecimal("100.0"));
@@ -81,7 +81,7 @@ public class InboundReceiptServiceTest {
         org.springframework.test.util.ReflectionTestUtils.setField(line, "id", UUID.randomUUID());
         receipt.addLine(line);
 
-        when(inboundRepo.findById(receiptId)).thenReturn(Optional.of(receipt));
+        when(inboundRepo.findByIdForUpdate(receiptId)).thenReturn(Optional.of(receipt));
         
         StockOnHand stock = new StockOnHand(10L, branchId);
         // Dòng tồn được khóa ghi (findForUpdate) trước khi cộng.

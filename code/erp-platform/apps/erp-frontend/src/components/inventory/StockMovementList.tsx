@@ -12,6 +12,7 @@ const TYPE_LABEL: Record<string, { label: string; className: string }> = {
   INBOUND: { label: 'INBOUND', className: 'bg-success-soft text-success' },
   SALE: { label: 'SALE', className: 'bg-danger-soft text-danger' },
   RETURN: { label: 'RETURN', className: 'bg-primary-soft text-primary' },
+  ADJUSTMENT: { label: 'ADJUSTMENT', className: 'bg-warning-soft text-warning' },
 };
 
 export const StockMovementList: React.FC<StockMovementListProps> = ({ productId }) => {
@@ -41,16 +42,18 @@ export const StockMovementList: React.FC<StockMovementListProps> = ({ productId 
         }
       >
         {movements.map((m: StockMovement, i: number) => {
-          const t = TYPE_LABEL[m.movementType] ?? { label: m.movementType, className: 'bg-slate-100 text-ink' };
+          const movementType = m.movementType ?? '';
+          const qty = m.quantity ?? 0;
+          const t = TYPE_LABEL[movementType] ?? { label: movementType, className: 'bg-slate-100 text-ink' };
           return (
             <tr key={m.id || i}>
               <td>{formatDateTime(m.createdAt)}</td>
               <td>
                 <span className={`badge ${t.className}`}>{t.label}</span>
               </td>
-              <td className={`num font-medium ${m.quantity > 0 ? 'text-success' : 'text-danger'}`}>
-                {m.quantity > 0 ? '+' : ''}
-                {formatNumber(m.quantity, 3)}
+              <td className={`num font-medium ${qty > 0 ? 'text-success' : 'text-danger'}`}>
+                {qty > 0 ? '+' : ''}
+                {formatNumber(qty, 3)}
               </td>
               <td>{m.refType || '—'}</td>
               <td className="text-ink-subtle">{m.refId || '—'}</td>

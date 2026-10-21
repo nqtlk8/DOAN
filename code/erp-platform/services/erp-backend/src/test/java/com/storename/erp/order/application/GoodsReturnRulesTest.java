@@ -99,7 +99,7 @@ class GoodsReturnRulesTest {
     }
 
     private void stubFound() {
-        when(returnRepository.findById(returnId)).thenReturn(Optional.of(goodsReturn));
+        when(returnRepository.findByIdForUpdate(returnId)).thenReturn(Optional.of(goodsReturn));
         when(invoiceRepository.findByIdForUpdate(invoiceId)).thenReturn(Optional.of(invoice));
     }
 
@@ -201,7 +201,7 @@ class GoodsReturnRulesTest {
     void withoutInvoice_noQuantityCheck() {
         goodsReturn.setInvoiceId(null);
         returnLine(10L, "Cai", "1000", "0");
-        when(returnRepository.findById(returnId)).thenReturn(Optional.of(goodsReturn));
+        when(returnRepository.findByIdForUpdate(returnId)).thenReturn(Optional.of(goodsReturn));
         when(inventoryFacade.getLatestLayerUnitCost(10L, branchId)).thenReturn(new BigDecimal("25"));
         when(invoiceRepository.findRecentSaleUnitCosts(any(), any(), any(), any())).thenReturn(java.util.List.of());
         stubDebtFullyApplied();
@@ -220,7 +220,7 @@ class GoodsReturnRulesTest {
         returnLine(30L, "Cai", "1", "10");
         returnLine(10L, "Cai", "1", "10");
         returnLine(20L, "Cai", "1", "10");
-        when(returnRepository.findById(returnId)).thenReturn(Optional.of(goodsReturn));
+        when(returnRepository.findByIdForUpdate(returnId)).thenReturn(Optional.of(goodsReturn));
         when(invoiceRepository.findRecentSaleUnitCosts(any(), any(), any(), any())).thenReturn(java.util.List.of());
         stubDebtFullyApplied();
 
@@ -238,7 +238,7 @@ class GoodsReturnRulesTest {
         goodsReturn.setInvoiceId(null);
         returnLine(10L, "Cai", "1", "10");
         goodsReturn.confirm(userId);
-        when(returnRepository.findById(returnId)).thenReturn(Optional.of(goodsReturn));
+        when(returnRepository.findByIdForUpdate(returnId)).thenReturn(Optional.of(goodsReturn));
 
         assertThatThrownBy(() -> service.confirmReturn(returnId, branchId, userId))
                 .isInstanceOf(BusinessConflictException.class)
@@ -248,11 +248,11 @@ class GoodsReturnRulesTest {
     @Test
     @DisplayName("Không tìm thấy -> 404; khác chi nhánh -> 403; token không có chi nhánh -> 403")
     void notFound_wrongBranch_noBranch() {
-        when(returnRepository.findById(returnId)).thenReturn(Optional.empty());
+        when(returnRepository.findByIdForUpdate(returnId)).thenReturn(Optional.empty());
         assertThatThrownBy(() -> service.confirmReturn(returnId, branchId, userId))
                 .isInstanceOf(ResourceNotFoundException.class);
 
-        when(returnRepository.findById(returnId)).thenReturn(Optional.of(goodsReturn));
+        when(returnRepository.findByIdForUpdate(returnId)).thenReturn(Optional.of(goodsReturn));
         assertThatThrownBy(() -> service.confirmReturn(returnId, 2L, userId))
                 .isInstanceOf(AccessDeniedException.class);
 

@@ -15,8 +15,13 @@ const idempotencyCache = new Map<string, { key: string, timestamp: number }>();
 
 axiosInstance.interceptors.request.use(
   (config: any) => {
-    // Add Idempotency-Key
-    if (config.method === 'post' || config.method === 'put') {
+    // Idempotency-Key: form chứng từ tự gắn key theo lần lập phiếu (shared/idempotency/submitKey.ts) -> giữ nguyên.
+    // Các request POST/PUT khác dùng key dự phòng theo nội dung, sống 5 giây (chống bấm đúp).
+    const hasOwnKey =
+      typeof config.headers?.has === 'function'
+        ? config.headers.has('Idempotency-Key')
+        : !!config.headers?.['Idempotency-Key'];
+    if ((config.method === 'post' || config.method === 'put') && !hasOwnKey) {
       const payloadStr = config.data ? JSON.stringify(config.data) : '';
       const cacheKey = `${config.method}:${config.url}:${payloadStr}`;
       const now = Date.now();

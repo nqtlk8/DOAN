@@ -91,7 +91,7 @@ public class FullE2EFlowIT {
         InboundReceiptCreateDto receiptDto = new InboundReceiptCreateDto();
         receiptDto.setReceiptCode("RC-E2E-1");
         receiptDto.setSupplierId(UUID.randomUUID()); // Dummy supplier
-        InboundReceiptCreateDto.LineDto receiptLine = new InboundReceiptCreateDto.LineDto();
+        InboundReceiptCreateDto.InboundReceiptLineDto receiptLine = new InboundReceiptCreateDto.InboundReceiptLineDto();
         receiptLine.setProductId(productId);
         receiptLine.setQuantity(new BigDecimal("100"));
         receiptLine.setUnitCost(new BigDecimal("1000"));
@@ -115,8 +115,7 @@ public class FullE2EFlowIT {
         invoiceLine.setUnitOfMeasure("Cai");
         invoiceDto.setLines(List.of(invoiceLine));
 
-        SalesInvoice invoice = salesInvoiceService.createDraft(invoiceDto, branchId);
-        salesInvoiceService.confirmInvoice(invoice.getId(), UUID.randomUUID(), branchId);
+        SalesInvoice invoice = com.storename.erp.support.SalesInvoiceFlows.createAndConfirm(salesInvoiceService, invoiceDto, branchId, UUID.randomUUID());
 
         // Check Stock: 100 - 10 = 90
         stock = stockOnHandRepository.findByProductIdAndBranchId(productId, branchId).orElseThrow();
@@ -136,7 +135,7 @@ public class FullE2EFlowIT {
         returnDto.setCustomerId(customerId);
         returnDto.setInvoiceId(invoice.getId());
         returnDto.setReturnCode("RET-E2E-1");
-        GoodsReturnCreateDto.LineDto returnLine = new GoodsReturnCreateDto.LineDto();
+        GoodsReturnCreateDto.GoodsReturnLineDto returnLine = new GoodsReturnCreateDto.GoodsReturnLineDto();
         returnLine.setProductId(productId);
         returnLine.setQuantity(new BigDecimal("2"));
         returnLine.setUnitPrice(new BigDecimal("1500"));

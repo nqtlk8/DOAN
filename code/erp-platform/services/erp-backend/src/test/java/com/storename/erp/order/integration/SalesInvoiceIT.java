@@ -8,8 +8,8 @@ import com.storename.erp.inventory.infrastructure.StockOnHandRepository;
 import com.storename.erp.order.application.SalesInvoiceService;
 import com.storename.erp.order.application.dto.SalesInvoiceCreateDto;
 import com.storename.erp.order.application.dto.SalesInvoiceLineDto;
-import com.storename.erp.order.domain.PaymentMethod;
 import com.storename.erp.order.domain.SalesInvoice;
+import com.storename.erp.order.domain.SalesInvoiceStatus;
 import com.storename.erp.order.infrastructure.SalesInvoiceRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -24,6 +24,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SpringBootTest
 @ActiveProfiles("branch")
@@ -91,23 +92,32 @@ public class SalesInvoiceIT {
         costLayerRepo.save(com.storename.erp.inventory.domain.CostLayer.fromInbound(productId, branchId, new BigDecimal("100"), new BigDecimal("500"), null));
     }
 
-    @Test
-    void testDebtSnapshotImmutability() {
+    private SalesInvoiceCreateDto invoiceDto(String code, Long product, String qty, String price) {
         SalesInvoiceCreateDto dto = new SalesInvoiceCreateDto();
-        dto.setInvoiceCode("INV-TEST-002");
+        dto.setInvoiceCode(code);
         dto.setCustomerId(customer.getId());
-        dto.setPaymentMethod(PaymentMethod.CREDIT);
-
         SalesInvoiceLineDto line = new SalesInvoiceLineDto();
-        line.setProductId(productId);
+        line.setProductId(product);
         line.setProductName("Test Product");
-        line.setQuantity(new BigDecimal("2"));
-        line.setUnitPrice(new BigDecimal("1000"));
+        line.setQuantity(new BigDecimal(qty));
+        line.setUnitPrice(new BigDecimal(price));
         line.setUnitOfMeasure("PCS");
         dto.setLines(Collections.singletonList(line));
+        return dto;
+    }
 
+    private SalesInvoice createAndConfirm(SalesInvoiceCreateDto dto) {
         SalesInvoice draft = invoiceService.createDraft(dto, branchId);
-        SalesInvoice confirmed = invoiceService.confirmInvoice(draft.getId(), UUID.randomUUID(), branchId);
+        return invoiceService.confirmInvoice(draft.getId(), branchId, UUID.randomUUID());
+    }
+
+    private BigDecimal stockQty() {
+        return stockRepo.findByProductIdAndBranchId(productId, branchId).orElseThrow().getQuantity();
+    }
+
+    @Test
+    void testDebtSnapshotImmutability() {
+        SalesInvoice confirmed = createAndConfirm(invoiceDto("INV-TEST-002", productId, "2", "1000"));
 
         assertEquals(0, confirmed.getPreviousDebt().compareTo(BigDecimal.ZERO));
         assertEquals(0, confirmed.getRemainingDebt().compareTo(new BigDecimal("2000")));
@@ -118,70 +128,107 @@ public class SalesInvoiceIT {
 
         // Refetch invoice
         SalesInvoice refetched = invoiceRepo.findById(confirmed.getId()).orElseThrow();
-        
+
         // Snapshot should remain unchanged
         assertEquals(0, refetched.getPreviousDebt().compareTo(BigDecimal.ZERO));
         assertEquals(0, refetched.getRemainingDebt().compareTo(new BigDecimal("2000")));
     }
 
     @Test
-    void testTransactionRollbackOnError() {
-        SalesInvoiceCreateDto dto = new SalesInvoiceCreateDto();
-        dto.setInvoiceCode("INV-TEST-003");
-        dto.setCustomerId(customer.getId());
-        dto.setPaymentMethod(PaymentMethod.CASH);
+    void draft_doesNotTouchStockOrDebt() {
+        SalesInvoice draft = invoiceService.createDraft(invoiceDto("INV-DRAFT-01", productId, "5", "1000"), branchId);
 
-        SalesInvoiceLineDto line = new SalesInvoiceLineDto();
-        line.setProductId(productId);
-        line.setProductName("Test Product");
-        line.setQuantity(new BigDecimal("2"));
-        line.setUnitPrice(new BigDecimal("1000"));
-        line.setUnitOfMeasure("PCS");
-        dto.setLines(Collections.singletonList(line));
-
-        SalesInvoice draft = invoiceService.createDraft(dto, branchId);
-        
-        // Simulating error by passing a wrong branchId which will throw SecurityException
-        assertThrows(SecurityException.class, () -> {
-            invoiceService.confirmInvoice(draft.getId(), UUID.randomUUID(), 1L);
-        });
-
-        // Debt should not increase
-        BigDecimal debtAfter = debtService.getCurrentDebt(customer.getId(), branchId);
-        assertEquals(0, debtAfter.compareTo(BigDecimal.ZERO));
+        assertEquals(SalesInvoiceStatus.DRAFT, invoiceRepo.findById(draft.getId()).orElseThrow().getStatus());
+        assertEquals(0, stockQty().compareTo(new BigDecimal("100")), "lưu nháp không trừ kho");
+        assertEquals(0, debtService.getCurrentDebt(customer.getId(), branchId).compareTo(BigDecimal.ZERO),
+                "lưu nháp không ghi công nợ");
     }
 
     @Test
-    void confirmInvoice_exceedsStock() {
-        SalesInvoiceCreateDto dto = new SalesInvoiceCreateDto();
-        dto.setInvoiceCode("INV-TEST-EXCEED");
-        dto.setCustomerId(customer.getId());
-        dto.setPaymentMethod(PaymentMethod.CASH);
+    void confirm_deductsStockAndRaisesDebt() {
+        SalesInvoice draft = invoiceService.createDraft(invoiceDto("INV-CONF-01", productId, "5", "1000"), branchId);
 
-        SalesInvoiceLineDto line = new SalesInvoiceLineDto();
-        line.setProductId(productId);
-        line.setProductName("Test Product");
-        line.setQuantity(new BigDecimal("150")); // Exceeds 100 stock
-        line.setUnitPrice(new BigDecimal("1000"));
-        line.setUnitOfMeasure("PCS");
-        dto.setLines(Collections.singletonList(line));
+        SalesInvoice confirmed = invoiceService.confirmInvoice(draft.getId(), branchId, UUID.randomUUID());
 
-        SalesInvoice draft = invoiceService.createDraft(dto, branchId);
-        // Không cho tồn âm: xác nhận bị từ chối, toàn bộ giao dịch rollback
-        com.storename.erp.inventory.domain.StockInsufficientException ex = assertThrows(
-                com.storename.erp.inventory.domain.StockInsufficientException.class,
-                () -> invoiceService.confirmInvoice(draft.getId(), UUID.randomUUID(), branchId));
-        org.junit.jupiter.api.Assertions.assertTrue(ex.getMessage().contains("tồn kho còn 100, cần 150"), ex.getMessage());
+        assertEquals(SalesInvoiceStatus.CONFIRMED, confirmed.getStatus());
+        assertEquals(0, stockQty().compareTo(new BigDecimal("95")));
+        assertEquals(0, debtService.getCurrentDebt(customer.getId(), branchId).compareTo(new BigDecimal("5000")));
+        assertEquals(0, confirmed.getLines().get(0).getUnitCost().compareTo(new BigDecimal("500")), "giá vốn FIFO được chụp khi xác nhận");
+    }
 
-        StockOnHand stock = stockRepo.findByBranchId(branchId).get(0);
-        assertEquals(100, stock.getQuantity().intValue());
-        assertEquals(com.storename.erp.order.domain.SalesInvoiceStatus.DRAFT,
-                invoiceRepo.findById(draft.getId()).orElseThrow().getStatus());
+    @Test
+    void confirmTwice_secondIsRejected_effectsAppliedOnce() {
+        SalesInvoice draft = invoiceService.createDraft(invoiceDto("INV-CONF-02", productId, "5", "1000"), branchId);
+        invoiceService.confirmInvoice(draft.getId(), branchId, UUID.randomUUID());
+
+        com.storename.erp.common.exception.BusinessConflictException ex = assertThrows(
+                com.storename.erp.common.exception.BusinessConflictException.class,
+                () -> invoiceService.confirmInvoice(draft.getId(), branchId, UUID.randomUUID()));
+        assertEquals(SalesInvoice.INVALID_STATUS, ex.getCode());
+        assertEquals(0, stockQty().compareTo(new BigDecimal("95")), "kho chỉ bị trừ một lần");
+        assertEquals(0, debtService.getCurrentDebt(customer.getId(), branchId).compareTo(new BigDecimal("5000")),
+                "công nợ chỉ tăng một lần");
+    }
+
+    @Test
+    void confirmFromAnotherBranch_isForbidden() {
+        SalesInvoice draft = invoiceService.createDraft(invoiceDto("INV-CONF-03", productId, "1", "1000"), branchId);
+
+        assertThrows(org.springframework.security.access.AccessDeniedException.class,
+                () -> invoiceService.confirmInvoice(draft.getId(), branchId + 1, UUID.randomUUID()));
+        assertEquals(SalesInvoiceStatus.DRAFT, invoiceRepo.findById(draft.getId()).orElseThrow().getStatus());
+    }
+
+    @Test
+    void createDraft_sameRequestKey_returnsExistingInvoice() {
+        String key = "user-1:" + UUID.randomUUID();
+        SalesInvoice first = invoiceService.createDraft(invoiceDto(null, productId, "1", "1000"), branchId, key);
+        SalesInvoice second = invoiceService.createDraft(invoiceDto(null, productId, "1", "1000"), branchId, key);
+
+        assertEquals(first.getId(), second.getId());
+        assertEquals(1, invoiceRepo.count(), "cùng khóa lập phiếu chỉ tạo một hóa đơn");
+        assertEquals(key, invoiceRepo.findById(first.getId()).orElseThrow().getRequestKey());
+    }
+
+    @Test
+    void createDraft_duplicateInvoiceCode_isRejected() {
+        invoiceService.createDraft(invoiceDto("INV-DUP-01", productId, "1", "1000"), branchId);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> invoiceService.createDraft(invoiceDto("INV-DUP-01", productId, "1", "1000"), branchId));
+    }
+
+    @Test
+    void confirmFailure_rollsBack_invoiceStaysDraft() {
+        // Sản phẩm không có tồn/lớp giá vốn: bước trừ kho ném lỗi khi xác nhận.
+        Long unknownProductId = productId + 1_000_000L;
+        SalesInvoice draft = invoiceService.createDraft(invoiceDto("INV-TEST-003", unknownProductId, "2", "1000"), branchId);
+
+        assertThrows(RuntimeException.class, () -> invoiceService.confirmInvoice(draft.getId(), branchId, UUID.randomUUID()));
+
+        // Xác nhận rollback toàn bộ: hóa đơn vẫn là DRAFT, công nợ không đổi.
+        assertEquals(SalesInvoiceStatus.DRAFT, invoiceRepo.findById(draft.getId()).orElseThrow().getStatus());
         assertEquals(0, debtService.getCurrentDebt(customer.getId(), branchId).compareTo(BigDecimal.ZERO));
     }
 
     @Test
-    void confirmInvoice_multipleProducts() {
+    void confirm_exceedsStock_isRejectedAndRolledBack() {
+        SalesInvoice draft = invoiceService.createDraft(invoiceDto("INV-TEST-EXCEED", productId, "150", "1000"), branchId);
+
+        // Không cho tồn âm: xác nhận bị từ chối, toàn bộ giao dịch rollback
+        com.storename.erp.inventory.domain.StockInsufficientException ex = assertThrows(
+                com.storename.erp.inventory.domain.StockInsufficientException.class,
+                () -> invoiceService.confirmInvoice(draft.getId(), branchId, UUID.randomUUID()));
+        assertTrue(ex.getMessage().contains("tồn kho còn 100, cần 150"), ex.getMessage());
+
+        assertEquals(0, stockQty().compareTo(new BigDecimal("100")));
+        assertEquals(SalesInvoiceStatus.DRAFT, invoiceRepo.findById(draft.getId()).orElseThrow().getStatus(),
+                "hóa đơn vẫn là nháp để sửa hoặc nhập thêm hàng");
+        assertEquals(0, debtService.getCurrentDebt(customer.getId(), branchId).compareTo(BigDecimal.ZERO));
+    }
+
+    @Test
+    void createAndConfirm_multipleProducts() {
         Long productId2 = (long)(Math.random() * 100000L);
         StockOnHand stock2 = new StockOnHand(productId2, branchId);
         stock2.increase(new BigDecimal("50"), "Init");
@@ -191,7 +238,6 @@ public class SalesInvoiceIT {
         SalesInvoiceCreateDto dto = new SalesInvoiceCreateDto();
         dto.setInvoiceCode("INV-TEST-MULTI");
         dto.setCustomerId(customer.getId());
-        dto.setPaymentMethod(PaymentMethod.CASH);
 
         SalesInvoiceLineDto line1 = new SalesInvoiceLineDto();
         line1.setProductId(productId);
@@ -209,8 +255,7 @@ public class SalesInvoiceIT {
 
         dto.setLines(java.util.Arrays.asList(line1, line2));
 
-        SalesInvoice draft = invoiceService.createDraft(dto, branchId);
-        invoiceService.confirmInvoice(draft.getId(), UUID.randomUUID(), branchId);
+        createAndConfirm(dto);
 
         assertEquals(70, stockRepo.findByProductIdAndBranchId(productId, branchId).get().getQuantity().intValue());
         assertEquals(30, stockRepo.findByProductIdAndBranchId(productId2, branchId).get().getQuantity().intValue());
