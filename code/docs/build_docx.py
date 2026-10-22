@@ -95,10 +95,24 @@ def add_formatted_runs(paragraph, text, default_size=Pt(13), default_bold=False,
 
 def main():
     base_dir = os.path.dirname(os.path.abspath(__file__))
-    md_file = os.path.join(base_dir, "BAOCAO_DOAN.md")
-    diagram_dir = os.path.join(base_dir, "test", "diagram")
-    screenshot_dir = os.path.join(base_dir, "test", "screenshots")
-    out_file = os.path.join(base_dir, "BAOCAO_DOAN.docx")
+    # Báo cáo nằm trong to_Delete/code/docs/khoaluan-draft/ (không được git theo dõi); có thể ghi đè bằng biến môi trường REPORT_MD.
+    repo_root = os.path.abspath(os.path.join(base_dir, "..", ".."))
+    md_candidates = [
+        os.path.join(base_dir, "BAOCAO_DOAN.md"),
+        os.path.join(repo_root, "to_Delete", "code", "docs", "khoaluan-draft", "BAOCAO_DOAN.md"),
+    ]
+    md_file = os.environ.get("REPORT_MD") or next((c for c in md_candidates if os.path.isfile(c)), md_candidates[0])
+    # Ảnh sơ đồ (hinh<n>.png) và ảnh chụp màn hình không được git theo dõi. Thứ tự tìm thư mục tài nguyên:
+    # biến môi trường REPORT_ASSETS, <docs>/test, rồi to_Delete/code/docs/khoaluan-draft/test ở gốc repo.
+    candidates = [
+        os.path.join(base_dir, "test"),
+        os.path.join(repo_root, "to_Delete", "code", "docs", "khoaluan-draft", "test"),
+    ]
+    assets_dir = os.environ.get("REPORT_ASSETS") or next((c for c in candidates if os.path.isdir(c)), candidates[0])
+    diagram_dir = os.path.join(assets_dir, "diagram")
+    screenshot_dir = os.path.join(assets_dir, "screenshots")
+    print(f"Assets: {assets_dir}")
+    out_file = os.environ.get("REPORT_OUT") or os.path.join(os.path.dirname(md_file), "BAOCAO_DOAN.docx")
 
     print(f"Reading markdown: {md_file}")
     with open(md_file, "r", encoding="utf-8") as f:
