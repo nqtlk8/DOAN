@@ -1,0 +1,6 @@
+# Chi nam tren classpath test (classpath:/config/application.yml duoc nap them, gia tri profile van ghi de).
+# Nhieu integration test dung JWT gia (subject khong phai user that trong DB),
+# nen tat kiem tra phien theo DB. Kiem tra nay luon bat o moi truong that (mac dinh true).
+security:
+  session-validation:
+    enabled: false

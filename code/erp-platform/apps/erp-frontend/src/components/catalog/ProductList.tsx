@@ -1,13 +1,17 @@
-import React, { useState } from 'react';
-import { Search, Plus, X, Edit2, Trash2 } from 'lucide-react';
+import { PageHeader } from '../../shared/components/Page/PageHeader';
+import { PageContainer } from '../../shared/components/Page/PageContainer';
+import React, { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { ApiService } from '../../api/ApiService';
+import { Search, Plus, X, Edit2, Trash2 } from 'lucide-react';
 import type { Product } from '../../types/catalog';
-import { useQueryClient } from '@tanstack/react-query';
 import { useAuth, ROLES } from '../../context/AuthContext';
-import { DataState } from '../../shared/components/DataState/DataState';
+import { ListTable } from '../../shared/components/DataState/ListTable';
 import { ConfirmDialog } from '../../shared/components/Dialog/ConfirmDialog';
 import { StockMovementList } from '../inventory/StockMovementList';
+import { CategorySelect } from './CategorySelect';
 import { useProducts } from '../../hooks/useProducts';
+import { formatNumber, normalizeSearch } from '../../shared/utils/format';
 
 export const ProductList: React.FC = () => {
   const { hasRole } = useAuth();
@@ -19,10 +23,23 @@ export const ProductList: React.FC = () => {
   const [formData, setFormData] = useState<Partial<Product>>({});
   const [isEditing, setIsEditing] = useState(false);
 
-  const { query, createMutation, updateMutation, deleteMutation } = useProducts();
+  // Giá niêm yết thuộc từng chi nhánh. Nhân viên xem giá chi nhánh của mình; quản trị viên chọn chi nhánh.
+  const branchesQuery = useQuery({
+    queryKey: ['branches'],
+    queryFn: () => ApiService.Branch.getAll(),
+    enabled: isAdmin,
+  });
+  const branches: any[] = branchesQuery.data || [];
+  const [priceBranchId, setPriceBranchId] = useState<number | undefined>(undefined);
+  useEffect(() => {
+    if (isAdmin && priceBranchId === undefined && branches.length > 0) setPriceBranchId(Number(branches[0].id));
+  }, [isAdmin, branches, priceBranchId]);
+  const priceBranchName = branches.find((b) => Number(b.id) === priceBranchId)?.name;
+
+  const { query, createMutation, updateMutation, deleteMutation } = useProducts(isAdmin ? priceBranchId : undefined);
   const { data: response, isLoading: loading, isError, error, refetch } = query;
 
-  const products: Product[] = response || [];
+  const products: Product[] = (response as any) || [];
 
   const handleOpenModal = (product?: Product) => {
     if (product) {
@@ -44,7 +61,7 @@ export const ProductList: React.FC = () => {
   const handleSave = () => {
     if (isEditing && formData.id) {
       updateMutation.mutate({
-        id: formData.id,
+        id: Number(formData.id),
         payload: {
           name: formData.name,
           categoryId: formData.categoryId,
@@ -56,7 +73,7 @@ export const ProductList: React.FC = () => {
       createMutation.mutate({
         code: formData.code || `PRD-${Date.now()}`,
         name: formData.name,
-        categoryId: formData.categoryId || 1,
+        categoryId: formData.categoryId,
         baseUnit: formData.baseUnit || 'CAI',
         isActive: formData.isActive ?? true,
       }, { onSuccess: handleCloseModal });
@@ -66,197 +83,174 @@ export const ProductList: React.FC = () => {
 
   const submitting = createMutation.isPending;
 
-  const filtered = products.filter((p) => p.isActive !== false && p.name?.toLowerCase().includes(searchTerm.toLowerCase()));
+  const term = normalizeSearch(searchTerm);
+  const filtered = products.filter(
+    (p) => p.isActive !== false && (normalizeSearch(p.name).includes(term) || normalizeSearch(p.code).includes(term)),
+  );
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-slate-900">Danh Mục Sản Phẩm</h2>
-        {isAdmin && (
-          <button
-            onClick={() => handleOpenModal()}
-            className="flex items-center gap-2 bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700 transition-colors"
-          >
-            <Plus size={20} />
-            <span>Thêm mới</span>
-          </button>
-        )}
-      </div>
-
-      <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
-        <div className="p-4 border-b border-slate-100">
-          <div className="relative w-72">
-            <input
-              type="text"
-              placeholder="Tìm kiếm sản phẩm..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-slate-900"
-            />
-            <Search className="absolute left-3 top-2.5 text-slate-900" size={20} />
-          </div>
-        </div>
-
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="bg-slate-50 border-b border-slate-100">
-              <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-slate-500">ID</th>
-              <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-slate-500">Mã (SKU)</th>
-              <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-slate-500">Tên Sản Phẩm</th>
-              <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-slate-500">Đơn Giá</th>
-              <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-slate-500">Đơn vị</th>
-              <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-slate-500 text-right">
-                Thao tác
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td colSpan={6} className="p-0">
-                <DataState
-                  isLoading={loading}
-                  isError={isError}
-                  error={error}
-                  isEmpty={products.length === 0}
-                  onRetry={refetch}
-                  loadingType="table"
-                  emptyTitle="Chưa có sản phẩm"
-                  emptyMessage="Hệ thống chưa có sản phẩm nào. Hãy tạo sản phẩm đầu tiên."
-                  emptyAction={
-                    isAdmin && (
-                      <button
-                        onClick={() => handleOpenModal()}
-                        className="flex items-center gap-2 bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700 transition-colors mt-2"
-                      >
-                        <Plus size={20} />
-                        <span>Thêm mới</span>
-                      </button>
-                    )
-                  }
-                >
-                  {products.length > 0 && filtered.length === 0 ? (
-                    <div className="p-8 text-center text-slate-500 bg-white">
-                      Không tìm thấy kết quả nào phù hợp với "{searchTerm}"
-                    </div>
-                  ) : null}
-                </DataState>
-              </td>
-            </tr>
-            {!loading && !isError && filtered.length > 0 && (
-              filtered.map((p) => (
-                <tr key={p.id} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
-                  <td className="px-4 py-1.5 text-sm text-slate-900">{p.id}</td>
-                  <td className="px-4 py-1.5 text-sm text-slate-900">{p.code || '-'}</td>
-                  <td className="px-4 py-1.5 text-sm text-slate-900 font-medium">{p.name}</td>
-                  <td className="px-4 py-1.5 text-sm text-slate-900">
-                    {p.price?.toLocaleString() || 0} đ
-                  </td>
-                  <td className="px-4 py-1.5 text-sm text-slate-900">{p.baseUnit || '-'}</td>
-                  <td className="px-4 py-1.5 text-sm text-right space-x-2">
-                    <button
-                      onClick={() => handleOpenModal(p)}
-                      className="text-slate-400 hover:text-blue-600 transition-colors"
-                      title={isAdmin ? "Sửa" : "Xem chi tiết"}
-                    >
-                      <Edit2 size={16} />
-                    </button>
-                    {isAdmin && (
-                      <button
-                        onClick={() => setConfirmState({ isOpen: true, id: p.id.toString() })}
-                        className="text-slate-400 hover:text-red-600 transition-colors"
-                        title="Xóa"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))
+    <PageContainer data-testid="product-page">
+      <PageHeader 
+        title="Danh Mục Sản Phẩm"
+        actions={
+          <div className="flex items-center gap-2">
+            {isAdmin && branches.length > 0 && (
+              <select
+                aria-label="Bảng giá chi nhánh"
+                value={priceBranchId ?? ''}
+                onChange={(e) => setPriceBranchId(Number(e.target.value))}
+                className="erp-input h-8 w-[220px]"
+              >
+                {branches.map((b) => (
+                  <option key={b.id} value={b.id}>Giá niêm yết: {b.name}</option>
+                ))}
+              </select>
             )}
-          </tbody>
-        </table>
-      </div>
+            <div className="relative">
+              <Search size={16} className="absolute left-2.5 top-2 text-ink-subtle" />
+              <input
+                type="text"
+                placeholder="Tìm theo mã, tên..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="erp-input h-8 pl-8 w-[280px]"
+              />
+            </div>
+            {isAdmin && (
+              <button onClick={() => handleOpenModal()} className="btn btn-primary h-8">
+                <Plus size={16} className="mr-1" />
+                Thêm mới
+              </button>
+            )}
+          </div>
+        }
+      />
+
+      <ListTable
+        colCount={7}
+        isLoading={loading}
+        isError={isError}
+        error={error}
+        onRetry={refetch}
+        totalCount={products.length}
+        filteredCount={filtered.length}
+        searchTerm={searchTerm}
+        emptyTitle="Chưa có sản phẩm"
+        emptyMessage="Hệ thống chưa có sản phẩm nào."
+        header={
+          <tr>
+            <th className="w-16">ID</th>
+            <th className="w-36">Mã (SKU)</th>
+            <th>Tên sản phẩm</th>
+            <th className="w-48">Danh mục</th>
+            <th className="num w-36">Đơn giá</th>
+            <th className="w-24">Đơn vị</th>
+            <th className="w-24 text-right">Thao tác</th>
+          </tr>
+        }
+      >
+        {filtered.map((p) => (
+          <tr key={p.id} data-testid="product-row">
+            <td className="text-ink-subtle">{p.id}</td>
+            <td>{p.code || '—'}</td>
+            <td className="font-medium">{p.name}</td>
+            <td className="text-ink-muted">{p.categoryName || '—'}</td>
+            <td className="num">{p.price != null ? formatNumber(p.price) : '—'}</td>
+            <td>{p.baseUnit || '—'}</td>
+            <td className="text-right whitespace-nowrap">
+                  <button type="button" onClick={() => handleOpenModal(p)} className="btn btn-ghost h-7 w-7 px-0 hover:text-primary" title={isAdmin ? 'Sửa' : 'Xem chi tiết'} aria-label={isAdmin ? 'Sửa' : 'Xem chi tiết'}>
+                    <Edit2 size={15} />
+                  </button>
+                  {isAdmin && (
+                    <button type="button" onClick={() => setConfirmState({ isOpen: true, id: String(p.id) })} className="btn btn-ghost h-7 w-7 px-0 hover:text-danger" title="Xóa" aria-label="Xóa">
+                      <Trash2 size={15} />
+                    </button>
+                  )}
+                </td>
+          </tr>
+        ))}
+      </ListTable>
 
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl">
-            <div className="flex justify-between items-center p-4 border-b border-slate-100">
-              <h3 className="text-lg font-bold text-slate-900">{isEditing ? 'Cập nhật' : 'Thêm mới'} Sản Phẩm</h3>
-              <button onClick={handleCloseModal} className="text-slate-900 hover:text-slate-600">
+          <div className="bg-surface rounded-xl shadow-xl w-full max-w-3xl">
+            <div className="flex justify-between items-center p-4 border-b border-line">
+              <h3 className="text-lg font-bold text-ink">{!isAdmin ? 'Chi tiết' : isEditing ? 'Cập nhật' : 'Thêm mới'} Sản Phẩm</h3>
+              <button onClick={handleCloseModal} className="text-ink hover:text-ink-muted">
                 <X size={24} />
               </button>
             </div>
             <div className="p-4 space-y-4 max-h-[70vh] overflow-y-auto">
               {isEditing && (
                 <div>
-                  <label className="block text-xs font-medium text-slate-500 mb-1">Mã sản phẩm</label>
+                  <label className="block text-xs font-medium text-ink-subtle mb-1">Mã sản phẩm</label>
                   <input
                     type="text"
                     value={formData.code || ''}
                     disabled={true}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-slate-100 text-slate-500 cursor-not-allowed"
+                    className="w-full px-3 py-2 border border-line-strong rounded-lg bg-slate-100 text-ink-subtle cursor-not-allowed"
                   />
                 </div>
               )}
               <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Tên sản phẩm *</label>
+                <label className="block text-xs font-medium text-ink-subtle mb-1">Tên sản phẩm *</label>
                 <input
                   type="text"
                   value={formData.name || ''}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   disabled={!isAdmin}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-slate-900 disabled:bg-slate-100 disabled:text-slate-500"
+                  className="w-full px-3 py-2 border border-line-strong rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-ink disabled:bg-slate-100 disabled:text-ink-subtle"
                 />
               </div>
               {isEditing && (
                 <div>
-                  <label className="block text-xs font-medium text-slate-500 mb-1">Đơn giá bán (Từ Price List)</label>
+                  <label className="block text-xs font-medium text-ink-subtle mb-1">Giá niêm yết{isAdmin && priceBranchName ? ` (${priceBranchName})` : ' của chi nhánh'}</label>
                   <input
-                    type="number"
-                    value={formData.price ?? ''}
+                    type="text"
+                    value={formData.price != null ? formatNumber(formData.price) : 'Chưa có giá niêm yết'}
                     disabled={true}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-slate-100 text-slate-500 cursor-not-allowed"
+                    className="w-full px-3 py-2 border border-line-strong rounded-lg bg-slate-100 text-ink-subtle cursor-not-allowed"
                   />
                 </div>
               )}
               <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Đơn vị tính</label>
+                <label className="block text-xs font-medium text-ink-subtle mb-1">Đơn vị tính</label>
                 <input
                   type="text"
                   value={formData.baseUnit || ''}
                   onChange={(e) => setFormData({ ...formData, baseUnit: e.target.value })}
                   disabled={!isAdmin}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-slate-900 disabled:bg-slate-100 disabled:text-slate-500"
+                  className="w-full px-3 py-2 border border-line-strong rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-ink disabled:bg-slate-100 disabled:text-ink-subtle"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Danh mục (Category ID)</label>
-                <input
-                  type="number"
-                  value={formData.categoryId || ''}
-                  onChange={(e) => setFormData({ ...formData, categoryId: Number(e.target.value) })}
+                <label htmlFor="product-category" className="block text-xs font-medium text-ink-subtle mb-1">Danh mục *</label>
+                <CategorySelect
+                  id="product-category"
+                  value={formData.categoryId}
+                  onChange={(categoryId) => setFormData({ ...formData, categoryId })}
                   disabled={!isAdmin}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-slate-900 disabled:bg-slate-100 disabled:text-slate-500"
+                  className="w-full px-3 py-2 border border-line-strong rounded-lg bg-surface focus:outline-none focus:ring-2 focus:ring-primary text-ink disabled:bg-slate-100 disabled:text-ink-subtle"
                 />
               </div>
               {isEditing && formData.id && (
-                <div className="pt-4 border-t border-slate-100">
+                <div className="pt-4 border-t border-line">
                   <StockMovementList productId={formData.id.toString()} />
                 </div>
               )}
             </div>
-            <div className="flex justify-end gap-3 p-4 border-t border-slate-100 bg-slate-50 rounded-b-xl">
+            <div className="flex justify-end gap-3 p-4 border-t border-line bg-app rounded-b-xl">
               <button
                 onClick={handleCloseModal}
-                className="px-4 py-2 text-slate-900 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+                className="px-4 py-2 text-ink bg-surface border border-line-strong rounded-lg hover:bg-app transition-colors"
               >
                 {isAdmin ? 'Hủy' : 'Đóng'}
               </button>
               {isAdmin && (
                 <button
                   onClick={handleSave}
-                  disabled={submitting || !formData.name}
-                  className="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors disabled:opacity-50"
+                  disabled={submitting || !formData.name || !formData.categoryId}
+                  className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors disabled:opacity-50"
                 >
                   {submitting ? 'Đang lưu...' : 'Lưu lại'}
                 </button>
@@ -276,6 +270,6 @@ export const ProductList: React.FC = () => {
         }}
         onCancel={() => setConfirmState({ isOpen: false, id: '' })}
       />
-    </div>
+    </PageContainer>
   );
 };

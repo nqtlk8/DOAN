@@ -1,7 +1,9 @@
 package com.storename.erp.inventory.application;
 
+import com.storename.erp.catalog.api.CatalogFacade;
 import com.storename.erp.inventory.api.InventoryFacade;
 import com.storename.erp.inventory.domain.CostLayer;
+import com.storename.erp.inventory.domain.StockInsufficientException;
 import com.storename.erp.inventory.domain.StockMovement;
 import com.storename.erp.inventory.domain.StockOnHand;
 import com.storename.erp.inventory.infrastructure.CostLayerRepository;
@@ -28,6 +30,7 @@ public class InventoryFacadeImpl implements InventoryFacade {
     private final StockMovementRepository stockMovementRepository;
     private final CostLayerRepository costLayerRepository;
     private final FifoCostService fifoCostService;
+    private final CatalogFacade catalogFacade;
 
     /**
      * Lấy số lượng tồn kho khả dụng của một sản phẩm tại một chi nhánh.
@@ -42,17 +45,6 @@ public class InventoryFacadeImpl implements InventoryFacade {
     }
 
     /**
-     * Xác nhận giữ chỗ tồn kho (Reservation).
-     */
-    @Override
-    @Transactional
-    public boolean reserveStock(Long productId, Long branchId, BigDecimal quantity, UUID referenceId) {
-        log.debug("Reserving stock for product {} at branch {} ref {}", productId, branchId, referenceId);
-        // Dự phòng cho Sprint 2.2+, hiện tại luôn trả về true
-        return true;
-    }
-
-    /**
      * Ghi nhận xuất kho bán hàng (SALE): Tiêu thụ FIFO, giảm tồn kho, ghi nhận movement.
      */
     @Override
@@ -60,37 +52,73 @@ public class InventoryFacadeImpl implements InventoryFacade {
     public SaleCostResult recordSaleAndGetCost(Long productId, Long branchId, BigDecimal quantity, String invoiceId, UUID lineId, UUID userId) {
         log.info("Recording sale for product {} branch {} qty {} invoice {}", productId, branchId, quantity, invoiceId);
 
-        // 1. FIFO consume → lấy unit_cost_snapshot
-        FifoCostService.FifoResult fifo = fifoCostService.consume(productId, branchId, quantity);
+        // 1. Khóa dòng tồn rồi kiểm tra: không cho tồn âm — phải nhập hàng trước khi bán.
+        StockOnHand stock = stockOnHandRepository.findForUpdate(productId, branchId).orElse(null);
+        BigDecimal available = stock != null ? stock.getQuantity() : BigDecimal.ZERO;
+        if (stock == null || available.compareTo(quantity) < 0) {
+            throw insufficientStock(productId, branchId, available, quantity);
+        }
 
-        // 2. stock_on_hand
-        StockOnHand stock = stockOnHandRepository.findByProductIdAndBranchId(productId, branchId)
-                .orElseGet(() -> stockOnHandRepository.save(new StockOnHand(productId, branchId)));
-        stock.decreaseAllowNegative(quantity, "SALE");
+        // 2. FIFO consume → lấy unit_cost_snapshot (ném lỗi nếu lớp giá vốn không đủ)
+        FifoCostService.FifoResult fifo;
+        try {
+            fifo = fifoCostService.consume(productId, branchId, quantity);
+        } catch (StockInsufficientException e) {
+            log.error("Lệch tồn kho/lớp giá vốn: product={} branch={} stock={} layers={}",
+                    productId, branchId, available, e.getAvailable());
+            throw insufficientStock(productId, branchId, e.getAvailable(), quantity);
+        }
+
+        // 3. stock_on_hand
+        stock.decrease(quantity, "SALE");
         stockOnHandRepository.save(stock);
 
-        // 3. stock_movement
+        // 4. stock_movement
         stockMovementRepository.save(StockMovement.sale(productId, branchId, quantity, invoiceId, lineId, userId));
 
         return new SaleCostResult(fifo.unitCostSnapshot(), fifo.costBasis());
     }
 
     /**
-     * Ghi nhận nhập kho do khách trả hàng (RETURN): Tăng tồn kho, ghi nhận movement, tạo cost layer.
+     * Ghi nhận nhập kho do khách trả hàng (RETURN): Tăng tồn kho, ghi nhận movement, tạo cost layer
+     * theo GIÁ VỐN của hàng trả (unitCost), không phải giá bán.
      */
     @Override
     @Transactional
-    public void recordReturn(Long productId, Long branchId, BigDecimal quantity, BigDecimal returnPrice, String returnId, UUID lineId, UUID userId) {
+    public void recordReturn(Long productId, Long branchId, BigDecimal quantity, BigDecimal unitCost, String returnId, UUID lineId, UUID userId) {
         log.info("Recording return for product {} branch {} qty {} returnId {}", productId, branchId, quantity, returnId);
 
-        StockOnHand stock = stockOnHandRepository.findByProductIdAndBranchId(productId, branchId)
-                .orElseGet(() -> stockOnHandRepository.save(new StockOnHand(productId, branchId)));
+        // Khóa ghi dòng tồn như khi bán/nhập; chưa có dòng thì tạo và flush ngay để giao dịch song song
+        // vi phạm unique (product_id, branch_id) sớm và được thử lại (@Retryable của caller).
+        StockOnHand stock = stockOnHandRepository.findForUpdate(productId, branchId)
+                .orElseGet(() -> stockOnHandRepository.saveAndFlush(new StockOnHand(productId, branchId)));
         stock.increase(quantity, "RETURN");
         stockOnHandRepository.save(stock);
 
         StockMovement mv = StockMovement.returnGoods(productId, branchId, quantity, returnId, lineId, userId);
         mv = stockMovementRepository.save(mv);
 
-        costLayerRepository.save(CostLayer.fromReturn(productId, branchId, quantity, returnPrice, mv.getId()));
+        costLayerRepository.save(CostLayer.fromReturn(productId, branchId, quantity,
+                unitCost != null ? unitCost : BigDecimal.ZERO, mv.getId()));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public BigDecimal getLatestLayerUnitCost(Long productId, Long branchId) {
+        return costLayerRepository.findFirstByProductIdAndBranchIdOrderByCreatedAtDesc(productId, branchId)
+                .map(CostLayer::getUnitCost)
+                .orElse(null);
+    }
+
+    /** Lỗi không đủ hàng kèm mã + tên sản phẩm để nhân viên biết dòng nào thiếu. */
+    private StockInsufficientException insufficientStock(Long productId, Long branchId, BigDecimal available, BigDecimal requested) {
+        String label = "sản phẩm #" + productId;
+        try {
+            CatalogFacade.ProductBasicInfo info = catalogFacade.getProductBasicInfo(java.util.List.of(productId)).get(productId);
+            if (info != null) label = "[" + info.getCode() + "] " + info.getName();
+        } catch (RuntimeException e) {
+            log.warn("Không lấy được tên sản phẩm {}: {}", productId, e.getMessage());
+        }
+        return new StockInsufficientException(label, productId, branchId, available, requested);
     }
 }

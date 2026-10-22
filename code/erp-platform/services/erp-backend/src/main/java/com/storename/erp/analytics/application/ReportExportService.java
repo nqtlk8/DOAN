@@ -54,8 +54,8 @@ public class ReportExportService {
             row.createCell(1).setCellValue(metrics.getInventoryTurnoverRatio() != null ? metrics.getInventoryTurnoverRatio().doubleValue() : 0.0);
             
             row = sheet.createRow(rowNum++);
-            row.createCell(0).setCellValue("Total Overdue Debt");
-            row.createCell(1).setCellValue(metrics.getTotalOverdueDebt() != null ? metrics.getTotalOverdueDebt().doubleValue() : 0.0);
+            row.createCell(0).setCellValue("Total Receivable Debt");
+            row.createCell(1).setCellValue(metrics.getTotalReceivableDebt() != null ? metrics.getTotalReceivableDebt().doubleValue() : 0.0);
             
             // Auto-size columns
             sheet.autoSizeColumn(0);

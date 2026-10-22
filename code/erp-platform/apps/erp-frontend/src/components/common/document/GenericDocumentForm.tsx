@@ -1,459 +1,504 @@
-import React from 'react';
-import { Plus, Trash2, X, Search } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { Plus, Search, Trash2 } from 'lucide-react';
+import type {
+  DocStatus,
+  DocumentLine,
+  FormMode,
+  InfoField,
+  LinePriceInfo,
+  PartnerField,
+  SummaryField,
+} from '../../../types/documents';
+import { NumberInput } from '../../../shared/components/Form/NumberInput';
+import { StatusBadge } from '../../../shared/components/StatusBadge';
+import { formatCurrency, formatDate, formatNumber } from '../../../shared/utils/format';
+import { focusLineCell, lineErrorKey, QTY_FRACTION_DIGITS } from './documentLines';
 
-export interface OrderItem {
-  id: string;
-  productId: string;
-  productName: string;
-  quantity: number;
-  unitPrice: number;
-  /** Đơn vị tính (lấy từ baseUnit của sản phẩm). */
-  unitOfMeasure?: string;
-}
-
-export type FormMode = 'VIEW' | 'ADD' | 'EDIT';
+export type OrderItem = DocumentLine;
+export type { FormMode };
 
 export interface GenericDocumentFormProps {
   mode: FormMode;
-  title: string;
-  error: string | null;
-  orderCode: string;
-  creator: string;
-  branch: string;
-  createdDate: string;
-  setCreatedDate: (date: string) => void;
-  note: string;
-  setNote: (note: string) => void;
-  partnerTitle: string;
-  partnerCodeLabel: string;
-  partnerPlaceholder: string;
-  partnerName: string;
-  onPartnerSearch: () => void;
-  address: string;
-  setAddress: (address: string) => void;
-  phone: string;
-  setPhone: (phone: string) => void;
-  contactPerson: string;
-  setContactPerson: (contactPerson: string) => void;
-  oldDebt: number;
-  setOldDebt: (val: number) => void;
-  totalAmount: number;
-  discount: number;
-  setDiscount: (val: number) => void;
-  tax: number;
-  setTax: (val: number) => void;
-  advancePayment: number;
-  setAdvancePayment: (val: number) => void;
-  invoiceRemaining: number;
-  remainingBalance: number;
-  items: OrderItem[];
-  onAddItem: () => void;
-  onRemoveItem: (id: string) => void;
-  onUpdateItem: (id: string, field: keyof OrderItem, value: any) => void;
-  onProductSearch: (itemId: string) => void;
-  renderPartnerCombobox?: (hasError?: boolean) => React.ReactNode;
-  renderProductCombobox?: (itemId: string, currentVal: string, hasError?: boolean) => React.ReactNode;
+  docTitle: string;
+  docCode: string;
+  status?: DocStatus;
+  error?: string | null;
+  /** key: 'partner', lineErrorKey(i, 'product' | 'quantity') */
   errors?: Record<string, string>;
+
+  info: InfoField[];
+  createdDate: string;
+  onCreatedDateChange?: (v: string) => void;
+  /** Ngày lớn nhất được chọn (yyyy-MM-dd), vd không cho chọn ngày tương lai. */
+  createdDateMax?: string;
+  /** Nhãn ô ngày (mặc định "Ngày"). */
+  createdDateLabel?: string;
+  /** Tiền tố data-testid khi phiếu không có bảng hàng (lines). */
+  testIdPrefix?: string;
+
+  partner: {
+    label: string;
+    required?: boolean;
+    renderCombobox: (hasError: boolean) => React.ReactNode;
+    displayName: string;
+    onAdvancedSearch?: () => void;
+    fields: PartnerField[];
+  };
+
+  summary: SummaryField[];
+
+  /** Nội dung hiển thị dưới phần đầu phiếu khi phiếu không có bảng hàng (vd phiếu thu). */
+  children?: React.ReactNode;
+
+  /** Bảng hàng hóa. Không truyền => phiếu không có dòng hàng (vd phiếu thu). */
+  lines?: {
+    testIdPrefix: 'sales' | 'inbound' | 'return';
+    items: DocumentLine[];
+    priceLabel?: string;
+    onAdd: () => void;
+    onRemove: (id: string) => void;
+    onUpdate: (id: string, field: keyof DocumentLine, value: unknown) => void;
+    renderProductCombobox: (line: DocumentLine, index: number, hasError: boolean) => React.ReactNode;
+    /**
+     * Nhãn nguồn giá cạnh ô đơn giá (vd "Giá KH" / "Niêm yết") + tô nổi dòng đã sửa giá.
+     * Không truyền => bảng giữ nguyên như cũ (phiếu nhập, phiếu trả).
+     */
+    priceInfo?: (line: DocumentLine) => LinePriceInfo | null | undefined;
+    /** Ghi chú hiển thị dưới danh sách dòng (vd cảnh báo giá sẽ được lưu cho khách). */
+    footerNote?: React.ReactNode;
+  };
 }
+
+const PRICE_BADGE_CLASS: Record<LinePriceInfo['tone'], string> = {
+  customer: 'badge bg-primary-soft text-primary',
+  list: 'badge-neutral',
+  none: 'badge-warning',
+};
+
+const NO_LINES: DocumentLine[] = [];
+
+const lineAmount = (l: DocumentLine) => (Number(l.quantity) || 0) * (Number(l.unitPrice) || 0);
 
 export const GenericDocumentForm: React.FC<GenericDocumentFormProps> = ({
   mode,
+  docTitle,
+  docCode,
+  status,
   error,
-  orderCode,
-  creator,
-  branch,
-  createdDate,
-  setCreatedDate,
-  note,
-  setNote,
-  partnerTitle,
-  partnerCodeLabel,
-  partnerPlaceholder,
-  partnerName,
-  onPartnerSearch,
-  address,
-  setAddress,
-  phone,
-  setPhone,
-  contactPerson,
-  setContactPerson,
-  oldDebt,
-  setOldDebt,
-  totalAmount,
-  discount,
-  setDiscount,
-  tax,
-  setTax,
-  advancePayment,
-  setAdvancePayment,
-  invoiceRemaining,
-  remainingBalance,
-  items,
-  onAddItem,
-  onRemoveItem,
-  onUpdateItem,
-  onProductSearch,
-  renderPartnerCombobox,
-  renderProductCombobox,
   errors = {},
+  info,
+  createdDate,
+  onCreatedDateChange,
+  createdDateMax,
+  createdDateLabel = 'Ngày',
+  testIdPrefix,
+  partner,
+  summary,
+  children,
+  lines,
 }) => {
   const isView = mode === 'VIEW';
-  const [activeItemRowId, setActiveItemRowId] = React.useState<string | null>(null);
+  const prefix = lines?.testIdPrefix ?? testIdPrefix ?? 'doc';
+  const items = lines?.items ?? NO_LINES;
+  const [activeLineId, setActiveLineId] = useState<string | null>(null);
+
+  // Khi thêm dòng bằng nút "Dòng mới" hoặc Enter ở dòng cuối → focus ô sản phẩm của dòng mới.
+  const focusNewLineRef = useRef(false);
+  const prevCountRef = useRef(items.length);
+  useEffect(() => {
+    const count = items.length;
+    if (count > prevCountRef.current && focusNewLineRef.current) {
+      const last = items[count - 1];
+      setActiveLineId(last.id);
+      focusLineCell(last.id, 'product');
+    }
+    focusNewLineRef.current = false;
+    prevCountRef.current = count;
+  }, [items]);
+
+  const addLineAndFocus = () => {
+    focusNewLineRef.current = true;
+    lines?.onAdd();
+  };
+
+  const handlePriceEnter = (index: number) => {
+    const next = items[index + 1];
+    if (next) focusLineCell(next.id, 'product');
+    else addLineAndFocus();
+  };
+
+  const renderBadge = () => <StatusBadge status={status} />;
+
+  const codeDisplay = !docCode || docCode === 'AUTO-GENERATE' ? <span className="text-ink-subtle">(Tự động)</span> : docCode;
+  const totalQty = items.reduce((s, l) => s + (Number(l.quantity) || 0), 0);
+  const grandTotal = items.reduce((s, l) => s + lineAmount(l), 0);
+  const colCount = isView ? 7 : 8;
+
+  // Hằng số đã thu hẹp kiểu: TypeScript giữ được 'không rỗng' bên trong JSX và các callback.
+  const l = lines;
 
   return (
-    <div className="font-sans flex-1 flex flex-col overflow-hidden bg-erp-bg-content">
+    <div className="flex flex-col h-full bg-surface">
+      {/* 1. Thanh tiêu đề */}
+      <div className="h-[40px] px-4 border-b border-line flex items-center justify-between shrink-0 bg-surface">
+        <div className="flex items-center gap-3">
+          <h1 className="text-[15px] font-semibold text-ink">{docTitle}</h1>
+          {renderBadge()}
+          {mode === 'EDIT' && (
+            <span className="badge bg-primary-soft text-primary" data-testid="doc-editing-badge">
+              Đang sửa
+            </span>
+          )}
+        </div>
+        <div className="text-[15px] font-semibold text-primary" data-testid="doc-code">
+          Số: {codeDisplay}
+        </div>
+      </div>
+
       {error && (
-        <div data-testid="sales-error-msg" className="px-4 py-2 bg-red-100 text-red-700 text-sm border-b border-red-200 flex items-center gap-2">
-          <X size={14} /> {error}
+        <div
+          data-testid={`${prefix}-error-msg`}
+          role="alert"
+          className="px-4 py-2 bg-danger-soft text-danger text-[13px] border-b border-danger/20 font-medium"
+        >
+          {error}
         </div>
       )}
 
-      {/* HEADER FORM KHÔNG VIỀN (Giao diện Kế toán Desktop) */}
-      <div className="w-full mx-auto overflow-x-auto bg-erp-bg-content shrink-0 border-b border-erp-btn-border p-2">
-        <div className="grid grid-cols-[minmax(300px,1.2fr)_minmax(400px,2fr)_minmax(280px,1fr)] gap-6 w-full">
-          
-          {/* KHỐI TRÁI */}
-          <div className="grid items-center gap-1" style={{ gridTemplateColumns: '80px minmax(0, 1fr)' }}>
-            <div className="text-right text-erp-label pr-2">Ngày</div>
-            <div className="flex gap-2">
-              <input
-                type="date"
-                disabled={isView}
-                value={createdDate}
-                onChange={(e) => setCreatedDate(e.target.value)}
-                className="h-erp-input-height px-1 text-erp-base bg-erp-bg-input border border-erp-border-input focus:border-erp-border-input-focus outline-none disabled:bg-erp-bg-disabled disabled:text-erp-text-disabled disabled:border-erp-border-disabled rounded-none flex-1 min-w-0"
-              />
-              <div className="text-right text-erp-label pr-2 flex items-center justify-end">Số</div>
-              <input 
-                type="text" 
-                disabled 
-                value={orderCode} 
-                className="h-erp-input-height px-1 text-erp-base bg-erp-bg-disabled border border-erp-border-disabled text-erp-text-disabled outline-none rounded-none w-[100px] shrink-0" 
-              />
-            </div>
-
-            <div className="text-right text-erp-label pr-2">Lấy giá</div>
-            <input 
-              type="text" 
-              disabled 
-              value="Bán hàng theo khách" 
-              className="h-erp-input-height w-full px-1 text-erp-base bg-erp-bg-disabled border border-erp-border-disabled text-erp-text-disabled outline-none rounded-none" 
-            />
-
-            <div className="text-right text-erp-label pr-2">Kho xuất</div>
-            <input 
-              type="text" 
-              disabled 
-              value={branch} 
-              className="h-erp-input-height w-full px-1 text-erp-base bg-erp-bg-disabled border border-erp-border-disabled text-erp-text-disabled outline-none rounded-none" 
-            />
-
-            <div className="text-right text-erp-label pr-2">Nhân viên</div>
-            <input 
-              type="text" 
-              disabled 
-              value={creator} 
-              className="h-erp-input-height w-full px-1 text-erp-base bg-erp-bg-disabled border border-erp-border-disabled text-erp-text-disabled outline-none rounded-none" 
-            />
-
-            <div className="text-right text-erp-label pr-2">Người lập</div>
-            <input 
-              type="text" 
-              disabled 
-              value={creator} 
-              className="h-erp-input-height w-full px-1 text-erp-base bg-erp-bg-disabled border border-erp-border-disabled text-erp-text-disabled outline-none rounded-none" 
-            />
-          </div>
-
-          {/* KHỐI GIỮA (Khách hàng) */}
-          <div className="grid items-center gap-1" style={{ gridTemplateColumns: '90px minmax(0, 1fr)' }}>
-            <div className="text-right text-erp-label pr-2">{partnerCodeLabel.split('/')[0]}</div>
-            {renderPartnerCombobox && !isView ? (
-              <div className="h-erp-input-height w-full">
-                {renderPartnerCombobox(!!errors['partner'])}
+      {/* 2. Header 3 khối — tỷ lệ 1 : 1.5 : 1 */}
+      <div className="grid grid-cols-[1fr_1.5fr_1fr] gap-x-6 p-3 bg-surface border-b border-line shrink-0">
+        {/* Khối trái: thông tin chung (chỉ đọc) */}
+        <div className="flex flex-col gap-1.5 min-w-0">
+          <div className="grid grid-cols-[96px_minmax(0,1fr)] gap-x-2 items-center h-7">
+            <label className="erp-label text-right">{createdDateLabel}</label>
+            {isView || !onCreatedDateChange ? (
+              <div className="text-[13px] text-ink truncate px-2" data-testid="doc-date">
+                {formatDate(createdDate)}
               </div>
             ) : (
-              <div className="flex gap-1">
-                <input
-                  type="text"
-                  disabled={isView}
-                  value={partnerName}
-                  readOnly
-                  placeholder={partnerPlaceholder}
-                  className={`h-erp-input-height flex-1 min-w-0 px-1 text-erp-base bg-erp-bg-input border border-erp-border-input focus:border-erp-border-input-focus outline-none disabled:bg-erp-bg-disabled disabled:text-erp-text-disabled disabled:border-erp-border-disabled rounded-none ${!isView ? 'cursor-pointer' : ''} ${errors['partner'] ? 'border-erp-border-input-error bg-red-50' : ''}`}
-                  onClick={() => !isView && onPartnerSearch()}
-                />
-                {!isView && (
+              <input
+                type="date"
+                className="erp-input h-7"
+                value={createdDate}
+                max={createdDateMax}
+                onChange={(e) => onCreatedDateChange(e.target.value)}
+                data-testid="doc-date"
+              />
+            )}
+          </div>
+          {info.map((f) => (
+            <div key={f.key} className="grid grid-cols-[96px_minmax(0,1fr)] gap-x-2 items-center h-7">
+              <label className="erp-label text-right">{f.label}</label>
+              <div className="text-[13px] text-ink truncate px-2" data-testid={f.testId}>
+                {f.value}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Khối giữa: đối tác */}
+        <div className="flex flex-col gap-1.5 min-w-0">
+          <div className="grid grid-cols-[96px_minmax(0,1fr)] gap-x-2 items-center h-7">
+            <label className="erp-label text-right">
+              {partner.label} {partner.required && !isView && <span className="text-danger">*</span>}
+            </label>
+            {isView ? (
+              <div className="text-[13px] text-ink truncate px-2 font-medium" data-testid={`${prefix}-partner-name`}>
+                {partner.displayName}
+              </div>
+            ) : (
+              <div className="flex gap-1 h-7 min-w-0">
+                <div className="flex-1 min-w-0">{partner.renderCombobox(!!errors.partner)}</div>
+                {partner.onAdvancedSearch && (
                   <button
-                    onClick={onPartnerSearch}
-                    className="w-[28px] h-erp-input-height flex items-center justify-center bg-erp-btn-bg border border-erp-btn-border hover:bg-erp-btn-hover-bg shrink-0"
+                    type="button"
+                    onClick={partner.onAdvancedSearch}
+                    aria-label="Tìm kiếm nâng cao"
+                    title="Tìm kiếm nâng cao"
+                    data-testid={`${prefix}-partner-advanced`}
+                    className="btn btn-secondary w-7 px-0 shrink-0 text-ink-muted"
                   >
                     <Search size={14} />
                   </button>
                 )}
               </div>
             )}
-
-            <div className="text-right text-erp-label pr-2">Họ tên</div>
-            <input
-              type="text"
-              disabled={isView}
-              value={contactPerson}
-              onChange={(e) => setContactPerson(e.target.value)}
-              className="h-erp-input-height w-full px-1 text-erp-base bg-erp-bg-input border border-erp-border-input focus:border-erp-border-input-focus outline-none disabled:bg-erp-bg-disabled disabled:text-erp-text-disabled disabled:border-erp-border-disabled rounded-none"
-            />
-
-            <div className="text-right text-erp-label pr-2">Điện thoại</div>
-            <input
-              type="text"
-              disabled={isView}
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              className="h-erp-input-height w-full px-1 text-erp-base bg-erp-bg-input border border-erp-border-input focus:border-erp-border-input-focus outline-none disabled:bg-erp-bg-disabled disabled:text-erp-text-disabled disabled:border-erp-border-disabled rounded-none"
-            />
-
-            <div className="text-right text-erp-label pr-2">Địa chỉ</div>
-            <input
-              type="text"
-              disabled={isView}
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              className="h-erp-input-height w-full px-1 text-erp-base bg-erp-bg-input border border-erp-border-input focus:border-erp-border-input-focus outline-none disabled:bg-erp-bg-disabled disabled:text-erp-text-disabled disabled:border-erp-border-disabled rounded-none"
-            />
-
-            <div className="text-right text-erp-label pr-2">Ghi chú</div>
-            <input
-              type="text"
-              disabled={isView}
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              className="h-erp-input-height w-full px-1 text-erp-base bg-erp-bg-input border border-erp-border-input focus:border-erp-border-input-focus outline-none disabled:bg-erp-bg-disabled disabled:text-erp-text-disabled disabled:border-erp-border-disabled rounded-none"
-            />
           </div>
-
-          {/* KHỐI TÀI CHÍNH (Phải) */}
-          <div className="grid items-center gap-1" style={{ gridTemplateColumns: '90px minmax(0, 1fr)' }}>
-            <div className="text-right text-erp-label pr-2">Nợ trước</div>
-            <input
-              type="number"
-              disabled={isView}
-              value={oldDebt}
-              onChange={(e) => setOldDebt(Number(e.target.value) || 0)}
-              className="h-erp-input-height w-full px-1 text-erp-base bg-erp-bg-input border border-erp-border-input focus:border-erp-border-input-focus outline-none disabled:bg-erp-bg-disabled disabled:text-erp-text-disabled disabled:border-erp-border-disabled rounded-none text-right"
-            />
-
-            <div className="text-right text-erp-label pr-2">Tiền hàng</div>
-            <input 
-              type="text" 
-              disabled 
-              value={totalAmount.toLocaleString()} 
-              className="h-erp-input-height w-full px-1 text-erp-base bg-erp-bg-disabled border border-erp-border-disabled outline-none rounded-none text-right font-bold text-erp-text-accent-red" 
-            />
-
-            <div className="text-right text-erp-label pr-2">Chiết khấu</div>
-            <div className="flex gap-2">
-              <input
-                type="number"
-                disabled={isView}
-                value={discount}
-                onChange={(e) => setDiscount(Number(e.target.value) || 0)}
-                className="h-erp-input-height flex-1 min-w-0 px-1 text-erp-base bg-erp-bg-input border border-erp-border-input focus:border-erp-border-input-focus outline-none disabled:bg-erp-bg-disabled disabled:text-erp-text-disabled disabled:border-erp-border-disabled rounded-none text-right"
-              />
-              <div className="text-right text-erp-label pr-1 flex items-center justify-end">VAT</div>
-              <input
-                type="number"
-                disabled={isView}
-                value={tax}
-                onChange={(e) => setTax(Number(e.target.value) || 0)}
-                className="h-erp-input-height w-[70px] shrink-0 px-1 text-erp-base bg-erp-bg-input border border-erp-border-input focus:border-erp-border-input-focus outline-none disabled:bg-erp-bg-disabled disabled:text-erp-text-disabled disabled:border-erp-border-disabled rounded-none text-right"
-              />
+          {errors.partner && !isView && (
+            <div className="grid grid-cols-[96px_minmax(0,1fr)] gap-x-2 -mt-1">
+              <span />
+              <span className="text-[12px] text-danger px-1">{errors.partner}</span>
             </div>
-
-            <div className="text-right text-erp-label pr-2">Trả trước</div>
-            <input
-              type="number"
-              disabled={isView}
-              value={advancePayment}
-              onChange={(e) => setAdvancePayment(Number(e.target.value) || 0)}
-              className="h-erp-input-height w-full px-1 text-erp-base bg-erp-bg-input border border-erp-border-input focus:border-erp-border-input-focus outline-none disabled:bg-erp-bg-disabled disabled:text-erp-text-disabled disabled:border-erp-border-disabled rounded-none text-right"
-            />
-
-              <div className="text-right text-erp-label pr-2">Còn của đơn</div>
-              <input
-                type="text"
-                disabled
-                value={invoiceRemaining.toLocaleString()}
-                className="h-erp-input-height w-full px-1 text-erp-base bg-erp-bg-disabled border border-erp-border-disabled outline-none rounded-none text-right font-bold text-erp-text-accent-red"
-              />
-
-              <div className="text-right text-erp-label pr-2">Nợ tổng mới</div>
-              <input
-                type="text"
-                disabled
-                value={remainingBalance.toLocaleString()}
-                className="h-erp-input-height w-full px-1 text-erp-base bg-erp-bg-disabled border border-erp-border-disabled outline-none rounded-none text-right font-bold text-erp-text-accent-red"
-              />
-          </div>
+          )}
+          {partner.fields.map((f) => (
+            <div key={f.key} className="grid grid-cols-[96px_minmax(0,1fr)] gap-x-2 items-center h-7">
+              <label className="erp-label text-right">
+                {f.label} {f.required && !isView && <span className="text-danger">*</span>}
+              </label>
+              {isView || !f.onChange ? (
+                <div className="text-[13px] text-ink truncate px-2" data-testid={f.testId}>
+                  {f.value}
+                </div>
+              ) : (
+                <input
+                  type="text"
+                  className="erp-input h-7"
+                  value={f.value}
+                  onChange={(e) => f.onChange!(e.target.value)}
+                  placeholder={f.placeholder}
+                  data-testid={f.testId}
+                />
+              )}
+            </div>
+          ))}
         </div>
-      </div>
 
-      {/* KHU VỰC 5: BẢNG DANH SÁCH HÀNG HÓA */}
-      <div className="font-sans flex-1 w-full max-w-[1600px] min-w-[1024px] mx-auto flex flex-col bg-white">
-        <div className="flex-1 overflow-auto bg-white border-b border-erp-border-table relative">
-          <table className="w-full border-collapse table-fixed" style={{ borderCollapse: 'collapse' }}>
-            <thead className="sticky top-0 bg-erp-bg-table-header z-10 shadow-[0_1px_0_var(--color-erp-border-table)]">
-              <tr className="h-erp-row-height">
-                <th className="border border-erp-border-table px-1 font-bold text-erp-label text-center text-erp-text-primary" style={{ width: '40px' }}>STT</th>
-                <th className="border border-erp-border-table px-1 font-bold text-erp-label text-center text-erp-text-primary" style={{ width: '30%' }}>Hàng hóa</th>
-                <th className="border border-erp-border-table px-1 font-bold text-erp-label text-center text-erp-text-primary" style={{ width: '10%' }}>Số lượng</th>
-                <th className="border border-erp-border-table px-1 font-bold text-erp-label text-center text-erp-text-primary" style={{ width: '13%' }}>Đơn giá</th>
-                <th className="border border-erp-border-table px-1 font-bold text-erp-label text-center text-erp-text-primary" style={{ width: '10%' }}>Chiết khấu</th>
-                <th className="border border-erp-border-table px-1 font-bold text-erp-label text-center text-erp-text-primary" style={{ width: '15%' }}>Thành tiền</th>
-                <th className="border border-erp-border-table px-1 font-bold text-erp-label text-center text-erp-text-primary" style={{ width: '15%' }}>Ghi chú</th>
-                {!isView && <th className="border border-erp-border-table px-1" style={{ width: '30px' }}></th>}
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((item, index) => {
-                const isSelected = activeItemRowId === item.id;
-                return (
-                  <tr
-                    key={item.id}
-                    data-testid="sales-line-row"
-                    className={`h-erp-row-height border-b border-erp-border-table cursor-default ${
-                      isSelected ? 'bg-erp-row-selected-bg text-erp-row-selected-text' : 'hover:bg-erp-row-hover-bg text-erp-text-primary'
-                    }`}
-                    onClick={() => setActiveItemRowId(item.id)}
+        {/* Khối phải: tổng tiền */}
+        <div className="flex flex-col gap-1.5 min-w-0">
+          {summary.map((f) => {
+            let toneClass = 'text-ink';
+            if (f.tone === 'primary') toneClass = 'text-primary';
+            else if (f.tone === 'danger' && f.value > 0) toneClass = 'text-danger';
+
+            return (
+              <div key={f.key} className="grid grid-cols-[96px_minmax(0,1fr)] gap-x-2 items-center h-7">
+                <label className={`erp-label text-right ${f.strong ? 'font-semibold text-ink' : ''}`}>{f.label}</label>
+                {isView || !f.onChange ? (
+                  <div
+                    className={`truncate px-2 text-right tabular-nums ${toneClass} ${f.strong ? 'text-[15px] font-semibold' : 'text-[13px]'}`}
+                    data-testid={f.testId}
                   >
-                    <td className="border-r border-l border-erp-border-table px-1 text-center text-erp-base">{index + 1}</td>
-                    <td className="border-r border-erp-border-table px-0 relative">
-                      {renderProductCombobox && !isView ? (
-                        <div className="h-full w-full" onClick={(e) => e.stopPropagation()}>
-                          {renderProductCombobox(item.id, item.productName, !!errors[`item_${index}_product`])}
-                        </div>
-                      ) : (
-                        <input
-                          type="text"
-                          disabled={isView}
-                          placeholder="Bấm chọn..."
-                          readOnly
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setActiveItemRowId(item.id);
-                            if (!isView) onProductSearch(item.id);
-                          }}
-                          className={`w-full h-full px-1 bg-transparent outline-none cursor-pointer uppercase text-left text-erp-base ${isSelected ? 'text-erp-row-selected-text placeholder:text-erp-row-selected-text' : 'text-erp-text-primary'}`}
-                          value={item.productName}
-                        />
-                      )}
-                    </td>
-                    <td className="border-r border-erp-border-table px-0">
-                      <input
-                        data-testid="sales-line-quantity"
-                        type="number"
-                        disabled={isView}
-                        min="1"
-                        className={`w-full h-full px-1 bg-transparent outline-none text-right font-bold text-erp-base ${
-                          errors[`item_${index}_quantity`] ? 'ring-1 ring-inset ring-red-500 bg-red-50 text-red-600' : isSelected ? 'text-erp-row-selected-text' : 'text-erp-text-accent-red'
-                        }`}
-                        value={item.quantity}
-                        onChange={(e) => onUpdateItem(item.id, 'quantity', parseInt(e.target.value) || 0)}
-                        onClick={(e) => { e.stopPropagation(); setActiveItemRowId(item.id); }}
-                      />
-                    </td>
-                    <td className="border-r border-erp-border-table px-0">
-                      <input
-                        data-testid="sales-line-price"
-                        type="number"
-                        disabled={isView}
-                        min="0"
-                        className={`w-full h-full px-1 bg-transparent outline-none text-right text-erp-base ${isSelected ? 'text-erp-row-selected-text' : 'text-erp-text-primary'}`}
-                        value={item.unitPrice}
-                        onChange={(e) => onUpdateItem(item.id, 'unitPrice', parseFloat(e.target.value) || 0)}
-                        onClick={(e) => { e.stopPropagation(); setActiveItemRowId(item.id); }}
-                      />
-                    </td>
-                    <td className="border-r border-erp-border-table px-0">
-                      <input
-                        type="number"
-                        disabled={isView}
-                        className={`w-full h-full px-1 bg-transparent outline-none text-right text-erp-base ${isSelected ? 'text-erp-row-selected-text' : 'text-erp-text-primary'}`}
-                        value={0}
-                        readOnly
-                        onClick={(e) => { e.stopPropagation(); setActiveItemRowId(item.id); }}
-                      />
-                    </td>
-                    <td data-testid="sales-line-total" className={`border-r border-erp-border-table px-1 text-right font-bold text-erp-base ${isSelected ? 'text-erp-row-selected-text' : 'text-erp-text-accent-red'}`}>
-                      {(item.quantity * item.unitPrice).toLocaleString()}
-                    </td>
-                    <td className="border-r border-erp-border-table px-0">
-                      <input
-                        type="text"
-                        disabled={isView}
-                        className={`w-full h-full px-1 bg-transparent outline-none text-left text-erp-base ${isSelected ? 'text-erp-row-selected-text' : 'text-erp-text-primary'}`}
-                        onClick={(e) => { e.stopPropagation(); setActiveItemRowId(item.id); }}
-                      />
-                    </td>
-                    {!isView && (
-                      <td className="border-r border-erp-border-table text-center bg-white">
-                        <button
-                          type="button"
-                          onClick={(e) => { e.stopPropagation(); onRemoveItem(item.id); }}
-                          className="text-erp-text-accent-red hover:text-red-800 flex items-center justify-center w-full h-full"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </td>
+                    {f.isQuantity ? formatNumber(f.value, QTY_FRACTION_DIGITS) : formatCurrency(f.value)}
+                  </div>
+                ) : (
+                  <div className="flex gap-1 min-w-0">
+                    <NumberInput
+                      value={f.value}
+                      onChange={f.onChange}
+                      className="h-7 flex-1 min-w-0"
+                      allowNegative={!!f.allowNegative}
+                      data-testid={f.testId}
+                      aria-label={f.label}
+                    />
+                    {f.action && (
+                      <button
+                        type="button"
+                        onClick={f.action.onClick}
+                        disabled={f.action.disabled}
+                        data-testid={f.action.testId}
+                        className="btn btn-secondary h-7 px-2 shrink-0 text-[12px]"
+                      >
+                        {f.action.label}
+                      </button>
                     )}
-                  </tr>
-                );
-              })}
-              {!isView && items.length === 0 && (
-                <tr>
-                  <td colSpan={8} className="border-b border-erp-border-table px-1 py-4 text-center text-slate-500 text-erp-base">
-                    Chưa có dữ liệu. Hãy bấm "Dòng mới" bên dưới.
-                  </td>
-                </tr>
-              )}
-              {!isView && (
-                <tr className="h-erp-row-height bg-white">
-                  <td colSpan={8} className="border-b border-erp-border-table px-2">
-                    <button
-                      type="button"
-                      data-testid="sales-add-line"
-                      onClick={onAddItem}
-                      className="text-blue-700 hover:underline flex items-center gap-1 font-medium text-erp-base"
-                    >
-                      <Plus size={14} /> Dòng mới
-                    </button>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* TỔNG CỘNG (Luôn ở dưới cùng) */}
-        <div className="shrink-0 bg-erp-bg-table-header border-t-2 border-erp-border-table">
-          <table className="w-full border-collapse table-fixed">
-            <tbody>
-              <tr className="h-[28px]">
-                <td colSpan={2} style={{ width: 'calc(40px + 30%)' }} className="border-r border-erp-border-table px-2 text-center font-bold text-erp-text-primary text-erp-base">
-                  TỔNG CỘNG
-                </td>
-                <td style={{ width: '10%' }} className="border-r border-erp-border-table px-1 text-right font-bold text-erp-text-accent-red text-erp-base">
-                  {items.reduce((sum, item) => sum + item.quantity, 0).toLocaleString()}
-                </td>
-                <td colSpan={2} style={{ width: '23%' }} className="border-r border-erp-border-table"></td>
-                <td style={{ width: '15%' }} className="border-r border-erp-border-table px-1 text-right font-bold text-erp-text-accent-red text-[13px]">
-                  {totalAmount.toLocaleString()}
-                </td>
-                <td colSpan={isView ? 1 : 2} style={{ width: isView ? '15%' : 'calc(15% + 30px)' }}></td>
-              </tr>
-            </tbody>
-          </table>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
+
+      {l ? (
+        <>
+      {/* 3. Bảng hàng hóa — một <table> duy nhất để thead/tbody/tfoot thẳng cột */}
+      <div className="flex-1 overflow-auto bg-slate-50 min-h-0">
+        <table className="w-full min-w-[900px] table-fixed text-[13px] border-collapse">
+          <colgroup>
+            <col style={{ width: 44 }} />
+            <col style={{ width: 110 }} />
+            <col />
+            <col style={{ width: 70 }} />
+            <col style={{ width: 96 }} />
+            <col style={{ width: l.priceInfo ? 188 : 128 }} />
+            <col style={{ width: 140 }} />
+            {!isView && <col style={{ width: 36 }} />}
+          </colgroup>
+          <thead className="sticky top-0 z-20 bg-slate-100">
+            <tr className="h-8 text-[12px] text-ink-muted">
+              <th className="font-semibold px-2 border-b border-r border-line text-center">STT</th>
+              <th className="font-semibold px-2 border-b border-r border-line text-left">Mã hàng</th>
+              <th className="font-semibold px-2 border-b border-r border-line text-left">Tên hàng</th>
+              <th className="font-semibold px-2 border-b border-r border-line text-center">ĐVT</th>
+              <th className="font-semibold px-2 border-b border-r border-line text-right">Số lượng</th>
+              <th className="font-semibold px-2 border-b border-r border-line text-right">{l.priceLabel || 'Đơn giá'}</th>
+              <th className="font-semibold px-2 border-b border-r border-line text-right">Thành tiền</th>
+              {!isView && <th className="border-b border-line" aria-label="Xóa dòng" />}
+            </tr>
+          </thead>
+          <tbody className="bg-surface">
+            {l.items.map((item, index) => {
+              const productError = !!errors[lineErrorKey(index, 'product')];
+              const qtyError = !!errors[lineErrorKey(index, 'quantity')];
+              const isSelected = activeLineId === item.id;
+              const priceInfo = l.priceInfo?.(item) ?? null;
+              const priceEdited = !!priceInfo?.edited;
+              return (
+                <tr
+                  key={item.id}
+                  data-testid={`${prefix}-line-row`}
+                  aria-selected={isSelected}
+                  onFocusCapture={() => setActiveLineId(item.id)}
+                  onMouseDown={() => setActiveLineId(item.id)}
+                  data-price-edited={priceEdited || undefined}
+                  title={priceEdited ? priceInfo?.title : undefined}
+                  className={`h-7 border-b border-line ${
+                    isSelected
+                      ? 'bg-primary-soft shadow-[inset_3px_0_0_var(--color-primary)]'
+                      : priceEdited
+                        ? 'bg-warning-soft shadow-[inset_3px_0_0_var(--color-warning)]'
+                        : 'hover:bg-slate-50'
+                  }`}
+                >
+                  <td className="px-2 text-center text-ink-subtle border-r border-line">{index + 1}</td>
+                  <td className="px-2 border-r border-line truncate" data-testid={`${prefix}-line-code`}>
+                    {item.productCode}
+                  </td>
+                  <td
+                    className={`p-0 border-r border-line relative ${productError ? 'ring-1 ring-inset ring-danger bg-danger-soft' : ''}`}
+                  >
+                    {isView ? (
+                      <div className="px-2 truncate">{item.productName}</div>
+                    ) : (
+                      <div className="absolute inset-0" data-line-id={item.id} data-field="product">
+                        {l.renderProductCombobox(item, index, productError)}
+                      </div>
+                    )}
+                  </td>
+                  <td className="px-2 border-r border-line text-center truncate">{item.unitOfMeasure}</td>
+                  <td className={`p-0 border-r border-line relative ${qtyError ? 'ring-1 ring-inset ring-danger bg-danger-soft' : ''}`}>
+                    {isView ? (
+                      <div className="px-2 text-right tabular-nums">{formatNumber(item.quantity, QTY_FRACTION_DIGITS)}</div>
+                    ) : (
+                      <div className="absolute inset-0">
+                        <NumberInput
+                          value={item.quantity}
+                          onChange={(v) => l.onUpdate(item.id, 'quantity', v)}
+                          variant="cell"
+                          maxFractionDigits={QTY_FRACTION_DIGITS}
+                          data-testid={`${prefix}-line-quantity`}
+                          aria-label={`Số lượng dòng ${index + 1}`}
+                          dataAttrs={{ 'data-line-id': item.id, 'data-field': 'quantity' }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              focusLineCell(item.id, 'price');
+                            }
+                          }}
+                        />
+                      </div>
+                    )}
+                  </td>
+                  <td
+                    className={`p-0 border-r border-line relative ${priceEdited ? 'ring-1 ring-inset ring-warning' : ''}`}
+                    title={priceInfo?.title}
+                  >
+                    {isView ? (
+                      <div className="px-2 text-right tabular-nums">{formatNumber(item.unitPrice)}</div>
+                    ) : (
+                      <div className="absolute inset-0 flex items-center">
+                        {priceInfo && (
+                          <span
+                            className={`${PRICE_BADGE_CLASS[priceInfo.tone]} ml-1 shrink-0 whitespace-nowrap pointer-events-none`}
+                            data-testid={`${prefix}-line-price-source`}
+                          >
+                            {priceInfo.label}
+                          </span>
+                        )}
+                        <div className="relative flex-1 h-full min-w-0">
+                          <NumberInput
+                            value={item.unitPrice}
+                            onChange={(v) => l.onUpdate(item.id, 'unitPrice', v)}
+                            variant="cell"
+                            data-testid={`${prefix}-line-price`}
+                            aria-label={`${l.priceLabel || 'Đơn giá'} dòng ${index + 1}`}
+                            dataAttrs={{ 'data-line-id': item.id, 'data-field': 'price' }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handlePriceEnter(index);
+                              }
+                            }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </td>
+                  <td
+                    className="px-2 border-r border-line text-right tabular-nums font-medium text-ink"
+                    data-testid={`${prefix}-line-total`}
+                  >
+                    {formatNumber(lineAmount(item))}
+                  </td>
+                  {!isView && (
+                    <td className="p-0 text-center">
+                      <button
+                        type="button"
+                        onClick={() => l.onRemove(item.id)}
+                        aria-label={`Xóa dòng ${index + 1}`}
+                        className="w-full h-7 flex items-center justify-center text-ink-subtle hover:text-danger hover:bg-danger-soft transition-colors"
+                        data-testid={`${prefix}-line-delete`}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </td>
+                  )}
+                </tr>
+              );
+            })}
+            {l.items.length === 0 && (
+              <tr>
+                <td colSpan={colCount} className="px-2 py-4 text-center text-ink-subtle border-b border-line">
+                  {isView ? 'Phiếu chưa có hàng hóa.' : 'Chưa có hàng hóa. Bấm “Dòng mới” để thêm.'}
+                </td>
+              </tr>
+            )}
+            {!isView && l.footerNote && (
+              <tr className="bg-warning-soft border-b border-line">
+                <td colSpan={colCount} className="px-2 py-1.5 text-[12px] text-ink" data-testid={`${prefix}-price-note`}>
+                  {l.footerNote}
+                </td>
+              </tr>
+            )}
+            {!isView && (
+              <tr className="h-8 bg-surface border-b border-line">
+                <td colSpan={colCount} className="px-1">
+                  <button
+                    type="button"
+                    onClick={addLineAndFocus}
+                    className="btn btn-ghost h-7 text-primary"
+                    data-testid={`${prefix}-add-line`}
+                  >
+                    <Plus size={14} /> Dòng mới
+                  </button>
+                </td>
+              </tr>
+            )}
+          </tbody>
+          <tfoot className="sticky bottom-0 z-20 bg-slate-100 font-semibold text-ink">
+            <tr className="h-8 border-t-2 border-line-strong">
+              <td colSpan={4} className="px-2 text-right border-r border-line uppercase text-[12px]">
+                Tổng cộng
+              </td>
+              <td className="px-2 text-right tabular-nums border-r border-line" data-testid={`${prefix}-total-qty`}>
+                {formatNumber(totalQty, QTY_FRACTION_DIGITS)}
+              </td>
+              <td className="border-r border-line" />
+              <td
+                className="px-2 text-right tabular-nums text-primary text-[14px] border-r border-line"
+                data-testid={`${prefix}-grand-total`}
+              >
+                {formatNumber(grandTotal)}
+              </td>
+              {!isView && <td />}
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+        </>
+      ) : (
+        <div className="flex-1 overflow-auto bg-slate-50 min-h-0">{children}</div>
+      )}
     </div>
   );
 };

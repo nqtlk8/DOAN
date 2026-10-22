@@ -1,15 +1,33 @@
+import { formatNumber, normalizeSearch } from '../../shared/utils/format';
+import { PageHeader } from '../../shared/components/Page/PageHeader';
+import { PageContainer } from '../../shared/components/Page/PageContainer';
 import React, { useState } from 'react';
-import { Search, Eye } from 'lucide-react';
+import { Search, Eye, Wallet } from 'lucide-react';
 import { ApiService } from '../../api/ApiService';
 import { useQuery } from '@tanstack/react-query';
-import { DataState } from '../../shared/components/DataState/DataState';
+import { ListTable } from '../../shared/components/DataState/ListTable';
 import type { components } from '@erp/api-contract';
 import { useTabs } from '../../context/TabContext';
 import { DebtStatement } from './DebtStatement';
+import { CashReceiptModule } from './CashReceiptModule';
+import { useAuth, ROLES } from '../../context/AuthContext';
 
 export const DebtList: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const { openTab } = useTabs();
+  const { hasRole } = useAuth();
+  // Ở HQ, quản trị viên thấy công nợ của mọi chi nhánh: một khách có thể có một dòng ở mỗi chi nhánh,
+  // nên cần cột Chi nhánh để phân biệt.
+  const isAdmin = hasRole(ROLES.ADMIN);
+  // Phiếu thu chỉ lập được ở chi nhánh (nhân viên); quản trị viên ở HQ chỉ xem.
+  const canCollect = hasRole(ROLES.STAFF);
+  const { data: branches = [] } = useQuery<any[]>({
+    queryKey: ['branches'],
+    queryFn: () => ApiService.Branch.getAll(),
+    enabled: isAdmin,
+  });
+  const branchName = (id?: number | null) =>
+    branches.find((b) => Number(b.id) === Number(id))?.name || (id != null ? `Chi nhánh ${id}` : '—');
 
   const { data: response, isLoading: loading, isError, error, refetch } = useQuery<components['schemas']['ReceivableDebtResponseDto'][]>({
     queryKey: ['debts'],
@@ -17,100 +35,120 @@ export const DebtList: React.FC = () => {
   });
 
   const items = response || [];
-  const filtered = items.filter((c) => c.customerName?.toLowerCase().includes(searchTerm.toLowerCase()));
+  const term = normalizeSearch(searchTerm);
+  const filtered = items.filter(
+    (c) => normalizeSearch(c.customerName).includes(term) || normalizeSearch(c.customerCode).includes(term),
+  );
 
   const handleViewStatement = (debt: components['schemas']['ReceivableDebtResponseDto']) => {
     if (debt.customerId && debt.customerName) {
+      const branchId = isAdmin ? debt.branchId ?? undefined : undefined;
       openTab(
-        `debt-${debt.customerId}`,
+        `debt-${debt.customerId}${branchId != null ? `-${branchId}` : ''}`,
         `SAO KÊ: ${debt.customerName.substring(0, 10).toUpperCase()}...`,
-        <DebtStatement customerId={debt.customerId} customerName={debt.customerName} />,
+        <DebtStatement
+          customerId={debt.customerId}
+          customerName={debt.customerName}
+          branchId={branchId}
+          branchName={branchId != null ? branchName(branchId) : undefined}
+        />,
         true
       );
     }
   };
 
+  const handleCollect = (debt: components['schemas']['ReceivableDebtResponseDto']) => {
+    if (!debt.customerId) return;
+    openTab(
+      `cash-receipt-${debt.customerId}`,
+      `THU TIỀN: ${(debt.customerName || '').substring(0, 10).toUpperCase()}...`,
+      <CashReceiptModule
+        initialCustomer={{
+          id: debt.customerId,
+          customerCode: debt.customerCode,
+          name: debt.customerName,
+          phone: debt.phone,
+          address: debt.address,
+        }}
+      />,
+      true,
+    );
+  };
+
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-slate-900">Danh Mục Công Nợ</h2>
-      </div>
-
-      <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
-        <div className="p-4 border-b border-slate-100">
-          <div className="relative w-72">
-            <input
-              type="text"
-              placeholder="Tìm kiếm đối tác..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-slate-900"
-            />
-            <Search className="absolute left-3 top-2.5 text-slate-900" size={20} />
+    <PageContainer data-testid="debt-page">
+      <PageHeader 
+        title="Danh Mục Công Nợ"
+        actions={
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <Search size={16} className="absolute left-2.5 top-2 text-ink-subtle" />
+              <input
+                type="text"
+                placeholder="Tìm theo mã, tên..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="erp-input h-8 pl-8 w-[280px]"
+              />
+            </div>
+            
           </div>
-        </div>
+        }
+      />
 
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="bg-slate-50 border-b border-slate-100">
-              <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-slate-500">MÃ Đối Tác</th>
-              <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-slate-500">Tên Đối Tác</th>
-              <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-slate-500">Số Điện Thoại</th>
-              <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-slate-500">Địa Chỉ</th>
-              <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-slate-500">Dư Nợ</th>
-              <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-slate-500 text-right">Thao Tác</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td colSpan={6} className="p-0">
-                <DataState
-                  isLoading={loading}
-                  isError={isError}
-                  error={error}
-                  isEmpty={items.length === 0}
-                  onRetry={refetch}
-                  loadingType="table"
-                  emptyTitle="Chưa có công nợ"
-                  emptyMessage="Hệ thống chưa ghi nhận công nợ nào."
+      <ListTable
+        colCount={isAdmin ? 7 : 6}
+        isLoading={loading}
+        isError={isError}
+        error={error}
+        onRetry={refetch}
+        totalCount={items.length}
+        filteredCount={filtered.length}
+        searchTerm={searchTerm}
+        emptyTitle="Chưa có công nợ"
+        emptyMessage="Chưa có khách hàng nào phát sinh công nợ."
+        header={
+          <tr>
+            <th className="w-32">Mã KH</th>
+            <th>Tên khách hàng</th>
+            {isAdmin && <th className="w-52">Chi nhánh</th>}
+            <th className="w-36">Số điện thoại</th>
+            <th>Địa chỉ</th>
+            <th className="num w-40">Tổng nợ</th>
+            <th className={`${canCollect ? 'w-52' : 'w-28'} text-right`}>Thao tác</th>
+          </tr>
+        }
+      >
+        {filtered.map((c, i) => (
+          <tr key={c.id ?? `${c.customerId}-${c.branchId}-${i}`} data-testid="debt-row" className="cursor-pointer" onDoubleClick={() => handleViewStatement(c)}>
+            <td>{c.customerCode || '—'}</td>
+            <td className="font-medium">{c.customerName}</td>
+            {isAdmin && <td className="text-ink-muted">{branchName(c.branchId)}</td>}
+            <td>{c.phone || '—'}</td>
+            <td className="truncate max-w-xs">{c.address || '—'}</td>
+            <td className={`num font-medium ${(c.totalDebt ?? 0) > 0 ? 'text-danger' : 'text-ink'}`}>
+              {formatNumber(c.totalDebt ?? 0)}
+            </td>
+            <td className="text-right whitespace-nowrap">
+              {canCollect && (c.totalDebt ?? 0) > 0 && (
+                <button
+                  type="button"
+                  onClick={() => handleCollect(c)}
+                  onDoubleClick={(e) => e.stopPropagation()}
+                  className="btn btn-ghost h-7 text-success"
+                  title="Lập phiếu thu cho khách này"
+                  data-testid="debt-collect"
                 >
-                  {items.length > 0 && filtered.length === 0 ? (
-                    <div className="p-8 text-center text-slate-500 bg-white">
-                      Không tìm thấy kết quả nào phù hợp với "{searchTerm}"
-                    </div>
-                  ) : null}
-                </DataState>
-              </td>
-            </tr>
-            {!loading && !isError && filtered.length > 0 && (
-              filtered.map((c, i) => (
-                <tr 
-                  key={i} 
-                  className="border-b border-slate-50 hover:bg-slate-50 transition-colors cursor-pointer group"
-                  onDoubleClick={() => handleViewStatement(c)}
-                >
-                  <td className="px-4 py-2 text-sm text-slate-900">{c.customerCode || '-'}</td>
-                  <td className="px-4 py-2 text-sm text-slate-900 font-medium">{c.customerName}</td>
-                  <td className="px-4 py-2 text-sm text-slate-900">{c.phone || '-'}</td>
-                  <td className="px-4 py-2 text-sm text-slate-900">{c.address || '-'}</td>
-                  <td className="px-4 py-2 text-sm text-slate-900">
-                    {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(c.totalDebt || 0)}
-                  </td>
-                  <td className="px-4 py-2 text-right">
-                    <button
-                      onClick={() => handleViewStatement(c)}
-                      className="inline-flex items-center gap-1 px-2 py-1 text-sm text-teal-600 hover:text-teal-700 hover:bg-teal-50 rounded transition-colors opacity-0 group-hover:opacity-100"
-                      title="Xem sao kê"
-                    >
-                      <Eye size={16} /> Sao kê
-                    </button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-    </div>
+                  <Wallet size={15} /> Thu tiền
+                </button>
+              )}
+              <button type="button" onClick={() => handleViewStatement(c)} className="btn btn-ghost h-7 text-primary" title="Xem sao kê">
+                <Eye size={15} /> Sao kê
+              </button>
+            </td>
+          </tr>
+        ))}
+      </ListTable>
+    </PageContainer>
   );
 };

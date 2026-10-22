@@ -11,7 +11,8 @@ instance:
   role: ALL
 
 jwt:
-  private-key: classpath:keys/private.pem
-  public-key: classpath:keys/public.pem
+  # Khoa doc tu thu muc code/secrets (da gitignore), tao bang scripts/generate-jwt-keys.sh.
+  private-key: ${JWT_PRIVATE_KEY_PATH:file:../../../secrets/private_key.pem}
+  public-key: ${JWT_PUBLIC_KEY_PATH:file:../../../secrets/public_key.pem}
   expiration-ms: 1800000
   refresh-expiration-ms: 604800000

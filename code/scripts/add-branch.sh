@@ -1,40 +1,46 @@
 #!/bin/bash
+# ============================================================================
+# add-branch.sh <chi nhánh>      vd: scripts/add-branch.sh tp3
+#
+# Thêm một chi nhánh mới vào hệ thống đang chạy. Các bước THỦ CÔNG cần làm trước:
+#
+#  1. HQ: tạo dòng branch (màn hình Quản trị > Chi nhánh, hoặc SQL tại HQ) với code = TP3.
+#     Ghi lại id số của dòng đó (vd. 3) — app chi nhánh phải chạy với BRANCH_ID = id này.
+#  2. docker-compose.yml: chép 3 service branch-tp2-db / branch-tp2-app / branch-tp2-nginx,
+#     đổi tp2 -> tp3, BRANCH_ID, cổng (5435, 83), profiles ["tp3"], thêm volume branch_tp3_db_data.
+#  3. Tạo nginx-branch-tp3.conf từ nginx-branch-tp2.conf (đổi upstream branch-tp3-app, dải IP).
+#  4. Thêm tài khoản STAFF cho chi nhánh (user_account + user_branch_role tại HQ).
+#
+# Script này làm phần còn lại: kiểm tra điều kiện, bật container, chờ Flyway, thiết lập replication.
+# ============================================================================
 set -euo pipefail
+. "$(dirname "$0")/lib/common.sh"
 
-BRANCH_NAME=$1
-if [ -z "$BRANCH_NAME" ]; then
-  echo "Usage: $0 <branch_name> (e.g. tp4)"
-  exit 1
-fi
+B=$(branch_key "${1:-}")
+CODE=$(branch_code "$B")
+PROFILE_ARGS=$(branch_profile_args "$B")
 
-BRANCH_ID=$(echo "$BRANCH_NAME" | tr '[:lower:]' '[:upper:]')
-LOWER_BRANCH=$(echo "$BRANCH_NAME" | tr '[:upper:]' '[:lower:]')
+log "Kiểm tra docker-compose.yml có service của $CODE"
+# shellcheck disable=SC2086
+DEFINED=$($COMPOSE $PROFILE_ARGS config --services)
+for svc in "branch-$B-db" "branch-$B-app" "branch-$B-nginx"; do
+  grep -qx "$svc" <<<"$DEFINED" || die "docker-compose.yml chưa có service $svc (xem bước 2 ở đầu file)."
+done
 
-echo "=== PROVISIONING NEW BRANCH: $BRANCH_ID ==="
+db_ready "$HQ_SERVICE" "$HQ_DB" || die "HQ chưa chạy. Chạy: docker compose up -d"
+BRANCH_ID=$(hq_value "SELECT id FROM branch WHERE upper(code) = '$CODE'")
+[ -n "$BRANCH_ID" ] || die "HQ chưa có chi nhánh code = $CODE (xem bước 1 ở đầu file)."
+log "$CODE có branch.id = $BRANCH_ID — kiểm tra BRANCH_ID của branch-$B-app khớp giá trị này."
 
-# 1. We assume docker-compose.yml has been updated with branch-$LOWER_BRANCH-db and branch-$LOWER_BRANCH-app
-# Let's ensure the DB is up
-docker compose up -d branch-${LOWER_BRANCH}-db
-sleep 5
+"$SCRIPTS_DIR/branch.sh" on "$B"
 
-# 2. Run Flyway schema initialization using Maven
-echo "Running Flyway migration for Branch $BRANCH_ID..."
-mvn flyway:migrate "-Dflyway.url=jdbc:postgresql://localhost:5435/erp_branch_${LOWER_BRANCH}" "-Dflyway.user=erp_user" "-Dflyway.password=erp_password" -f ../erp-platform/services/erp-backend/pom.xml
+log "Chờ Flyway của $CODE"
+HQ_V=$(flyway_versions "$HQ_SERVICE" "$HQ_DB")
+waited=0
+until db_ready "$(branch_service "$B")" "$(branch_db "$B")" && [ "$(flyway_versions "$(branch_service "$B")" "$(branch_db "$B")")" = "$HQ_V" ]; do
+  [ "$waited" -ge 300 ] && die "Flyway $CODE chưa xong sau 300s. Xem: docker compose logs branch-$B-app"
+  sleep 3; waited=$((waited + 3))
+done
 
-# 3. Check schema version parity
-echo "Verifying schema parity with HQ..."
-./check-schema-version.sh $LOWER_BRANCH
-
-# 4. Truncate Master Data (to prepare for replication initial sync)
-echo "Truncating dummy seed data in Branch $BRANCH_ID to prepare for replication sync..."
-docker exec code-branch-${LOWER_BRANCH}-db-1 psql -U erp_user -d erp_branch_${LOWER_BRANCH} -c "TRUNCATE TABLE branch, category, customer, dim_date, inventory_alert_config, permission, price_list, product, role, role_permission, supplier, user_account, user_branch_role CASCADE;"
-
-# 5. Setup logical replication with copy_data=true
-echo "Setting up Logical Replication with copy_data=true..."
-./setup-replication.sh $LOWER_BRANCH true
-
-# 6. Start the App container
-echo "Starting Branch App Container..."
-docker compose up -d branch-${LOWER_BRANCH}-app
-
-echo "=== BRANCH $BRANCH_ID PROVISIONED SUCCESSFULLY ==="
+"$SCRIPTS_DIR/setup-replication.sh" "$B"
+log "Đã thêm chi nhánh $CODE"

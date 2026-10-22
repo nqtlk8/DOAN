@@ -27,19 +27,21 @@ public class GoodsReturnCreateDto {
 
     @NotEmpty(message = "Return must have at least one line")
     @Valid
-    private List<LineDto> lines;
+    private List<GoodsReturnLineDto> lines;
 
     @Data
-    public static class LineDto {
+    public static class GoodsReturnLineDto {
         @NotNull(message = "Product ID is required")
         private Long productId;
 
         @NotNull(message = "Quantity is required")
         @Positive(message = "Quantity must be positive")
+        @jakarta.validation.constraints.Digits(integer = 15, fraction = 4, message = "quantity allows at most 4 decimal places")
         private BigDecimal quantity;
 
         @NotNull(message = "Unit price is required")
         @DecimalMin(value = "0.0", message = "Unit price must not be negative")
+        @jakarta.validation.constraints.Digits(integer = 15, fraction = 4, message = "unitPrice allows at most 4 decimal places")
         private BigDecimal unitPrice;
 
         @NotBlank(message = "Unit of measure is required")

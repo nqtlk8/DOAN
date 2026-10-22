@@ -44,6 +44,15 @@ public class UserAccount {
     @Column(name = "is_active", nullable = false)
     private boolean isActive = true;
 
+    /**
+     * Phien ban phien dang nhap. Moi token mang claim tv = gia tri nay luc phat hanh;
+     * tang len 1 khi dang xuat hoac phat hien refresh token bi dung lai -> moi token cu het hieu luc
+     * (ca o chi nhanh, vi bang user_account duoc replicate HQ -> Branch).
+     */
+    @Builder.Default
+    @Column(name = "token_version", nullable = false)
+    private int tokenVersion = 0;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;
 

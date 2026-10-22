@@ -1,6 +1,7 @@
 package com.storename.erp.order.api;
 
 import lombok.extern.slf4j.Slf4j;
+import com.storename.erp.common.aop.IdempotencyContext;
 import com.storename.erp.common.aop.IdempotencyProtected;
 import com.storename.erp.common.api.ApiResponse;
 import com.storename.erp.common.security.JwtAuthDetails;
@@ -11,7 +12,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -35,26 +35,39 @@ public class GoodsReturnController {
         return com.storename.erp.common.security.AuthUtils.getUserId();
     }
 
+    // Trả về ApiResponse (không bọc ResponseEntity): IdempotencyAspect lưu phản hồi dạng JSON và đọc lại theo
+    // kiểu trả về của phương thức khi client gửi lại cùng Idempotency-Key; ResponseEntity không đọc lại được.
     @PostMapping
     @PreAuthorize("hasAuthority('STAFF')")
+    @ResponseStatus(HttpStatus.CREATED)
     @IdempotencyProtected
-    @Operation(summary = "Táº¡o phiáº¿u tráº£ hÃ ng (DRAFT)")
-    public ResponseEntity<ApiResponse<UUID>> createDraft(@Valid @RequestBody GoodsReturnCreateDto dto) {
+    @Operation(summary = "Tạo phiếu trả hàng (DRAFT)")
+    public ApiResponse<UUID> createDraft(@Valid @RequestBody GoodsReturnCreateDto dto) {
         Long branchId = com.storename.erp.common.security.AuthUtils.getBranchIdOrNull();
-        UUID returnId = returnService.createDraft(branchId, dto);
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(new ApiResponse<>(true, returnId, "Goods return draft created successfully", null));
+        UUID returnId = returnService.createDraft(branchId, dto, IdempotencyContext.currentRequestKey());
+        return new ApiResponse<>(true, returnId, "Goods return draft created successfully", null);
+    }
+
+    /** Sửa phiếu trả khi còn nháp (DRAFT). Phiếu đã xác nhận -> 409 INVALID_STATUS. */
+    @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('STAFF')")
+    @IdempotencyProtected
+    @Operation(summary = "Sửa phiếu trả hàng khi còn nháp (DRAFT)")
+    public ApiResponse<UUID> updateDraft(@PathVariable("id") UUID returnId, @Valid @RequestBody GoodsReturnCreateDto dto) {
+        Long branchId = com.storename.erp.common.security.AuthUtils.getBranchIdOrNull();
+        UUID id = returnService.updateDraft(returnId, branchId, dto).getId();
+        return new ApiResponse<>(true, id, "Goods return draft updated successfully", null);
     }
 
     @PostMapping("/{id}/confirm")
     @IdempotencyProtected
     @PreAuthorize("hasAuthority('STAFF')")
-    @Operation(summary = "XÃ¡c nháº­n tráº£ hÃ ng (CONFIRM) vÃ  hoÃ n kho")
-    public ResponseEntity<ApiResponse<Void>> confirmReturn(@PathVariable("id") UUID returnId) {
+    @Operation(summary = "Xác nhận trả hàng (CONFIRM) và hoàn kho")
+    public ApiResponse<Void> confirmReturn(@PathVariable("id") UUID returnId) {
         Long branchId = com.storename.erp.common.security.AuthUtils.getBranchIdOrNull();
         UUID userId = getUserId();
         returnService.confirmReturn(returnId, branchId, userId);
-        return ResponseEntity.ok(new ApiResponse<>(true, null, "Goods return confirmed successfully", null));
+        return new ApiResponse<>(true, null, "Goods return confirmed successfully", null);
     }
 
     @GetMapping

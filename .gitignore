@@ -56,3 +56,16 @@ target/
 .env.production.local
 *.pem
 certs/
+
+# Python
+__pycache__/
+*.pyc
+
+# Test / tool output
+test-results/
+playwright-report/
+*.tsbuildinfo
+
+# Local tool data and files queued for removal (not part of the source)
+.codegraph/
+to_Delete/

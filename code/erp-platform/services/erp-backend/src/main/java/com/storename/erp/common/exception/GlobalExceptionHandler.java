@@ -17,7 +17,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(org.springframework.security.authentication.BadCredentialsException.class)
     public ResponseEntity<ApiResponse<Void>> handleBadCredentialsException(org.springframework.security.authentication.BadCredentialsException ex) {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(ApiResponse.error("Bad credentials", java.util.List.of("BAD_CREDENTIALS")));
+                .body(ApiResponse.error("Sai tên đăng nhập hoặc mật khẩu", java.util.List.of("BAD_CREDENTIALS")));
     }
 
     @ExceptionHandler(org.springframework.security.authentication.DisabledException.class)
@@ -28,15 +28,46 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ApiResponse<Void>> handleIllegalArgumentException(IllegalArgumentException ex) {
-        // Loi du lieu dau vao -> 400. Truoc day tra 401 khien frontend tuong het phien (BUG-6).
+        // Loi du lieu dau vao -> 400 (khong dung 401 de frontend khong hieu nham la het phien).
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ApiResponse.error(ex.getMessage(), java.util.List.of("INVALID_ARGUMENT")));
     }
 
+    @ExceptionHandler(BusinessConflictException.class)
+    public ResponseEntity<ApiResponse<Void>> handleBusinessConflictException(BusinessConflictException ex) {
+        // Vi pham quy tac nghiep vu (vd khong du ton kho khi ban) -> 409, message hien thang cho nguoi dung.
+        log.warn("Business conflict [{}]: {}", ex.getCode(), ex.getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiResponse.error(ex.getMessage(), java.util.List.of(ex.getCode())));
+    }
+
+    @ExceptionHandler(io.jsonwebtoken.ExpiredJwtException.class)
+    public ResponseEntity<ApiResponse<Void>> handleExpiredJwtException(io.jsonwebtoken.ExpiredJwtException ex) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(ApiResponse.error("Token expired. Please log in again.", java.util.List.of("TOKEN_EXPIRED")));
+    }
+
     @ExceptionHandler(io.jsonwebtoken.JwtException.class)
     public ResponseEntity<ApiResponse<Void>> handleJwtException(io.jsonwebtoken.JwtException ex) {
+        // Chi tiet (revoked, reuse, sai loai token...) chi ghi log; client nhan thong diep chung.
+        log.warn("Rejected token: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(ApiResponse.error(ex.getMessage(), java.util.List.of("INVALID_TOKEN")));
+                .body(ApiResponse.error("Invalid or revoked token. Please log in again.", java.util.List.of("INVALID_TOKEN")));
+    }
+
+    @ExceptionHandler(com.storename.erp.identity.domain.exception.SigningKeyNotConfiguredException.class)
+    public ResponseEntity<ApiResponse<Void>> handleSigningKeyNotConfigured(com.storename.erp.identity.domain.exception.SigningKeyNotConfiguredException ex) {
+        log.error("JWT signing key not configured: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(ApiResponse.error("Authentication service is not configured", java.util.List.of("SIGNING_KEY_NOT_CONFIGURED")));
+    }
+
+    @ExceptionHandler(org.springframework.data.redis.RedisConnectionFailureException.class)
+    public ResponseEntity<ApiResponse<Void>> handleRedisConnectionFailure(org.springframework.data.redis.RedisConnectionFailureException ex) {
+        // Redis (HQ) luu trang thai refresh/thu hoi token: loi tam thoi -> 503, frontend khong xoa phien.
+        log.error("Redis unavailable: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(ApiResponse.error("Authentication store is temporarily unavailable. Please retry.", java.util.List.of("AUTH_STORE_UNAVAILABLE")));
     }
 
     @ExceptionHandler(com.storename.erp.identity.domain.exception.NoRoleAssignedException.class)
@@ -67,6 +98,47 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleResponseStatusException(org.springframework.web.server.ResponseStatusException ex) {
         return ResponseEntity.status(ex.getStatusCode())
                 .body(ApiResponse.error(ex.getReason(), java.util.List.of(ex.getStatusCode().toString())));
+    }
+
+    @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleDataIntegrityViolation(org.springframework.dao.DataIntegrityViolationException ex) {
+        // Vi pham rang buoc CSDL (unique, khoa ngoai, do dai cot) con lot qua kiem tra nghiep vu -> 409.
+        // Chi tiet SQL chi ghi log, khong tra ve client.
+        log.warn("Data integrity violation: {}", ex.getMostSpecificCause().getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiResponse.error("Data conflicts with an existing record or a database constraint",
+                        java.util.List.of("DATA_INTEGRITY_VIOLATION")));
+    }
+
+    @ExceptionHandler(org.springframework.orm.ObjectOptimisticLockingFailureException.class)
+    public ResponseEntity<ApiResponse<Void>> handleOptimisticLockingFailure(org.springframework.orm.ObjectOptimisticLockingFailureException ex) {
+        // Ban ghi da bi nguoi khac sua (@Version lech) -> 409, client tai lai roi thu lai.
+        log.warn("Optimistic locking failure: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiResponse.error("The record was modified by another request. Please reload and try again.",
+                        java.util.List.of("CONCURRENT_UPDATE")));
+    }
+
+    /** Thiếu tham số bắt buộc trên URL (ví dụ {@code productId}): lỗi của người gọi, trả 400 thay vì 500. */
+    @ExceptionHandler(org.springframework.web.bind.MissingServletRequestParameterException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMissingParameter(org.springframework.web.bind.MissingServletRequestParameterException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error("Thiếu tham số bắt buộc: " + ex.getParameterName(), java.util.List.of("MISSING_PARAMETER")));
+    }
+
+    /** Tham số URL sai kiểu (ví dụ {@code productId=abc}): trả 400 thay vì 500. */
+    @ExceptionHandler(org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiResponse<Void>> handleTypeMismatch(org.springframework.web.method.annotation.MethodArgumentTypeMismatchException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error("Tham số không hợp lệ: " + ex.getName(), java.util.List.of("INVALID_PARAMETER")));
+    }
+
+    @ExceptionHandler(org.springframework.web.HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMethodNotSupported(org.springframework.web.HttpRequestMethodNotSupportedException ex) {
+        // Vd DELETE /api/v1/branches/{id}: khong co API xoa -> 405 thay vi 500.
+        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED)
+                .body(ApiResponse.error("Method " + ex.getMethod() + " is not supported for this endpoint",
+                        java.util.List.of("METHOD_NOT_ALLOWED")));
     }
 
     @ExceptionHandler(Exception.class)

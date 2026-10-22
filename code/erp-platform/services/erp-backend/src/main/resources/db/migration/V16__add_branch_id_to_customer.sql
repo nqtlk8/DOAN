@@ -1,2 +1,0 @@
-﻿ALTER TABLE customer ADD COLUMN branch_id BIGINT;
-UPDATE customer SET branch_id = 1;

@@ -17,6 +17,7 @@ import java.util.Collections;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.when;
 
@@ -67,14 +68,22 @@ class FifoCostServiceTest {
     }
 
     @Test
-    @DisplayName("consume 50 khi layers rỗng → costBasis='NO_LAYER', snapshot=0")
-    void testConsume_NoLayer_NegativeStock() {
+    @DisplayName("consume 50 khi layers rỗng → StockInsufficientException (không cho tồn âm)")
+    void testConsume_NoLayer_Throws() {
         when(costLayerRepo.findAvailableForFifoWithLock(1L, 1L)).thenReturn(Collections.emptyList());
 
-        FifoCostService.FifoResult result = fifoCostService.consume(1L, 1L, new BigDecimal("50"));
+        assertThatThrownBy(() -> fifoCostService.consume(1L, 1L, new BigDecimal("50")))
+                .isInstanceOf(com.storename.erp.inventory.domain.StockInsufficientException.class)
+                .hasMessageContaining("cần 50");
+    }
 
-        assertThat(result.unitCostSnapshot()).isEqualByComparingTo("0");
-        assertThat(result.costBasis()).isEqualTo("NO_LAYER");
-        assertThat(result.unconsumedQty()).isEqualByComparingTo("50");
+    @Test
+    @DisplayName("consume 150 khi layers chỉ còn 100 → ném lỗi, KHÔNG trừ lớp nào")
+    void testConsume_NotEnoughLayers_ThrowsWithoutConsuming() {
+        when(costLayerRepo.findAvailableForFifoWithLock(1L, 1L)).thenReturn(List.of(layer1));
+
+        assertThatThrownBy(() -> fifoCostService.consume(1L, 1L, new BigDecimal("150")))
+                .isInstanceOf(com.storename.erp.inventory.domain.StockInsufficientException.class);
+        assertThat(layer1.getRemainingQty()).isEqualByComparingTo("100");
     }
 }

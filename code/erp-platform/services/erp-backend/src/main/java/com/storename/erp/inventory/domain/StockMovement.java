@@ -28,7 +28,7 @@ public class StockMovement {
     private MovementType movementType;
 
     /** Dương = nhập vào, âm = xuất ra */
-    @Column(nullable = false, precision = 18, scale = 3)
+    @Column(nullable = false, precision = 19, scale = 4)
     private BigDecimal quantity;
 
     @Column(name = "ref_type", nullable = false, length = 50)  private String refType;

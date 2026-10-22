@@ -18,6 +18,13 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 
+/*
+ * DB H2 dùng chung giữa các lớp test có cùng cấu hình (Spring cache ApplicationContext), và lớp này
+ * ghi dữ liệu không rollback (luồng đồng thời cần commit thật). @DirtiesContext bỏ context sau lớp
+ * để lớp sau có DB H2 mới (application-test.yml: testdb_${random.uuid}) — tránh trùng
+ * uk_stock_product_branch / mã chứng từ giữa các lớp test.
+ */
+@org.springframework.test.annotation.DirtiesContext(classMode = org.springframework.test.annotation.DirtiesContext.ClassMode.AFTER_CLASS)
 @SpringBootTest(properties = { "instance.role=ALL" })
 @ActiveProfiles("test")
 public class InboundReceiptConcurrencyIT {
@@ -41,7 +48,7 @@ public class InboundReceiptConcurrencyIT {
         com.storename.erp.inventory.domain.StockOnHand soh = new com.storename.erp.inventory.domain.StockOnHand(2L, 1L);
         stockOnHandRepository.save(soh);
         
-        InboundReceiptCreateDto.LineDto line = new InboundReceiptCreateDto.LineDto();
+        InboundReceiptCreateDto.InboundReceiptLineDto line = new InboundReceiptCreateDto.InboundReceiptLineDto();
         line.setProductId(2L);
         line.setQuantity(new BigDecimal("10.0"));
         line.setUnitCost(new BigDecimal("100.0"));
@@ -65,9 +72,9 @@ public class InboundReceiptConcurrencyIT {
                     // Attempt to confirm the receipt
                     inboundReceiptService.confirmReceipt(receiptId, 1L, UUID.randomUUID());
                     successCount.incrementAndGet();
-                } catch (IllegalStateException e) {
-                    System.out.println("Thread got IllegalStateException: " + e.getMessage());
-                    if (e.getMessage().contains("Receipt is already CONFIRMED")) {
+                } catch (com.storename.erp.common.exception.BusinessConflictException e) {
+                    System.out.println("Thread got BusinessConflictException: " + e.getMessage());
+                    if ("INVALID_STATUS".equals(e.getCode())) {
                         exceptionCount.incrementAndGet();
                     } else {
                         e.printStackTrace();
@@ -90,7 +97,7 @@ public class InboundReceiptConcurrencyIT {
         
         // Assertions
         Assertions.assertEquals(1, successCount.get(), "Only one thread should successfully confirm the receipt");
-        Assertions.assertEquals(4, exceptionCount.get(), "The other threads should throw IllegalStateException after retry");
+        Assertions.assertEquals(4, exceptionCount.get(), "The other threads should be rejected with INVALID_STATUS (409) after retry");
         
         InboundReceipt updatedReceipt = inboundReceiptRepository.findById(receiptId).orElseThrow();
         Assertions.assertEquals(1, updatedReceipt.getVersion(), "Version should be 1 after one successful confirmation");

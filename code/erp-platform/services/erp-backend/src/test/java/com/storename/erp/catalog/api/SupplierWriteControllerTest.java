@@ -56,7 +56,6 @@ public class SupplierWriteControllerTest {
         SupplierCreateDto dto = new SupplierCreateDto();
         dto.setCode("SUP-01");
         dto.setName("New Supplier");
-        dto.setBranchId(1L);
 
         SupplierResponseDto responseDto = SupplierResponseDto.builder()
                 .id(UUID.randomUUID())
@@ -84,7 +83,6 @@ public class SupplierWriteControllerTest {
         SupplierCreateDto dto = new SupplierCreateDto();
         dto.setCode("SUP-01");
         dto.setName("New Supplier");
-        dto.setBranchId(1L);
 
         JwtAuthDetails details = new JwtAuthDetails("1", "token-123");
         UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(

@@ -23,11 +23,12 @@ public class ProductReadController {
     @PreAuthorize("hasAnyAuthority('STAFF', 'ADMIN')")
     public ResponseEntity<ApiResponse<List<ProductResponseDto>>> getAllProducts(
             @RequestParam(required = false, defaultValue = "false") boolean withBranchPrice,
-            @RequestParam(required = false) String search) {
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Long branchId) {
         log.info("REST request to get all products with search: {}", search);
         List<ProductResponseDto> products;
         if (withBranchPrice) {
-            products = productReader.getAllProductsWithBranchPrice();
+            products = productReader.getAllProductsWithBranchPrice(branchId);
         } else {
             products = productReader.getAllProducts();
         }
@@ -42,18 +43,4 @@ public class ProductReadController {
         return ResponseEntity.ok(ApiResponse.success(products));
     }
 
-    @GetMapping("/{id}")
-    @PreAuthorize("hasAnyAuthority('STAFF', 'ADMIN')")
-    public ResponseEntity<ApiResponse<ProductResponseDto>> getProductById(
-            @PathVariable Long id,
-            @RequestParam(required = false, defaultValue = "false") boolean withBranchPrice) {
-        log.info("REST request to get product: {}", id);
-        ProductResponseDto product;
-        if (withBranchPrice) {
-            product = productReader.getProductByIdWithBranchPrice(id);
-        } else {
-            product = productReader.getProductById(id);
-        }
-        return ResponseEntity.ok(ApiResponse.success(product));
-    }
 }

@@ -4,10 +4,12 @@
     "private": true,
     "scripts": {
         "dev": "vite",
-        "build": "vite build",
+        "typecheck": "tsc --noEmit -p tsconfig.json",
+        "build": "npm run typecheck && vite build",
         "preview": "vite preview",
         "test": "vitest",
-        "lint": "eslint ."
+        "lint": "eslint .",
+        "test:e2e": "playwright test tests/ui"
     },
     "dependencies": {
         "@erp/api-contract": "*",

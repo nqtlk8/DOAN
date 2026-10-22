@@ -18,26 +18,24 @@ public interface InventoryFacade {
     BigDecimal getAvailableQuantity(Long productId, Long branchId);
 
     /**
-     * (Dự phòng Sprint 2.2+)
-     * Xác nhận giữ chỗ tồn kho (Reservation) cho đơn hàng Sales đang xử lý.
-     * @param productId ID sản phẩm.
-     * @param branchId ID chi nhánh.
-     * @param quantity Số lượng cần giữ chỗ.
-     * @param referenceId ID của SalesOrder.
-     * @return true nếu giữ chỗ thành công, false nếu không đủ hàng.
-     */
-    boolean reserveStock(Long productId, Long branchId, BigDecimal quantity, UUID referenceId);
-
-    /**
      * Ghi nhận xuất kho bán hàng (SALE): Tiêu thụ FIFO, giảm tồn kho, ghi nhận movement.
+     * Không cho tồn âm: ném {@link com.storename.erp.inventory.domain.StockInsufficientException}
+     * (HTTP 409, mã INSUFFICIENT_STOCK) nếu tồn kho không đủ.
      * @return Kết quả giá vốn (unitCostSnapshot, costBasis)
      */
     SaleCostResult recordSaleAndGetCost(Long productId, Long branchId, BigDecimal quantity, String invoiceId, UUID lineId, UUID userId);
 
     /**
      * Ghi nhận nhập kho do khách trả hàng (RETURN): Tăng tồn kho, ghi nhận movement, tạo cost layer.
+     * @param unitCost GIÁ VỐN của hàng trả (snapshot giá vốn lúc bán), KHÔNG phải giá bán.
      */
-    void recordReturn(Long productId, Long branchId, BigDecimal quantity, BigDecimal returnPrice, String returnId, UUID lineId, UUID userId);
+    void recordReturn(Long productId, Long branchId, BigDecimal quantity, BigDecimal unitCost, String returnId, UUID lineId, UUID userId);
+
+    /**
+     * Giá vốn của lớp giá vốn tạo gần nhất của sản phẩm tại chi nhánh (kể cả lớp đã dùng hết).
+     * @return null nếu sản phẩm chưa từng có lớp giá vốn.
+     */
+    BigDecimal getLatestLayerUnitCost(Long productId, Long branchId);
 
     record SaleCostResult(BigDecimal unitCostSnapshot, String costBasis) {}
 }

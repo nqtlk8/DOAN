@@ -5,7 +5,8 @@
   "main": "./index.ts",
   "types": "./index.ts",
   "scripts": {
-    "generate": "openapi-typescript ./openapi.json -o ./src/generated/api.d.ts"
+    "generate": "openapi-typescript ./openapi.json -o ./src/generated/api.d.ts",
+    "check": "node scripts/check-generated.mjs"
   },
   "devDependencies": {
     "openapi-typescript": "^6.7.4",

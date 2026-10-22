@@ -2,8 +2,8 @@ package com.storename.erp.order.api;
 
 import lombok.extern.slf4j.Slf4j;
 import com.storename.erp.common.api.ApiResponse;
+import com.storename.erp.common.aop.IdempotencyContext;
 import com.storename.erp.common.aop.IdempotencyProtected;
-import com.storename.erp.common.security.JwtAuthDetails;
 import com.storename.erp.order.application.SalesInvoiceService;
 import com.storename.erp.order.application.dto.SalesInvoiceCreateDto;
 import com.storename.erp.order.domain.SalesInvoice;
@@ -32,32 +32,37 @@ public class SalesInvoiceController {
         return com.storename.erp.common.security.AuthUtils.getUserId();
     }
 
+    /** Bước 1 — Lưu hóa đơn nháp (DRAFT). Chưa trừ kho, chưa ghi công nợ. */
     @PostMapping
     @PreAuthorize("hasAuthority('STAFF')")
     @ResponseStatus(HttpStatus.CREATED)
     @IdempotencyProtected
     public ApiResponse<com.storename.erp.order.application.dto.SalesInvoiceCreateResponseDto> createInvoice(
             @Valid @RequestBody SalesInvoiceCreateDto dto) {
-
-        // Bấm "Lưu" tạo đơn và xác nhận luôn trong cùng 1 giao dịch: trừ tồn kho + cộng
-        // công nợ ngay lập tức, không để lại đơn ở trạng thái DRAFT chưa xác nhận.
         Long branchId = com.storename.erp.common.security.AuthUtils.getBranchIdOrNull();
-        UUID userId = getUserId();
-        SalesInvoice invoice = salesInvoiceService.createAndConfirm(dto, branchId, userId);
-        return ApiResponse.success(new com.storename.erp.order.application.dto.SalesInvoiceCreateResponseDto(invoice.getId(), invoice.getInvoiceCode()), "Sales invoice created and confirmed successfully");
+        SalesInvoice invoice = salesInvoiceService.createDraft(dto, branchId, IdempotencyContext.currentRequestKey());
+        return ApiResponse.success(new com.storename.erp.order.application.dto.SalesInvoiceCreateResponseDto(invoice.getId(), invoice.getInvoiceCode()), "Sales invoice draft created successfully");
     }
 
+    /** Sửa hóa đơn khi còn nháp (DRAFT). Hóa đơn đã xác nhận -> 409 INVALID_STATUS. */
+    @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('STAFF')")
+    @IdempotencyProtected
+    public ApiResponse<com.storename.erp.order.application.dto.SalesInvoiceCreateResponseDto> updateInvoice(
+            @PathVariable("id") UUID invoiceId, @Valid @RequestBody SalesInvoiceCreateDto dto) {
+        Long branchId = com.storename.erp.common.security.AuthUtils.getBranchIdOrNull();
+        SalesInvoice invoice = salesInvoiceService.updateDraft(invoiceId, dto, branchId);
+        return ApiResponse.success(new com.storename.erp.order.application.dto.SalesInvoiceCreateResponseDto(invoice.getId(), invoice.getInvoiceCode()), "Sales invoice draft updated successfully");
+    }
+
+    /** Bước 2 — Xác nhận hóa đơn: trừ kho (FIFO), ghi công nợ, lưu giá riêng của khách. */
     @PostMapping("/{id}/confirm")
     @PreAuthorize("hasAuthority('STAFF')")
     @IdempotencyProtected
-    public ApiResponse<com.storename.erp.order.application.dto.SalesInvoiceCreateResponseDto> confirmInvoice(
-            @PathVariable UUID id) {
-        
+    public ApiResponse<Void> confirmInvoice(@PathVariable("id") UUID invoiceId) {
         Long branchId = com.storename.erp.common.security.AuthUtils.getBranchIdOrNull();
-        UUID userId = getUserId();
-        
-        SalesInvoice invoice = salesInvoiceService.confirmInvoice(id, userId, branchId);
-        return ApiResponse.success(new com.storename.erp.order.application.dto.SalesInvoiceCreateResponseDto(invoice.getId(), invoice.getInvoiceCode()), "Sales invoice confirmed successfully");
+        salesInvoiceService.confirmInvoice(invoiceId, branchId, getUserId());
+        return new ApiResponse<>(true, null, "Sales invoice confirmed successfully", null);
     }
 
     @GetMapping

@@ -43,8 +43,21 @@ public class InboundReceiptController {
     @Operation(summary = "Táº¡o phiáº¿u nháº­p kho (DRAFT)")
     public ApiResponse<com.storename.erp.inventory.api.dto.InboundReceiptCreateResponseDto> createDraft(@Valid @RequestBody InboundReceiptCreateDto dto) {
         Long branchId = com.storename.erp.common.security.AuthUtils.getBranchIdOrNull();
-        UUID receiptId = inboundService.createDraft(branchId, dto);
+        UUID receiptId = inboundService.createDraft(branchId, dto,
+                com.storename.erp.common.aop.IdempotencyContext.currentRequestKey());
         return new ApiResponse<>(true, new com.storename.erp.inventory.api.dto.InboundReceiptCreateResponseDto(receiptId), "Inbound receipt draft created successfully", null);
+    }
+
+    /** Sửa phiếu nhập khi còn nháp (DRAFT). Phiếu đã xác nhận -> 409 INVALID_STATUS. */
+    @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('STAFF')")
+    @com.storename.erp.common.aop.IdempotencyProtected
+    @Operation(summary = "Sửa phiếu nhập kho khi còn nháp (DRAFT)")
+    public ApiResponse<com.storename.erp.inventory.api.dto.InboundReceiptCreateResponseDto> updateDraft(
+            @PathVariable("id") UUID receiptId, @Valid @RequestBody InboundReceiptCreateDto dto) {
+        Long branchId = com.storename.erp.common.security.AuthUtils.getBranchIdOrNull();
+        InboundReceipt receipt = inboundService.updateDraft(receiptId, branchId, dto);
+        return new ApiResponse<>(true, new com.storename.erp.inventory.api.dto.InboundReceiptCreateResponseDto(receipt.getId()), "Inbound receipt draft updated successfully", null);
     }
 
     @PostMapping("/{id}/confirm")

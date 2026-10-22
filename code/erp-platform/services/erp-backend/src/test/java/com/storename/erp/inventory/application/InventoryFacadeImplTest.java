@@ -34,6 +34,8 @@ public class InventoryFacadeImplTest {
     private CostLayerRepository costLayerRepository;
     @Mock
     private FifoCostService fifoCostService;
+    @Mock
+    private com.storename.erp.catalog.api.CatalogFacade catalogFacade;
 
     @InjectMocks
     private InventoryFacadeImpl inventoryFacade;
@@ -76,7 +78,7 @@ public class InventoryFacadeImplTest {
 
         StockOnHand stock = new StockOnHand(productId, branchId);
         stock.increase(new BigDecimal("10.0"), "INIT");
-        when(stockOnHandRepository.findByProductIdAndBranchId(productId, branchId)).thenReturn(Optional.of(stock));
+        when(stockOnHandRepository.findForUpdate(productId, branchId)).thenReturn(Optional.of(stock));
         when(stockMovementRepository.save(any(StockMovement.class))).thenAnswer(invocation -> {
             StockMovement m = invocation.getArgument(0);
             org.springframework.test.util.ReflectionTestUtils.setField(m, "id", UUID.randomUUID());
@@ -95,6 +97,41 @@ public class InventoryFacadeImplTest {
     }
 
     @Test
+    void recordSaleAndGetCost_ShouldThrow409_WhenStockInsufficient_WithProductName() {
+        StockOnHand stock = new StockOnHand(1L, 100L);
+        stock.increase(new BigDecimal("3"), "INIT");
+        when(stockOnHandRepository.findForUpdate(1L, 100L)).thenReturn(Optional.of(stock));
+        when(catalogFacade.getProductBasicInfo(any())).thenReturn(java.util.Map.of(1L,
+                com.storename.erp.catalog.api.CatalogFacade.ProductBasicInfo.builder().code("PRD-1").name("Bồn cầu").build()));
+
+        com.storename.erp.inventory.domain.StockInsufficientException ex = assertThrows(
+                com.storename.erp.inventory.domain.StockInsufficientException.class,
+                () -> inventoryFacade.recordSaleAndGetCost(1L, 100L, new BigDecimal("5"), "INV-01", UUID.randomUUID(), UUID.randomUUID()));
+
+        assertEquals("INSUFFICIENT_STOCK", ex.getCode());
+        assertTrue(ex.getMessage().contains("[PRD-1] Bồn cầu"), ex.getMessage());
+        assertTrue(ex.getMessage().contains("tồn kho còn 3, cần 5"), ex.getMessage());
+        assertEquals(0, new BigDecimal("3").compareTo(stock.getQuantity()));
+        verifyNoInteractions(fifoCostService, stockMovementRepository);
+    }
+
+    @Test
+    void recordSaleAndGetCost_ShouldThrow_WhenNoStockRow() {
+        when(stockOnHandRepository.findForUpdate(1L, 100L)).thenReturn(Optional.empty());
+        when(catalogFacade.getProductBasicInfo(any())).thenReturn(java.util.Map.of());
+
+        assertThrows(com.storename.erp.inventory.domain.StockInsufficientException.class,
+                () -> inventoryFacade.recordSaleAndGetCost(1L, 100L, new BigDecimal("1"), "INV-01", UUID.randomUUID(), UUID.randomUUID()));
+        verifyNoInteractions(fifoCostService);
+    }
+
+    @Test
+    void getLatestLayerUnitCost_ReturnsNullWhenNoLayer() {
+        when(costLayerRepository.findFirstByProductIdAndBranchIdOrderByCreatedAtDesc(1L, 100L)).thenReturn(Optional.empty());
+        assertNull(inventoryFacade.getLatestLayerUnitCost(1L, 100L));
+    }
+
+    @Test
     void recordReturn_ShouldIncreaseStockAndSaveCostLayer() {
         Long productId = 1L;
         Long branchId = 100L;
@@ -105,7 +142,8 @@ public class InventoryFacadeImplTest {
         UUID userId = UUID.randomUUID();
 
         StockOnHand stock = new StockOnHand(productId, branchId);
-        when(stockOnHandRepository.findByProductIdAndBranchId(productId, branchId)).thenReturn(Optional.of(stock));
+        // Dòng tồn được khóa ghi (findForUpdate) trước khi cộng, như khi bán và nhập kho.
+        when(stockOnHandRepository.findForUpdate(productId, branchId)).thenReturn(Optional.of(stock));
         
         when(stockMovementRepository.save(any(StockMovement.class))).thenAnswer(invocation -> {
             StockMovement m = invocation.getArgument(0);

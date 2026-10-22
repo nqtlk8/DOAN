@@ -1,279 +1,460 @@
-import React, { useEffect, useState } from 'react';
-import { TrendingUp, ShoppingCart, DollarSign, Package, Download, AlertCircle, RefreshCw } from 'lucide-react';
-import { ApiService } from '../../api/ApiService';
-import { DashboardMetricsDto } from '../../types/analytics';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
+import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useDashboardMetrics } from '../../hooks/useDashboardMetrics';
+import { useStockAlerts } from '../../hooks/useStockAlerts';
+import { StockAlertPanel } from './StockAlertPanel';
+import toast from 'react-hot-toast';
+import { DollarSign, Download, Loader2, Package, PackageOpen, RefreshCw, TrendingUp, Wallet } from 'lucide-react';
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { ApiService } from '../../api/ApiService';
+import { PageContainer } from '../../shared/components/Page/PageContainer';
+import { PageHeader } from '../../shared/components/Page/PageHeader';
 import { DataState } from '../../shared/components/DataState/DataState';
+import { formatCompact, formatCurrency, formatNumber } from '../../shared/utils/format';
+import { PERIOD_OPTIONS, type PeriodKey, getPeriodRange } from './dashboardPeriod';
+import type { DashboardMetricsDto } from '../../types/analytics';
+import { CHART_TOP_COUNT, DEFAULT_TOP_LIMIT, TOP_LIMIT_OPTIONS } from '../../config/dashboard';
 
-const formatCurrency = (value: number | undefined) => {
-  if (value === undefined) return '0 ₫';
-  return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
-};
+type TopProduct = DashboardMetricsDto['topSellingProducts'][number];
 
-const StatCard = ({ title, value, change, icon: Icon, trend, subtitle }: any) => (
-  <div className="relative overflow-hidden bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-lg transition-all duration-300 group">
-    <div className="absolute top-0 right-0 p-4 opacity-5 transform translate-x-2 -translate-y-2 group-hover:scale-110 transition-transform duration-300">
-      <Icon size={100} />
+interface StatCardProps {
+  title: string;
+  value: string;
+  subtitle: string;
+  icon: React.ElementType;
+  tone?: 'primary' | 'danger';
+  badge?: string;
+  testId: string;
+}
+
+const StatCard: React.FC<StatCardProps> = ({ title, value, subtitle, icon: Icon, tone = 'primary', badge, testId }) => (
+  <div data-testid={testId} className="card p-4 flex flex-col gap-2">
+    <div className="flex items-center justify-between gap-2">
+      <h3 className="text-[12px] font-semibold uppercase tracking-wide text-ink-muted">{title}</h3>
+      <span
+        className={`w-8 h-8 rounded-md flex items-center justify-center shrink-0 ${
+          tone === 'danger' ? 'bg-danger-soft text-danger' : 'bg-primary-soft text-primary'
+        }`}
+      >
+        <Icon size={16} />
+      </span>
     </div>
-    <div className="flex items-center justify-between mb-4 relative z-10">
-      <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-        trend === 'up' ? 'bg-emerald-100 text-emerald-600' : 
-        trend === 'down' ? 'bg-rose-100 text-rose-600' : 
-        'bg-indigo-100 text-indigo-600'
-      }`}>
-        <Icon size={24} />
-      </div>
-      {change && (
-        <span
-          className={`text-xs font-semibold px-2.5 py-1 rounded-full flex items-center gap-1 ${
-            trend === 'up' ? 'text-emerald-700 bg-emerald-50 border border-emerald-200' : 
-            'text-rose-700 bg-rose-50 border border-rose-200'
-          }`}
-        >
-          {trend === 'down' && <AlertCircle size={12} />}
-          {change}
-        </span>
-      )}
+    <div className={`text-[22px] font-semibold tabular-nums leading-tight ${tone === 'danger' ? 'text-danger' : 'text-ink'}`}>
+      {value}
     </div>
-    <div className="relative z-10">
-      <h3 className="text-slate-500 text-sm font-medium tracking-wide uppercase">{title}</h3>
-      <p className="text-2xl font-extrabold text-slate-800 mt-1">{value}</p>
-      {subtitle && <p className="text-xs text-slate-400 mt-1">{subtitle}</p>}
+    <div className="flex items-center gap-2 text-[12px] text-ink-subtle">
+      {badge && <span className="badge-danger">{badge}</span>}
+      <span>{subtitle}</span>
     </div>
   </div>
 );
 
-const CustomTooltip = ({ active, payload, label }: any) => {
-  if (active && payload && payload.length) {
-    return (
-      <div className="bg-white p-4 rounded-xl shadow-xl border border-slate-100">
-        <p className="font-bold text-slate-800 mb-2">{label}</p>
-        <p className="text-emerald-600 font-semibold text-sm">
-          Doanh thu: {formatCurrency(payload[0].value)}
-        </p>
-        <p className="text-indigo-600 font-semibold text-sm">
-          Số lượng: {payload[1].value} SP
-        </p>
-      </div>
-    );
-  }
-  return null;
-};
-
-export const Dashboard: React.FC = () => {
-  const [branchId, setBranchId] = useState<number | undefined>(undefined);
-  const [period, setPeriod] = useState<string>('all'); 
-
-  const getDatesFromPeriod = () => {
-    const now = new Date();
-    const today = parseInt(now.toISOString().slice(0,10).replace(/-/g, ''));
-    let start = 20200101;
-    let end = 20301231;
-    if (period === 'month') {
-      start = parseInt(now.toISOString().slice(0,8).replace(/-/g, '') + '01');
-      end = today;
-    } else if (period === 'year') {
-      start = parseInt(now.getFullYear().toString() + '0101');
-      end = today;
-    }
-    return { start, end };
-  };
-
-  const { start, end } = getDatesFromPeriod();
-  const { data: branches = [] } = useQuery({ queryKey: ['branches'], queryFn: () => ApiService.Branch.getAll() });
-
-  const { data: metrics, isLoading: loading, isError, error, refetch: fetchMetrics, isFetching } = useQuery({
-    queryKey: ['dashboardMetrics', branchId, period],
-    queryFn: () => ApiService.Analytics.getDashboardMetrics(branchId, start, end),
-  });
-
-  const handleExport = async () => {
-    try {
-      const blob = await ApiService.Analytics.exportExcel(branchId, start, end);
-      const url = window.URL.createObjectURL(new Blob([blob]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `bao-cao-kinh-doanh-${start}-${end}.xlsx`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-    } catch (e) {
-      console.error('Lỗi khi xuất excel', e);
-    }
-  };
-
+const ChartTooltip = ({ active, payload }: { active?: boolean; payload?: { payload: TopProduct }[] }) => {
+  if (!active || !payload?.length) return null;
+  const p: TopProduct = payload[0].payload;
   return (
-    <div className="space-y-8 bg-slate-50/50 min-h-screen p-2">
-      {/* Header Section */}
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Tổng Quan Kinh Doanh</h1>
-          <p className="text-sm text-slate-500 mt-1">Phân tích hiệu suất doanh thu và tồn kho của cửa hàng</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <select 
-            value={branchId || ''} 
-            onChange={(e) => setBranchId(e.target.value ? Number(e.target.value) : undefined)}
-            className="bg-white border border-slate-200 text-sm font-medium text-slate-700 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm cursor-pointer"
-          >
-            <option value="">Tất cả chi nhánh</option>
-            {branches.map((b: any) => (<option key={b.id} value={b.id}>{b.name} ({b.id})</option>))}
-          </select>
-          <select 
-            value={period}
-            onChange={(e) => setPeriod(e.target.value)}
-            className="bg-white border border-slate-200 text-sm font-medium text-slate-700 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm cursor-pointer"
-          >
-            <option value="all">Toàn thời gian</option>
-            <option value="month">Tháng này</option>
-            <option value="year">Năm nay</option>
-          </select>
-          <button 
-            onClick={handleExport}
-            className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2.5 rounded-lg hover:bg-indigo-700 transition-all shadow-sm shadow-indigo-200 text-sm font-semibold active:scale-95"
-          >
-            <Download size={18} />
-            Xuất Excel
-          </button>
-          <button 
-            onClick={() => fetchMetrics()}
-            className="p-2.5 bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 transition-colors shadow-sm"
-            title="Làm mới dữ liệu"
-          >
-            <RefreshCw size={18} className={isFetching ? 'animate-spin' : ''} />
-          </button>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <DataState
-        isLoading={loading}
-        isError={isError}
-        error={error}
-        isEmpty={!metrics && !loading && !isError}
-        onRetry={fetchMetrics}
-        loadingType="spinner"
-      >
-        {metrics && (
-        <div className="space-y-8 animate-in fade-in duration-500">
-          {/* Stats Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-            <StatCard 
-              title="Tổng Doanh Thu" 
-              value={formatCurrency(metrics.totalRevenue)} 
-              icon={DollarSign} 
-              trend="up"
-              subtitle="Tổng cộng dồn từ các đơn hàng"
-            />
-            <StatCard 
-              title="Lợi Nhuận Gộp" 
-              value={formatCurrency(metrics.grossProfit)} 
-              icon={TrendingUp}
-              trend="up" 
-              subtitle="Doanh thu trừ giá vốn"
-            />
-            <StatCard 
-              title="Vòng Quay Tồn Kho" 
-              value={metrics.inventoryTurnoverRatio?.toFixed(2) || '0.00'} 
-              icon={Package} 
-              trend="neutral"
-              subtitle="Hệ số quay vòng vốn kho"
-            />
-            <StatCard 
-              title="Công Nợ Quá Hạn" 
-              value={formatCurrency(metrics.totalOverdueDebt)} 
-              icon={ShoppingCart} 
-              trend={metrics.totalOverdueDebt > 0 ? "down" : "neutral"}
-              change={metrics.totalOverdueDebt > 0 ? "Cần thu hồi" : ""}
-              subtitle="Tổng nợ phải thu từ khách hàng"
-            />
-          </div>
-
-          {/* Charts Section */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-bold text-slate-800">Top Sản Phẩm Bán Chạy Nhất</h3>
-              </div>
-              <div className="h-[350px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={metrics.topSellingProducts}
-                    margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                    <XAxis 
-                      dataKey="productName" 
-                      axisLine={false} 
-                      tickLine={false} 
-                      tick={{ fill: '#64748b', fontSize: 12 }} 
-                      dy={10}
-                    />
-                    <YAxis 
-                      yAxisId="left"
-                      axisLine={false} 
-                      tickLine={false} 
-                      tick={{ fill: '#64748b', fontSize: 12 }}
-                      tickFormatter={(value) => `${value / 1000000}M`}
-                    />
-                    <YAxis 
-                      yAxisId="right" 
-                      orientation="right" 
-                      axisLine={false} 
-                      tickLine={false}
-                      tick={{ fill: '#64748b', fontSize: 12 }}
-                    />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Legend wrapperStyle={{ paddingTop: '20px' }} />
-                    <Bar yAxisId="left" dataKey="revenue" name="Doanh thu" radius={[6, 6, 0, 0]}>
-                      {metrics.topSellingProducts?.map((entry: any, index: number) => (
-                        <Cell key={`cell-${index}`} fill={['#10b981', '#3b82f6', '#6366f1', '#8b5cf6', '#ec4899'][index % 5]} />
-                      ))}
-                    </Bar>
-                    <Bar yAxisId="right" dataKey="quantitySold" fill="#cbd5e1" name="Số lượng (SP)" radius={[6, 6, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-
-            {/* Top Products List */}
-            <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm flex flex-col h-[450px]">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-bold text-slate-800">Chi Tiết Sản Phẩm</h3>
-                <span className="text-xs font-semibold bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-full">Top {metrics.topSellingProducts?.length || 0}</span>
-              </div>
-              <div className="overflow-y-auto pr-2 flex-grow custom-scrollbar">
-                <div className="space-y-4">
-                  {metrics.topSellingProducts?.map((product: any, i: number) => (
-                    <div key={i} className="flex items-center p-3 hover:bg-slate-50 rounded-xl transition-colors border border-transparent hover:border-slate-100">
-                      <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-sm mr-4 shrink-0">
-                        #{i + 1}
-                      </div>
-                      <div className="flex-grow min-w-0">
-                        <p className="text-sm font-bold text-slate-800 truncate">{product.productName}</p>
-                        <p className="text-xs text-slate-500 mt-0.5">{product.quantitySold} sản phẩm</p>
-                      </div>
-                      <div className="text-right shrink-0 ml-4">
-                        <p className="text-sm font-bold text-emerald-600">{formatCurrency(product.revenue)}</p>
-                      </div>
-                    </div>
-                  ))}
-                  {(!metrics.topSellingProducts || metrics.topSellingProducts.length === 0) && (
-                    <div className="flex flex-col items-center justify-center h-full text-slate-400 py-10">
-                      <Package size={48} className="mb-4 opacity-20" />
-                      <p className="text-sm">Chưa có dữ liệu bán hàng</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        )}
-      </DataState>
+    <div className="card shadow-lg px-3 py-2 text-[13px]">
+      <p className="font-semibold text-ink mb-1">{p.productName}</p>
+      <p className="text-ink">Doanh thu: {formatCurrency(p.revenue)}</p>
+      <p className="text-ink-muted">Số lượng: {formatNumber(p.quantitySold)} SP</p>
+      {!p.costIncomplete && p.grossProfit != null && <p className="text-ink-muted">Lợi nhuận gộp: {formatCurrency(p.grossProfit)}</p>}
     </div>
   );
 };
 
+const MISSING_COST_TITLE = 'Có dòng bán hoặc trả hàng chưa có giá vốn — không tính được giá vốn và lợi nhuận chính xác';
+
+/** Ô giá vốn / lợi nhuận: "—" khi sản phẩm có dòng thiếu giá vốn (tránh báo lợi nhuận cao giả). */
+const CostCell: React.FC<{ value?: number | null; incomplete?: boolean; profit?: boolean; testId: string }> = ({ value, incomplete, profit, testId }) => {
+  if (incomplete || value == null) {
+    return (
+      <td className="num text-ink-subtle" title={MISSING_COST_TITLE} data-testid={testId}>
+        —
+      </td>
+    );
+  }
+  const tone = profit ? (value < 0 ? 'text-danger font-medium' : 'text-success font-medium') : '';
+  return (
+    <td className={`num ${tone}`} data-testid={testId}>
+      {formatNumber(value)}
+    </td>
+  );
+};
+
+const truncate = (s: string, n = 22) => (s && s.length > n ? `${s.slice(0, n - 1)}…` : s);
+
+const EmptyTop = () => (
+  <div className="flex flex-col items-center justify-center py-10 text-ink-subtle">
+    <PackageOpen size={32} className="mb-2" />
+    <p className="text-[13px]">Chưa có dữ liệu bán hàng trong kỳ này</p>
+  </div>
+);
+
+export const Dashboard: React.FC = () => {
+  const [branchId, setBranchId] = useState<number | undefined>(undefined);
+  const [period, setPeriod] = useState<PeriodKey>('month');
+  const [customStart, setCustomStart] = useState('');
+  const [customEnd, setCustomEnd] = useState('');
+  const [exporting, setExporting] = useState(false);
+  const [topLimit, setTopLimit] = useState<number>(DEFAULT_TOP_LIMIT);
+
+  // Tham số thực sự dùng để gọi API (kỳ "Tùy chọn" chỉ áp dụng khi bấm "Áp dụng").
+  const [queryParams, setQueryParams] = useState<{ start: number; end: number }>(() => getPeriodRange('month'));
+
+  const { data: branches = [] } = useQuery<{ id?: number; name?: string; branchCode?: string }[]>({
+    queryKey: ['branches'],
+    queryFn: () => ApiService.Branch.getAll(),
+  });
+
+  const {
+    data: metrics,
+    isLoading,
+    isError,
+    error,
+    refetch: refetchMetrics,
+    isFetching,
+    dataUpdatedAt: metricsUpdatedAt,
+  } = useDashboardMetrics(branchId, queryParams.start, queryParams.end, topLimit);
+
+  const {
+    data: alertsSummary,
+    isLoading: isAlertsLoading,
+    isError: isAlertsError,
+    refetch: refetchAlerts,
+    dataUpdatedAt: alertsUpdatedAt,
+  } = useStockAlerts(branchId);
+
+  const refetchAll = () => {
+    refetchMetrics();
+    refetchAlerts();
+  };
+  
+  const lastUpdated = Math.max(metricsUpdatedAt || 0, alertsUpdatedAt || 0);
+
+
+  const handlePeriodChange = (next: PeriodKey) => {
+    setPeriod(next);
+    if (next !== 'custom') setQueryParams(getPeriodRange(next));
+  };
+
+  const handleApplyCustom = () => {
+    if (!customStart || !customEnd) {
+      toast.error('Vui lòng chọn đủ ngày bắt đầu và ngày kết thúc');
+      return;
+    }
+    if (customStart > customEnd) {
+      toast.error('Ngày bắt đầu phải trước hoặc bằng ngày kết thúc');
+      return;
+    }
+    setQueryParams(getPeriodRange('custom', new Date(), { start: customStart, end: customEnd }));
+  };
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const blob = await ApiService.Analytics.exportExcel(branchId, queryParams.start, queryParams.end);
+      const url = window.URL.createObjectURL(new Blob([blob]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `bao-cao-kinh-doanh-${queryParams.start}-${queryParams.end}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Export failed', err);
+      toast.error('Xuất Excel thất bại');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const selectClass =
+    'h-8 bg-surface border border-line-strong text-[13px] text-ink rounded-[4px] px-2 focus:outline-none focus:border-primary';
+
+  const actions = (
+    <>
+      <select
+        data-testid="dashboard-branch"
+        aria-label="Chi nhánh"
+        value={branchId ?? ''}
+        onChange={(e) => setBranchId(e.target.value ? Number(e.target.value) : undefined)}
+        className={`${selectClass} w-[200px]`}
+      >
+        <option value="">Tất cả chi nhánh</option>
+        {branches.map((b) => (
+          <option key={b.id} value={b.id}>
+            {b.name}
+            {b.branchCode ? ` (${b.branchCode})` : ''}
+          </option>
+        ))}
+      </select>
+
+      <select
+        data-testid="dashboard-period"
+        aria-label="Kỳ báo cáo"
+        value={period}
+        onChange={(e) => handlePeriodChange(e.target.value as PeriodKey)}
+        className={selectClass}
+      >
+        {PERIOD_OPTIONS.map((o) => (
+          <option key={o.key} value={o.key}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+
+      {period === 'custom' && (
+        <>
+          <input
+            type="date"
+            aria-label="Từ ngày"
+            data-testid="dashboard-date-start"
+            value={customStart}
+            onChange={(e) => setCustomStart(e.target.value)}
+            className={selectClass}
+          />
+          <span className="text-ink-muted">–</span>
+          <input
+            type="date"
+            aria-label="Đến ngày"
+            data-testid="dashboard-date-end"
+            value={customEnd}
+            onChange={(e) => setCustomEnd(e.target.value)}
+            className={selectClass}
+          />
+          <button type="button" data-testid="dashboard-filter-btn" onClick={handleApplyCustom} className="btn btn-secondary h-8">
+            Áp dụng
+          </button>
+        </>
+      )}
+
+      {lastUpdated > 0 && (
+        <span className="text-xs text-gray-500 mr-2 flex items-center">
+          Cập nhật lúc {new Date(lastUpdated).toLocaleTimeString('vi-VN')}
+        </span>
+      )}
+      <button
+        type="button"
+        onClick={refetchAll}
+        aria-label="Làm mới"
+        title="Làm mới dữ liệu"
+        className="btn btn-secondary h-8 w-8 px-0"
+      >
+        <RefreshCw size={14} className={isFetching ? 'animate-spin' : ''} />
+      </button>
+      <button
+        type="button"
+        data-testid="dashboard-export-btn"
+        onClick={handleExport}
+        disabled={exporting}
+        className="btn btn-primary h-8"
+      >
+        {exporting ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+        Xuất Excel
+      </button>
+    </>
+  );
+
+  const top: TopProduct[] = metrics?.topSellingProducts ?? [];
+  // Biểu đồ luôn top 10 (danh sách đã sắp theo doanh thu giảm dần); bảng theo lựa chọn Top.
+  const chartTop = top.slice(0, CHART_TOP_COUNT);
+  const chartHeight = Math.max(240, chartTop.length * 44);
+  const hasMissingCost = top.some((p) => p.costIncomplete);
+
+  return (
+    <PageContainer data-testid="dashboard-page">
+      <PageHeader
+        title="Tổng quan kinh doanh"
+        subtitle="Doanh thu, lợi nhuận và công nợ theo chi nhánh"
+        actions={actions}
+      />
+
+      <StockAlertPanel summary={alertsSummary} isLoading={isAlertsLoading} isError={isAlertsError} onRetry={refetchAlerts} />
+
+      <DataState
+        isLoading={isLoading}
+        isError={isError}
+        error={error as Error | null}
+        isEmpty={!metrics && !isLoading && !isError}
+        onRetry={refetchAll}
+        loadingType="spinner"
+      >
+        {metrics && (
+          <div className="space-y-4">
+            {/* 4 thẻ KPI */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+              <StatCard
+                testId="metric-revenue"
+                title="Tổng doanh thu"
+                value={formatCurrency(metrics.totalRevenue)}
+                icon={DollarSign}
+                subtitle="Tổng tiền các hóa đơn trong kỳ"
+              />
+              <StatCard
+                testId="metric-profit"
+                title="Lợi nhuận gộp"
+                value={formatCurrency(metrics.grossProfit)}
+                icon={TrendingUp}
+                subtitle="Doanh thu trừ giá vốn"
+              />
+              <StatCard
+                testId="metric-turnover"
+                title="Vòng quay tồn kho"
+                value={formatNumber(metrics.inventoryTurnoverRatio ?? 0, 2)}
+                icon={Package}
+                subtitle="Hệ số quay vòng vốn kho"
+              />
+              <StatCard
+                testId="metric-debt"
+                title="Tổng công nợ phải thu"
+                value={formatCurrency(metrics.totalReceivableDebt)}
+                icon={Wallet}
+                tone={metrics.totalReceivableDebt > 0 ? 'danger' : 'primary'}
+                badge={metrics.totalReceivableDebt > 0 ? 'Cần thu hồi' : undefined}
+                subtitle="Tổng nợ khách hàng theo chi nhánh"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+              {/* Biểu đồ cột ngang: một chuỗi (doanh thu), một màu, một trục */}
+              <div className="lg:col-span-12 card p-4" data-testid="top-products-chart">
+                <h3 className="text-[15px] font-semibold text-ink mb-3">Top {CHART_TOP_COUNT} sản phẩm theo doanh thu</h3>
+                {chartTop.length === 0 ? (
+                  <EmptyTop />
+                ) : (
+                  <div style={{ height: chartHeight }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={chartTop} layout="vertical" margin={{ top: 0, right: 24, left: 0, bottom: 0 }}>
+                        <CartesianGrid horizontal={false} stroke="var(--color-line)" />
+                        <XAxis
+                          type="number"
+                          axisLine={false}
+                          tickLine={false}
+                          tick={{ fill: 'var(--color-ink-subtle)', fontSize: 12 }}
+                          tickFormatter={(v) => formatCompact(v)}
+                        />
+                        <YAxis
+                          type="category"
+                          dataKey="productName"
+                          width={160}
+                          axisLine={false}
+                          tickLine={false}
+                          tick={{ fill: 'var(--color-ink)', fontSize: 12 }}
+                          tickFormatter={(v) => truncate(String(v))}
+                        />
+                        <Tooltip content={<ChartTooltip />} cursor={{ fill: 'var(--color-primary-soft)' }} />
+                        <Bar dataKey="revenue" name="Doanh thu" fill="var(--color-primary)" radius={[0, 4, 4, 0]} barSize={18} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+              </div>
+
+              {/* Bảng chi tiết — cũng là "table view" cho người không đọc được biểu đồ */}
+              <div className="lg:col-span-12 card overflow-hidden flex flex-col" data-testid="top-products-table">
+                <div className="px-4 h-12 flex items-center justify-between gap-3 border-b border-line">
+                  <h3 className="text-[15px] font-semibold text-ink">Chi tiết top sản phẩm</h3>
+                  <div className="flex items-center gap-2">
+                    <span className="badge-neutral" data-testid="top-products-count">{top.length} sản phẩm</span>
+                    <select
+                      data-testid="dashboard-top-limit"
+                      aria-label="Số sản phẩm hiển thị"
+                      value={topLimit}
+                      onChange={(e) => setTopLimit(Number(e.target.value))}
+                      className={selectClass}
+                    >
+                      {TOP_LIMIT_OPTIONS.map((o) => (
+                        <option key={o.value} value={o.value}>
+                          {o.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                {top.length === 0 ? (
+                  <EmptyTop />
+                ) : (
+                  <div className="overflow-auto max-h-[440px]">
+                    <table className="erp-table">
+                      <thead className="sticky top-0 z-10 bg-white">
+                        <tr>
+                          <th className="w-10 text-center">#</th>
+                          <th>Sản phẩm</th>
+                          <th className="num w-24">SL bán</th>
+                          <th className="num w-36">Doanh thu</th>
+                          <th className="num w-36">Giá vốn</th>
+                          <th className="num w-36">Lợi nhuận gộp</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {top.map((p, i) => (
+                          <tr key={p.productId ?? i} data-testid="top-product-row">
+                            <td className="text-center text-ink-subtle">{i + 1}</td>
+                            <td className="truncate max-w-[320px]" title={p.productName}>
+                              {p.productName}
+                            </td>
+                            <td className="num">{formatNumber(p.quantitySold)}</td>
+                            <td className="num font-medium">{formatNumber(p.revenue)}</td>
+                            <CostCell value={p.cogs} incomplete={p.costIncomplete} testId="top-product-cogs" />
+                            <CostCell value={p.grossProfit} incomplete={p.costIncomplete} profit testId="top-product-profit" />
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                {hasMissingCost && (
+                  <div className="px-4 py-2 border-t border-line text-[12px] text-ink-muted" data-testid="top-products-missing-cost">
+                    "—": sản phẩm có dòng bán hoặc trả hàng chưa có giá vốn, nên không hiển thị giá vốn và lợi nhuận.
+                  </div>
+                )}
+              </div>
+
+              {/* Bảng Sản phẩm bán chậm */}
+              <div className="lg:col-span-12 card overflow-hidden flex flex-col" data-testid="slow-products-table">
+                <div className="px-4 h-12 flex items-center justify-between border-b border-line">
+                  <h3 className="text-[15px] font-semibold text-ink">Sản phẩm bán chậm</h3>
+                  {metrics.slowMovingProducts?.length > 0 && (
+                    <span className="badge-neutral">{metrics.slowMovingProducts.length}</span>
+                  )}
+                </div>
+                {(!metrics.slowMovingProducts || metrics.slowMovingProducts.length === 0) ? (
+                  <div className="p-8 text-center text-ink-subtle flex flex-col items-center justify-center gap-2">
+                    <PackageOpen size={32} className="text-line-dark" />
+                    <p>Không có sản phẩm tồn kho mà không bán trong kỳ</p>
+                  </div>
+                ) : (
+                  <div className="overflow-auto max-h-[300px]">
+                    <table className="erp-table">
+                      <thead className="sticky top-0 bg-white">
+                        <tr>
+                          <th className="w-10 text-center">#</th>
+                          <th className="w-32">Mã SP</th>
+                          <th>Tên SP</th>
+                          <th className="num w-24">Tồn hiện tại</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {metrics.slowMovingProducts.map((p, i) => (
+                          <tr key={p.productId ?? i} data-testid="slow-product-row">
+                            <td className="text-center text-ink-subtle">{i + 1}</td>
+                            <td>{p.productCode}</td>
+                            <td className="truncate max-w-[220px]" title={p.productName}>
+                              {p.productName}
+                            </td>
+                            <td className="num font-medium text-red-600">{formatNumber(p.currentStock)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </DataState>
+    </PageContainer>
+  );
+};

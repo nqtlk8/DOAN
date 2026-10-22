@@ -1,5 +1,6 @@
 package com.storename.erp.crm.application.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -21,6 +22,8 @@ public class CustomerResponseDto {
     private String address;
     private String taxCode;
     private Long branchId;
+    /** Tên JSON là {@code isDeleted} (không phải {@code deleted} mặc định của Jackson). */
+    @JsonProperty("isDeleted")
     private boolean isDeleted;
     private LocalDateTime createdAt;
 

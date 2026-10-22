@@ -16,8 +16,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.HashMap;
 import java.util.Map;
 
+import com.storename.erp.common.exception.BusinessConflictException;
 import com.storename.erp.common.exception.ResourceNotFoundException;
-import org.springframework.cache.annotation.CacheEvict;
 
 @Slf4j
 @Service
@@ -29,12 +29,18 @@ public class ProductWriter {
     private final CategoryRepository categoryRepository;
 
     @Transactional
-    @CacheEvict(value = "products", allEntries = true)
     public ProductResponseDto createProduct(ProductCreateDto dto) {
         log.info("Creating new product with code: {}", dto.getCode());
 
+        // Mã sản phẩm là duy nhất kể cả với sản phẩm đã ngừng bán (xóa mềm) -> 409 thay vì lỗi CSDL.
+        if (productRepository.findByCode(dto.getCode()).isPresent()) {
+            throw new BusinessConflictException("PRODUCT_CODE_EXISTS",
+                    "Mã sản phẩm '" + dto.getCode() + "' đã tồn tại");
+        }
+
         Category category = categoryRepository.findById(dto.getCategoryId())
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
+        requireLeafCategory(category);
 
         boolean isActive = dto.getIsActive() != null ? dto.getIsActive() : true;
 
@@ -58,7 +64,6 @@ public class ProductWriter {
     }
 
     @Transactional
-    @CacheEvict(value = "products", allEntries = true)
     public ProductResponseDto updateProduct(Long id, ProductUpdateDto dto) {
         log.info("Updating product with id: {}", id);
 
@@ -69,6 +74,7 @@ public class ProductWriter {
         if (dto.getCategoryId() != null) {
             category = categoryRepository.findById(dto.getCategoryId())
                     .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
+            requireLeafCategory(category);
         }
 
         product.updateDetails(category, dto.getName(), dto.getBaseUnit());
@@ -84,6 +90,17 @@ public class ProductWriter {
         product = productRepository.save(product);
 
         return mapToResponse(product);
+    }
+
+    /**
+     * Sản phẩm chỉ được gắn vào danh mục con (danh mục không có danh mục con nào).
+     * Danh mục gốc (vd. "VẬT LIỆU XÂY DỰNG") chỉ dùng để nhóm. Vi phạm -> HTTP 400.
+     */
+    private void requireLeafCategory(Category category) {
+        if (category.getChildren() != null && !category.getChildren().isEmpty()) {
+            throw new IllegalArgumentException("Danh mục '" + category.getName()
+                    + "' là danh mục nhóm, hãy chọn một danh mục con");
+        }
     }
 
     private void updateAttributes(Product product, Map<String, Object> attributes) {
@@ -114,7 +131,6 @@ public class ProductWriter {
     }
 
     @Transactional
-    @CacheEvict(value = "products", allEntries = true)
     public void softDeleteProduct(Long id) {
         log.info("Soft-deleting product with id: {}", id);
         Product product = productRepository.findById(id)

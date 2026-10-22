@@ -22,6 +22,13 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 
+/*
+ * DB H2 dùng chung giữa các lớp test có cùng cấu hình (Spring cache ApplicationContext), và lớp này
+ * ghi dữ liệu không rollback (luồng đồng thời cần commit thật). @DirtiesContext bỏ context sau lớp
+ * để lớp sau có DB H2 mới (application-test.yml: testdb_${random.uuid}) — tránh trùng
+ * uk_stock_product_branch / mã chứng từ giữa các lớp test.
+ */
+@org.springframework.test.annotation.DirtiesContext(classMode = org.springframework.test.annotation.DirtiesContext.ClassMode.AFTER_CLASS)
 @SpringBootTest(properties = { "instance.role=ALL" })
 @ActiveProfiles("test")
 public class GoodsReturnConcurrencyIT {
@@ -41,6 +48,9 @@ public class GoodsReturnConcurrencyIT {
     @Autowired
     private com.storename.erp.inventory.infrastructure.StockOnHandRepository stockOnHandRepository;
 
+    @Autowired
+    private com.storename.erp.inventory.infrastructure.CostLayerRepository costLayerRepository;
+
     // Test that concurrent confirm return requests on the same invoice
     // for the maximum amount only succeed once due to pessimistic lock.
     @Test
@@ -53,33 +63,28 @@ public class GoodsReturnConcurrencyIT {
         dto.setEmail("test@test.com");
         dto.setAddress("Test Address");
         dto.setTaxCode("123");
-        dto.setBranchId(1L);
+        // Khách dùng chung (branch_id NULL): CustomerWriteService yêu cầu chi nhánh tồn tại, mà test không tạo dòng branch nào.
+        dto.setBranchId(null);
         com.storename.erp.crm.application.dto.CustomerResponseDto customerResp = customerWriteService.createCustomer(dto);
         final UUID customerId = customerResp.getId();
         
         com.storename.erp.inventory.domain.StockOnHand soh = new com.storename.erp.inventory.domain.StockOnHand(1L, 1L);
         soh.increase(new BigDecimal("100"), "INIT");
         stockOnHandRepository.save(soh);
+        costLayerRepository.save(com.storename.erp.inventory.domain.CostLayer.fromInbound(1L, 1L, new BigDecimal("100"), new BigDecimal("500"), null));
         
-        // 2. Create and confirm an invoice of 5 items
-        SalesInvoice invoice = new SalesInvoice();
-        invoice.setBranchId(1L);
-        invoice.setCustomerId(customerId);
-        invoice.setInvoiceCode("INV-" + UUID.randomUUID().toString().substring(0, 5));
-        
-        SalesInvoiceLine line = new SalesInvoiceLine();
-        line.setProductId(1L);
-        line.setQuantity(new BigDecimal("5.0"));
-        line.setUnitPrice(BigDecimal.TEN);
-        line.setLineTotal(new BigDecimal("50.0"));
-        line.setUnitOfMeasure("Cái");
-        invoice.addLine(line);
-        invoice.calculateTotal();
-        
-        invoice = invoiceRepository.save(invoice);
-        final UUID invoiceId = invoice.getId();
-        
-        salesInvoiceService.confirmInvoice(invoiceId, UUID.randomUUID(), 1L);
+        // 2. Tạo và xác nhận một đơn bán 5 sản phẩm (một bước, như luồng bán hàng thật)
+        com.storename.erp.order.application.dto.SalesInvoiceLineDto invoiceLine = new com.storename.erp.order.application.dto.SalesInvoiceLineDto();
+        invoiceLine.setProductId(1L);
+        invoiceLine.setProductName("SP trả hàng");
+        invoiceLine.setQuantity(new BigDecimal("5.0"));
+        invoiceLine.setUnitPrice(BigDecimal.TEN);
+        invoiceLine.setUnitOfMeasure("Cái");
+        com.storename.erp.order.application.dto.SalesInvoiceCreateDto invoiceDto = new com.storename.erp.order.application.dto.SalesInvoiceCreateDto();
+        invoiceDto.setCustomerId(customerId);
+        invoiceDto.setInvoiceCode("INV-" + UUID.randomUUID().toString().substring(0, 5));
+        invoiceDto.setLines(List.of(invoiceLine));
+        final UUID invoiceId = com.storename.erp.support.SalesInvoiceFlows.createAndConfirm(salesInvoiceService, invoiceDto, 1L, UUID.randomUUID()).getId();
         
         int numThreads = 3; // 3 threads trying to return 5 items each (total 15, max 5)
         ExecutorService executor = Executors.newFixedThreadPool(numThreads);
@@ -96,7 +101,7 @@ public class GoodsReturnConcurrencyIT {
                     GoodsReturnCreateDto returnDto = new GoodsReturnCreateDto();
                     returnDto.setInvoiceId(invoiceId);
                     returnDto.setCustomerId(customerId);
-                    GoodsReturnCreateDto.LineDto rLine = new GoodsReturnCreateDto.LineDto();
+                    GoodsReturnCreateDto.GoodsReturnLineDto rLine = new GoodsReturnCreateDto.GoodsReturnLineDto();
                     rLine.setProductId(1L);
                     rLine.setQuantity(new BigDecimal("5.0"));
                     rLine.setUnitPrice(BigDecimal.TEN);

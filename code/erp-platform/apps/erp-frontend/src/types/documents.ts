@@ -1,0 +1,97 @@
+import React from 'react';
+import type { components } from '@erp/api-contract';
+
+export type FormMode = 'VIEW' | 'ADD' | 'EDIT';
+export type DocStatus = 'DRAFT' | 'CONFIRMED' | 'POSTED' | 'CANCELLED';
+
+export interface DocumentLine {
+  id: string;                 // id tạm phía client
+  productId: string;
+  productCode?: string;
+  productName: string;
+  unitOfMeasure?: string;
+  quantity: number;
+  unitPrice: number;          // với phiếu nhập: đây là giá nhập (map sang unitCost khi gọi api)
+  // ---- Chỉ dùng cho phiếu bán: giá hệ thống đề xuất cho khách (xem CustomerProductPriceService) ----
+  priceSource?: PriceSource;  // nguồn của appliedPrice
+  appliedPrice?: number | null; // giá đang áp dụng (giá KH hoặc niêm yết); unitPrice khác giá này = đã sửa giá
+  listPrice?: number | null;  // giá niêm yết chi nhánh (tham khảo, hiện trong tooltip)
+}
+
+/** Nguồn giá bán: giá riêng của khách / giá niêm yết chi nhánh / không có giá. */
+export type PriceSource = 'CUSTOMER' | 'LIST' | 'NONE';
+
+/** GET /api/v1/customer-prices/{customerId}/resolve?productIds=… */
+export interface ResolvedPriceDto {
+  productId: number;
+  unitPrice: number | null;
+  source: PriceSource;
+  listPrice: number | null;
+  customerPrice: number | null;
+}
+
+/** Thông tin hiển thị cạnh ô đơn giá của một dòng (GenericDocumentForm). */
+export interface LinePriceInfo {
+  label: string;                // vd "Giá KH", "Niêm yết"
+  tone: 'customer' | 'list' | 'none';
+  title?: string;               // tooltip
+  edited?: boolean;             // giá đã bị sửa so với giá đang áp dụng -> tô nổi dòng
+}
+
+export interface InfoField   { key: string; label: string; value: React.ReactNode; testId?: string; }
+export interface PartnerField {
+  key: string; label: string; value: string;
+  onChange?: (v: string) => void;   // không có => chỉ đọc (hiển thị dòng chữ)
+  required?: boolean; placeholder?: string; testId?: string;
+}
+export interface SummaryField {
+  key: string; label: string; value: number;
+  onChange?: (v: number) => void;   // có => ô NumberInput
+  tone?: 'default' | 'primary' | 'danger';   // danger chỉ tô đỏ khi value > 0
+  strong?: boolean; testId?: string;
+  allowNegative?: boolean;          // cho phép nhập số âm (vd Nợ trước)
+  isQuantity?: boolean;             // hiển thị dạng số lượng (không kèm ₫)
+  /** Nút phụ cạnh ô nhập (vd "Thu hết" trên phiếu thu). Chỉ hiện khi ô đang cho nhập. */
+  action?: { label: string; onClick: () => void; disabled?: boolean; testId?: string };
+}
+
+/* Type trả về từ Backend cho Phiếu Nhập Lại Hàng Bán (Goods Return) */
+export interface GoodsReturnLineResponse {
+  id?: string;
+  productId: number;
+  productCode?: string;
+  productName?: string;
+  quantity: number;
+  unitOfMeasure?: string;
+  unitPrice: number;
+  lineAmount?: number;
+}
+export interface GoodsReturnResponse {
+  id: string;
+  returnCode?: string;
+  branchId?: number;
+  customerId?: string;
+  customerName?: string;
+  invoiceId?: string;
+  status?: DocStatus;
+  totalAmount?: number;
+  refundAmount?: number;
+  reason?: string;
+  note?: string;
+  createdAt?: string;
+  lines?: GoodsReturnLineResponse[];
+}
+
+export interface GoodsReturnCreatePayload {
+  customerId: string;
+  reason?: string;
+  note?: string;
+  invoiceId?: string;
+  lines: { productId: number; quantity: number; unitPrice: number; unitOfMeasure: string }[];
+}
+
+/* Alias ngắn cho DTO sinh từ OpenAPI */
+export type ProductDto = components['schemas']['ProductResponseDto'];
+export type SupplierDto = components['schemas']['SupplierResponseDto'];
+export type InboundReceiptDto = components['schemas']['InboundReceiptResponseDto'];
+export type SalesInvoiceDto = components['schemas']['SalesInvoiceResponseDto'];

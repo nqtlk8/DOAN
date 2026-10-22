@@ -56,11 +56,4 @@ public class StockOnHand extends BaseEntity {
         this.quantity = this.quantity.subtract(qty);
     }
 
-    /** Giảm tồn kho cho phép âm (bán khống). */
-    public void decreaseAllowNegative(BigDecimal qty, String reason) {
-        if (qty.compareTo(BigDecimal.ZERO) <= 0)
-            throw new IllegalArgumentException("qty must be positive");
-        this.quantity = this.quantity.subtract(qty);
-    }
-
 }

@@ -116,7 +116,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     } catch (error: any) {
       console.error('[AuthContext] Login error (Network/500/401):', error);
-      const errorMsg = error.response?.data?.message || 'Sai tên đăng nhập hoặc mật khẩu (Invalid credentials)';
+      const errorMsg = error.response?.data?.message || 'Sai tên đăng nhập hoặc mật khẩu';
       return { success: false, message: errorMsg };
     }
   };

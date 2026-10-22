@@ -1,8 +1,6 @@
 import type { components } from '@erp/api-contract';
 
-type SalesInvoiceCreateDto = components['schemas']['SalesInvoiceCreateDto'];
 type ApiResponseListProductResponseDto = components['schemas']['ApiResponseListProductResponseDto'];
-type ApiResponseUUID = components['schemas']['ApiResponseUUID'];
 type ProductResponseDto = components['schemas']['ProductResponseDto'];
 
 // Use Next.js native fetch for caching and ISR
@@ -52,19 +50,3 @@ export const getFeaturedProducts = async (rootSlug: string, limit: number = 12):
   }
 };
 
-export const submitRfq = async (payload: SalesInvoiceCreateDto): Promise<ApiResponseUUID> => {
-  const url = BACKEND_URL + '/api/v1/public/rfqs';
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      // 'Idempotency-Key': crypto.randomUUID() // Should be passed from client
-    },
-    body: JSON.stringify(payload)
-  });
-  
-  if (!res.ok) {
-    throw new Error('Failed to submit RFQ');
-  }
-  return res.json();
-};

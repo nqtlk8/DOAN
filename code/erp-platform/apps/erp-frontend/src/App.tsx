@@ -15,31 +15,44 @@ const TabBar = () => {
   if (tabs.length === 0) return null;
 
   return (
-    <div className="flex bg-slate-50 border-b border-slate-200 overflow-x-auto scrollbar-hide">
-      {tabs.map((tab) => (
-        <div
-          key={tab.id}
-          onClick={() => setActiveTabId(tab.id)}
-          className={`flex items-center gap-2 px-3 py-1.5 border-r border-slate-200 cursor-pointer min-w-[150px] max-w-[200px] group transition-colors ${
-            activeTabId === tab.id
-              ? 'bg-white text-primary border-b-2 border-b-primary shadow-sm z-10'
-              : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
-          }`}
-        >
-          <span className="truncate flex-1 text-sm font-medium select-none">{tab.title}</span>
-          {tab.isClosable !== false && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
+    <div className="flex bg-surface border-b border-line overflow-x-auto h-[34px] shrink-0">
+      {tabs.map((tab) => {
+        const isActive = activeTabId === tab.id;
+        return (
+          <div
+            key={tab.id}
+            data-testid={`tab-${tab.id}`}
+            onClick={() => setActiveTabId(tab.id)}
+            onAuxClick={(e) => {
+              if (e.button === 1 && tab.isClosable !== false) {
                 closeTab(tab.id);
-              }}
-              className="p-1 rounded-full hover:bg-red-50 text-slate-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-all"
-            >
-              <X size={14} />
-            </button>
-          )}
-        </div>
-      ))}
+              }
+            }}
+            className={`flex items-center gap-2 px-3 border-r border-line cursor-pointer min-w-[140px] max-w-[220px] group transition-colors text-[13px] relative ${
+              isActive
+                ? 'bg-surface text-primary font-semibold'
+                : 'bg-surface text-ink-muted hover:bg-slate-50'
+            }`}
+          >
+            <span className="truncate flex-1 select-none leading-[34px]">{tab.title}</span>
+            {isActive && <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-primary"></div>}
+            {tab.isClosable !== false && (
+              <button
+                aria-label="Đóng tab"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  closeTab(tab.id);
+                }}
+                className={`p-0.5 rounded-sm hover:bg-slate-200 transition-colors z-10 ${
+                  isActive ? 'opacity-100 text-ink-subtle' : 'opacity-0 group-hover:opacity-100 text-ink-subtle'
+                }`}
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 };

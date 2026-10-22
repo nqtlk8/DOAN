@@ -15,8 +15,13 @@ const idempotencyCache = new Map<string, { key: string, timestamp: number }>();
 
 axiosInstance.interceptors.request.use(
   (config: any) => {
-    // Add Idempotency-Key
-    if (config.method === 'post' || config.method === 'put') {
+    // Idempotency-Key: form chứng từ tự gắn key theo lần lập phiếu (shared/idempotency/submitKey.ts) -> giữ nguyên.
+    // Các request POST/PUT khác dùng key dự phòng theo nội dung, sống 5 giây (chống bấm đúp).
+    const hasOwnKey =
+      typeof config.headers?.has === 'function'
+        ? config.headers.has('Idempotency-Key')
+        : !!config.headers?.['Idempotency-Key'];
+    if ((config.method === 'post' || config.method === 'put') && !hasOwnKey) {
       const payloadStr = config.data ? JSON.stringify(config.data) : '';
       const cacheKey = `${config.method}:${config.url}:${payloadStr}`;
       const now = Date.now();
@@ -104,11 +109,21 @@ axiosInstance.interceptors.response.use(
           }
         }
         throw new Error('Refresh failed');
-      } catch (err) {
+      } catch (err: any) {
         processQueue(err, null);
-        
+
+        // Chi xoa phien khi may chu xac thuc TU CHOI refresh (401/400) hoac khong co refresh token.
+        // Loi mang / 5xx (HQ hoac Redis tam thoi khong truy cap duoc) -> giu phien, bao loi de thu lai.
+        const refreshStatus = err?.response?.status;
+        const sessionRejected = refreshStatus === 401 || refreshStatus === 400 || !err?.response;
+        const transientFailure = !!err?.request && !err?.response || (refreshStatus !== undefined && refreshStatus >= 500);
+        if (transientFailure) {
+          notify.error('Không kết nối được máy chủ xác thực. Vui lòng thử lại sau.');
+          return Promise.reject(new ApiError(normalizeApiError(error)));
+        }
+
         // Clear session and notify
-        if (typeof window !== 'undefined') {
+        if (sessionRejected && typeof window !== 'undefined') {
           localStorage.removeItem('access_token');
           localStorage.removeItem('refresh_token');
           localStorage.removeItem('user');

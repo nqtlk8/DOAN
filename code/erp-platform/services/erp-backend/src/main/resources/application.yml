@@ -10,3 +10,6 @@ server:
 logging:
   level:
     com.storename.erp: DEBUG
+analytics:
+  business-zone: Asia/Ho_Chi_Minh
+  storage-zone: 

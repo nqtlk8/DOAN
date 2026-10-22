@@ -1,5 +1,6 @@
 package com.storename.erp.catalog.application.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -19,6 +20,8 @@ public class ProductResponseDto {
     private Long categoryId;
     private String categoryName;
     private String baseUnit;
+    /** Tên JSON là {@code isActive} (không phải {@code active} mặc định của Jackson). */
+    @JsonProperty("isActive")
     private boolean isActive;
     private Map<String, Object> attributes;
     private BigDecimal price; // Might be null if not branch scoped or no price list found

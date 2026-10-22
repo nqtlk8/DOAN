@@ -1,14 +1,16 @@
-import React, { useRef, useState } from 'react';
-import { MdiModuleLayout, type SubViewType, type FormMode } from '../layout/MdiModuleLayout';
+import React, { useCallback, useRef, useState } from 'react';
+import toast from 'react-hot-toast';
+import { errorMessage } from '../../shared/errors/errorMessage';
+import { MdiModuleLayout, type SubViewType } from '../layout/MdiModuleLayout';
 import { SalesOrderForm, type SalesOrderFormRef } from './SalesOrderForm';
 import { SalesList } from './SalesList';
 import { ApiService } from '../../api/ApiService';
-import toast from 'react-hot-toast';
+import type { DocStatus, FormMode, SalesInvoiceDto } from '../../types/documents';
 
 interface SalesModuleProps {
   initialSubView?: SubViewType;
   mode?: FormMode;
-  initialData?: any;
+  initialData?: SalesInvoiceDto | null;
 }
 
 export const SalesModule: React.FC<SalesModuleProps> = ({
@@ -19,54 +21,64 @@ export const SalesModule: React.FC<SalesModuleProps> = ({
   const [activeSubView, setActiveSubView] = useState<SubViewType>(initialSubView);
   const [currentMode, setCurrentMode] = useState<FormMode>(initialMode);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [status, setStatus] = useState<DocStatus | undefined>(initialData?.status);
   const formRef = useRef<SalesOrderFormRef>(null);
-  const [formData, setFormData] = useState<any>(initialData);
+  const [formData, setFormData] = useState<SalesInvoiceDto | null | undefined>(initialData);
+  const [formKey, setFormKey] = useState(0);
 
-  const handleStateChange = (mode: FormMode, loading: boolean) => {
+  const handleStateChange = useCallback((mode: FormMode, loading: boolean, st?: DocStatus) => {
     setCurrentMode(mode);
     setIsLoading(loading);
-  };
+    setStatus(st);
+  }, []);
 
   const handleRowDoubleClick = async (orderId: string) => {
     try {
       setIsLoading(true);
       const res = await ApiService.SalesInvoice.getById(orderId);
-      setFormData(res || {}); // Depending on whether backend returns data inside data
+      setFormData(res ?? null);
       setCurrentMode('VIEW');
+      setFormKey((k) => k + 1);
       setActiveSubView('FORM');
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      toast.error('Không thể tải chi tiết đơn hàng: ' + err.message);
+      toast.error('Không thể tải chi tiết đơn hàng: ' + errorMessage(err, ''));
     } finally {
       setIsLoading(false);
     }
   };
 
+  // Chưa có API xóa hóa đơn → không hiển thị nút Xóa.
+  // Hai bước như phiếu nhập / phiếu trả: Lưu (nháp) → [Sửa (F3) → Lưu]* → Xác nhận (F9).
+  // Nút Sửa và Xác nhận chỉ hiện khi phiếu đang là nháp.
   return (
     <MdiModuleLayout
       activeSubView={activeSubView}
       onSubViewChange={setActiveSubView}
       mode={currentMode}
       isLoading={isLoading}
+      hideConfirm={status !== 'DRAFT'}
       onAdd={() => formRef.current?.handleAdd()}
-      onEdit={() => formRef.current?.handleEdit()}
+      // Chỉ phiếu nháp (chưa xác nhận) mới được sửa; sửa xong Lưu rồi Xác nhận (F9) như bình thường.
+      onEdit={status === 'DRAFT' ? () => formRef.current?.handleEdit() : undefined}
       onSave={() => formRef.current?.handleSubmit()}
       onCancel={() => formRef.current?.handleCancel()}
-      onDelete={() => formRef.current?.handleDelete()}
       onConfirm={() => formRef.current?.handleConfirm()}
       onPrint={() => formRef.current?.handlePrint()}
       onExit={() => formRef.current?.handleExit()}
     >
-      {activeSubView === 'FORM' ? (
+      {/* Giữ form luôn mounted: chuyển qua "Danh sách phiếu" rồi quay lại không mất dữ liệu đang nhập */}
+      <div className={activeSubView === 'FORM' ? 'h-full' : 'hidden'}>
         <SalesOrderForm
           // key: remount khi mở đơn khác để form đọc lại initialData (useState chỉ đọc lần đầu)
-          key={formData?.id ?? 'new'}
+          key={`${formData?.id ?? 'new'}-${formKey}`}
           ref={formRef}
-          mode={currentMode}
+          mode={formData?.id ? 'VIEW' : initialMode}
           initialData={formData}
           onStateChange={handleStateChange}
         />
-      ) : (
+      </div>
+      {activeSubView === 'LIST' && (
         <div className="p-4 h-full">
           <SalesList setActiveTab={() => {}} onRowDoubleClick={handleRowDoubleClick} />
         </div>

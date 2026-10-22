@@ -1,5 +1,6 @@
 package com.storename.erp.branch.application.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -17,5 +18,10 @@ public class BranchDTO {
     private String phone;
     private String openingHours;
     private String internalUrl;
-    private boolean isActive;
+    /**
+     * Tên JSON là {@code isActive}. Kiểu Boolean để phân biệt "không gửi" (null, giữ nguyên khi cập nhật)
+     * với {@code false}.
+     */
+    @JsonProperty("isActive")
+    private Boolean isActive;
 }

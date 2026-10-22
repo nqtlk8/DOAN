@@ -20,6 +20,13 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
+/*
+ * DB H2 dùng chung giữa các lớp test có cùng cấu hình (Spring cache ApplicationContext), và lớp này
+ * ghi dữ liệu không rollback (luồng đồng thời cần commit thật). @DirtiesContext bỏ context sau lớp
+ * để lớp sau có DB H2 mới (application-test.yml: testdb_${random.uuid}) — tránh trùng
+ * uk_stock_product_branch / mã chứng từ giữa các lớp test.
+ */
+@org.springframework.test.annotation.DirtiesContext(classMode = org.springframework.test.annotation.DirtiesContext.ClassMode.AFTER_CLASS)
 @SpringBootTest(properties = { "instance.role=ALL" })
 @ActiveProfiles("test")
 public class FinancialReconciliationIT {
@@ -93,17 +100,23 @@ public class FinancialReconciliationIT {
         Assertions.assertEquals(0, expectedBalance.compareTo(sumOfMovements), 
                 "SUM(amount) in ledger MUST strictly equal the totalDebt on the entity");
                 
-        // Verify balance_before and balance_after integrity (Append-Only continuous link check)
+        // Verify balance_before and balance_after integrity (Append-Only continuous link check).
+        // Nối chuỗi theo số dư (balance_before của dòng sau = balance_after của dòng trước), KHÔNG sắp theo
+        // created_at: trên Windows đồng hồ JVM chỉ chính xác ~ms nên nhiều dòng ghi liên tiếp trùng thời điểm
+        // và thứ tự sắp theo created_at không xác định (test từng lỗi "Chain broken" ngẫu nhiên).
         BigDecimal runningBalance = BigDecimal.ZERO;
-        // Since list is descending, we iterate in reverse or just fetch ascending
-        movements.sort((m1, m2) -> m1.getCreatedAt().compareTo(m2.getCreatedAt())); // sort ascending
-        
-        for (ReceivableDebtMovement movement : movements) {
-            Assertions.assertEquals(0, runningBalance.compareTo(movement.getBalanceBefore()), 
-                "Chain broken: balanceBefore does not match previous running balance");
-            
+        List<ReceivableDebtMovement> remaining = new java.util.ArrayList<>(movements);
+        while (!remaining.isEmpty()) {
+            final BigDecimal expectedBefore = runningBalance;
+            ReceivableDebtMovement movement = remaining.stream()
+                    .filter(m -> m.getBalanceBefore().compareTo(expectedBefore) == 0)
+                    .findFirst()
+                    .orElseThrow(() -> new AssertionError(
+                            "Chain broken: no movement starts from running balance " + expectedBefore));
+            remaining.remove(movement);
+
             runningBalance = runningBalance.add(movement.getAmount());
-            
+
             Assertions.assertEquals(0, runningBalance.compareTo(movement.getBalanceAfter()), 
                 "Math error: balanceBefore + amount != balanceAfter");
         }

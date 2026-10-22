@@ -1,29 +1,33 @@
+import { PageHeader } from '../../shared/components/Page/PageHeader';
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ApiService } from '../../api/ApiService';
-import { DataState } from '../../shared/components/DataState/DataState';
+import { ListTable } from '../../shared/components/DataState/ListTable';
+import { PageContainer } from '../../shared/components/Page/PageContainer';
+import { formatDateTime, formatNumber } from '../../shared/utils/format';
 import type { components } from '@erp/api-contract';
 
 interface DebtStatementProps {
   customerId: string;
   customerName: string;
+  /** Ở HQ: chỉ xem sổ của một chi nhánh, để cột Dư nợ là số dư liên tục của cặp (khách, chi nhánh). */
+  branchId?: number;
+  branchName?: string;
 }
 
-export const DebtStatement: React.FC<DebtStatementProps> = ({ customerId, customerName }) => {
+export const DebtStatement: React.FC<DebtStatementProps> = ({ customerId, customerName, branchId, branchName }) => {
   const { data: response, isLoading, isError, error, refetch } = useQuery<components['schemas']['ReceivableDebtMovementResponseDto'][]>({
     queryKey: ['debt-movements', customerId],
     queryFn: () => ApiService.Debt.getMovements(customerId),
   });
 
-  const movements = response || [];
+  const movements = (response || []).filter((m) => branchId == null || Number(m.branchId) === Number(branchId));
 
-  const formatCurrency = (amount: number | undefined) => {
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount || 0);
-  };
-
-  const getMovementLabel = (type: string | undefined) => {
+  // Phiếu thu ghi PAYMENT, hủy phiếu thu ghi ADJUSTMENT: phân biệt theo refType để nhãn rõ nghĩa.
+  const getMovementLabel = (type: string | undefined, refType?: string) => {
+    if (refType === 'CASH_RECEIPT') return 'Phiếu thu';
+    if (refType === 'CASH_RECEIPT_CANCEL') return 'Hủy phiếu thu';
     switch (type) {
-      case 'OPENING_BALANCE': return 'Số dư đầu kỳ';
       case 'INVOICE': return 'Bán hàng';
       case 'PAYMENT': return 'Thanh toán/Trả trước';
       case 'RETURN': return 'Khách trả hàng';
@@ -32,83 +36,62 @@ export const DebtStatement: React.FC<DebtStatementProps> = ({ customerId, custom
     }
   };
 
-  const getMovementColor = (type: string | undefined) => {
+  const getMovementColor = (type: string | undefined, refType?: string) => {
+    if (refType === 'CASH_RECEIPT_CANCEL') return 'text-danger bg-danger-soft'; // Tăng nợ lại
     switch (type) {
-      case 'OPENING_BALANCE': return 'text-slate-600 bg-slate-100';
-      case 'INVOICE': return 'text-red-600 bg-red-50'; // Tăng nợ
-      case 'PAYMENT': return 'text-green-600 bg-green-50'; // Giảm nợ
-      case 'RETURN': return 'text-amber-600 bg-amber-50'; // Giảm nợ
-      case 'ADJUSTMENT': return 'text-blue-600 bg-blue-50';
-      default: return 'text-slate-600 bg-slate-50';
+      case 'INVOICE': return 'text-danger bg-danger-soft'; // Tăng nợ
+      case 'PAYMENT': return 'text-success bg-success-soft'; // Giảm nợ
+      case 'RETURN': return 'text-warning bg-warning-soft'; // Giảm nợ
+      case 'ADJUSTMENT': return 'text-primary bg-primary-soft';
+      default: return 'text-ink-muted bg-app';
     }
   };
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-slate-900">Sao Kê Công Nợ: {customerName}</h2>
-      </div>
-
-      <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="bg-slate-50 border-b border-slate-100">
-              <th className="px-4 py-3 text-xs font-medium uppercase tracking-wider text-slate-500">Thời gian</th>
-              <th className="px-4 py-3 text-xs font-medium uppercase tracking-wider text-slate-500">Loại nghiệp vụ</th>
-              <th className="px-4 py-3 text-xs font-medium uppercase tracking-wider text-slate-500">Chứng từ</th>
-              <th className="px-4 py-3 text-xs font-medium uppercase tracking-wider text-slate-500 text-right">Phát sinh</th>
-              <th className="px-4 py-3 text-xs font-medium uppercase tracking-wider text-slate-500 text-right">Dư nợ</th>
-              <th className="px-4 py-3 text-xs font-medium uppercase tracking-wider text-slate-500">Ghi chú</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td colSpan={6} className="p-0">
-                <DataState
-                  isLoading={isLoading}
-                  isError={isError}
-                  error={error}
-                  isEmpty={movements.length === 0}
-                  onRetry={refetch}
-                  loadingType="table"
-                  emptyTitle="Chưa có dữ liệu sao kê"
-                  emptyMessage="Khách hàng chưa có lịch sử phát sinh công nợ."
-                >
-                  {null}
-                </DataState>
+    <PageContainer>
+      <PageHeader title={`Sao kê công nợ: ${customerName}${branchName ? ` — ${branchName}` : ''}`} subtitle="Lịch sử phát sinh và dư nợ theo từng chứng từ" />
+      <ListTable
+        colCount={6}
+        isLoading={isLoading}
+        isError={isError}
+        error={error as Error | null}
+        onRetry={refetch}
+        totalCount={movements.length}
+        filteredCount={movements.length}
+        emptyTitle="Chưa có dữ liệu sao kê"
+        emptyMessage="Khách hàng chưa có lịch sử phát sinh công nợ."
+        header={
+          <tr>
+            <th className="w-40">Thời gian</th>
+            <th className="w-44">Loại nghiệp vụ</th>
+            <th className="w-40">Chứng từ</th>
+            <th className="num w-36">Phát sinh</th>
+            <th className="num w-36">Dư nợ</th>
+            <th>Ghi chú</th>
+          </tr>
+        }
+      >
+        {movements.map((m) => {
+          const amount = Number(m.amount || 0);
+          return (
+            <tr key={m.id} data-testid="debt-movement-row">
+              <td className="whitespace-nowrap">{formatDateTime(m.createdAt) || '—'}</td>
+              <td>
+                <span className={`badge ${getMovementColor(m.movementType, m.refType)}`}>{getMovementLabel(m.movementType, m.refType)}</span>
+              </td>
+              <td>{m.referenceCode || m.refId || '—'}</td>
+              <td className={`num font-medium ${amount > 0 ? 'text-danger' : 'text-success'}`}>
+                {amount > 0 ? '+' : amount < 0 ? '−' : ''}
+                {formatNumber(Math.abs(amount))}
+              </td>
+              <td className="num font-medium">{formatNumber(Number(m.balanceAfter || 0))}</td>
+              <td className="text-ink-subtle truncate max-w-xs" title={m.note || ''}>
+                {m.note || '—'}
               </td>
             </tr>
-            {!isLoading && !isError && movements.length > 0 && (
-              movements.map((m) => {
-                const isIncrease = (m.amount || 0) > 0;
-                const displayAmount = Math.abs(m.amount || 0);
-                return (
-                  <tr key={m.id} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
-                    <td className="px-4 py-3 text-sm text-slate-900 whitespace-nowrap">
-                      {m.createdAt ? new Date(m.createdAt).toLocaleString('vi-VN') : '-'}
-                    </td>
-                    <td className="px-4 py-3 text-sm">
-                      <span className={`px-2 py-1 rounded text-xs font-medium ${getMovementColor(m.movementType)}`}>
-                        {getMovementLabel(m.movementType)}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-slate-900">{m.referenceCode || m.refId || '-'}</td>
-                    <td className={`px-4 py-3 text-sm font-medium text-right ${isIncrease ? 'text-red-600' : 'text-green-600'}`}>
-                      {isIncrease ? '+' : '-'}{formatCurrency(displayAmount)}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-slate-900 font-medium text-right">
-                      {formatCurrency(m.balanceAfter)}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-slate-500 truncate max-w-xs" title={m.note || ''}>
-                      {m.note || '-'}
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
-    </div>
+          );
+        })}
+      </ListTable>
+    </PageContainer>
   );
 };

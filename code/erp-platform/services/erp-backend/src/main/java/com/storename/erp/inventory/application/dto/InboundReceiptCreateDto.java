@@ -21,20 +21,22 @@ public class InboundReceiptCreateDto {
     
     @NotEmpty(message = "Receipt must have at least one line")
     @Valid
-    private List<LineDto> lines;
+    private List<InboundReceiptLineDto> lines;
 
     @Data
-    public static class LineDto {
+    public static class InboundReceiptLineDto {
         
         @NotNull(message = "Product ID is required")
         private Long productId;
         
         @NotNull(message = "Quantity is required")
         @Positive(message = "Quantity must be positive")
+        @jakarta.validation.constraints.Digits(integer = 15, fraction = 4, message = "quantity allows at most 4 decimal places")
         private BigDecimal quantity;
         
         @NotNull(message = "Unit cost is required")
         @DecimalMin(value = "0.0", message = "Unit cost must not be negative")
+        @jakarta.validation.constraints.Digits(integer = 15, fraction = 4, message = "unitCost allows at most 4 decimal places")
         private BigDecimal unitCost;
         
         @NotBlank(message = "Unit of measure is required")
